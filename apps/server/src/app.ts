@@ -3,6 +3,7 @@ import { requireCsrfHeader, sessionMiddleware } from "./auth/middleware.ts";
 import type { AppContext } from "./context.ts";
 import type { HonoEnv } from "./http.ts";
 import { ApiError } from "./lib/errors.ts";
+import { adminRoutes } from "./routes/admin.ts";
 import { authRoutes } from "./routes/auth.ts";
 import { clientRoutes } from "./routes/clients.ts";
 import { orgRoutes } from "./routes/org.ts";
@@ -11,6 +12,7 @@ import { projectRoutes } from "./routes/projects.ts";
 import { syncRoutes } from "./routes/sync.ts";
 import { systemRoutes } from "./routes/system.ts";
 import { tagRoutes, taskRoutes } from "./routes/tasks.ts";
+import { timesheetRoutes } from "./routes/timesheets.ts";
 import { userRoutes } from "./routes/users.ts";
 
 export function createApp(ctx: AppContext) {
@@ -37,6 +39,8 @@ export function createApp(ctx: AppContext) {
   api.route("/tasks", taskRoutes(ctx));
   api.route("/tags", tagRoutes(ctx));
   api.route("/sync", syncRoutes(ctx));
+  api.route("/timesheets", timesheetRoutes(ctx));
+  api.route("/admin", adminRoutes(ctx));
   api.all("*", (c) => c.json({ error: { code: "not_found", message: "Unknown API route." } }, 404));
 
   app.route("/api", api);
