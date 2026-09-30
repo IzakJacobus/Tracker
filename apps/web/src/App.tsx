@@ -1,5 +1,6 @@
 import { type ReactNode, useEffect } from "react";
 import { createBrowserRouter, Navigate, RouterProvider } from "react-router";
+import { CommandLayer } from "./app/CommandPalette.tsx";
 import { Shell } from "./app/Shell.tsx";
 import { SyncPill } from "./app/SyncPill.tsx";
 import { SessionProvider, useSession } from "./app/session.tsx";
@@ -15,6 +16,9 @@ import { ProjectsPage } from "./pages/projects/ProjectsPage.tsx";
 import { OrgSettingsPage } from "./pages/settings/OrgSettings.tsx";
 import { SettingsLayout } from "./pages/settings/SettingsLayout.tsx";
 import { TeamPage } from "./pages/team/Team.tsx";
+import { TrackPage } from "./pages/track/TrackPage.tsx";
+import { EntryDialogHost, useEntryDialog } from "./tracking/EntryDialogHost.tsx";
+import { TimerDock } from "./tracking/TimerDock.tsx";
 import { Logo } from "./ui/misc.tsx";
 import { ToastProvider } from "./ui/Toast.tsx";
 
@@ -23,6 +27,16 @@ function Splash() {
     <div style={{ height: "100%", display: "grid", placeItems: "center" }} aria-busy="true">
       <Logo size={36} />
     </div>
+  );
+}
+
+function AppFrame() {
+  const dialog = useEntryDialog();
+  return (
+    <>
+      <Shell statusSlot={<SyncPill />} dock={<TimerDock onAddManual={() => dialog.open({})} />} />
+      <CommandLayer />
+    </>
   );
 }
 
@@ -44,11 +58,13 @@ const appRouter = () =>
       path: "/",
       element: (
         <DataProvider>
-          <Shell statusSlot={<SyncPill />} />
+          <EntryDialogHost>
+            <AppFrame />
+          </EntryDialogHost>
         </DataProvider>
       ),
       children: [
-        { index: true, element: <Placeholder title="Track" /> },
+        { index: true, element: <TrackPage /> },
         { path: "reports/*", element: <Placeholder title="Reports" /> },
         {
           path: "approvals",
