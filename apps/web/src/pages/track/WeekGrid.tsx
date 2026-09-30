@@ -84,6 +84,9 @@ export function WeekGrid({ days, entries }: { days: string[]; entries: TimeEntry
         e.preventDefault();
         el.focus();
         el.select();
+      } else if (e.key === "Enter") {
+        // Nowhere to move: commit the value in place.
+        e.currentTarget.blur();
       }
     };
     if (e.key === "ArrowDown" || e.key === "Enter") move(1, 0);

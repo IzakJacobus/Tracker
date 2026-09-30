@@ -38,3 +38,13 @@ All notable changes to Stint are documented here. The format follows
 - Web: local IndexedDB copy (Dexie) with a pull loop and a visible sync status pill; Projects tree
   editor with drag-and-drop re-parenting, keyboard-friendly "Move to…", tasks and people tabs,
   budget progress; Clients page.
+- Sync merge engine (conflict tests written first): field-level last-write-wins by hybrid logical
+  clock, delete-wins tombstones, locked periods always win, server-owned fields stripped, dual
+  running timers resolved.
+- Sync push endpoint with per-change transactions, permission checks, validation, entry dates in
+  the organisation's time zone, rate snapshots, one running timer per person and audit logging.
+- Web: outbox with in-order push and rollback of rejected changes; always-visible timer dock;
+  project/task picker with favourites, recents and search; tag picker; entry dialog; list view
+  with continue/duplicate/undoable delete; spreadsheet-style weekly grid; day calendar with
+  drag-to-move/resize; command palette (Ctrl/Cmd+K) and keyboard shortcuts.
+- Playwright end-to-end tests (sign-in, start/stop timer, weekly grid) and a CI e2e job.

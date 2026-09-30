@@ -3,7 +3,7 @@
 > Single source of truth for where the work stands. Update after every meaningful step.
 
 ## Current phase
-**Phase 4 — Time entries, timer, weekly grid, calendar** (starting)
+**Phase 5 — Local-first hardening: offline, PWA, sync status** (starting)
 
 ## Done
 - Architecture (`docs/ARCHITECTURE.md`) and roadmap (`docs/ROADMAP.md`)
@@ -22,19 +22,23 @@
   drag-and-drop (verified in Chromium: WP2 dragged under Construction monitoring), Clients page.
   Setup wizard step 4 now works.
 - **Phase 3 complete.**
+- Phase 4: conflict tests first (24), merge engine, push endpoint (+19 integration tests), outbox +
+  EntryRepo (+15 web tests), timer dock, picker, entry dialog, list/week grid/day calendar, command
+  palette + shortcuts; Playwright e2e harness (`e2e/`) with 6 passing tests; CI e2e job.
+  Bug found by e2e and fixed: Enter in the grid's last row didn't save.
+- **Phase 4 complete.** (Idle detection → Phase 8 desktop; under-filled-day reminders → Phase 7.)
 
 ## In progress
-- Phase 4 (see ROADMAP "Plan adjustment": sync push is built with time entries)
+- Phase 5
 
 ## Next step (exact)
-1. `packages/shared/src/sync.ts`: write the conflict tests FIRST (`test/sync-merge.test.ts`):
-   field-level LWW by HLC, delete-wins tombstones, locked periods reject, dual running timers,
-   unknown/forbidden fields stripped. Then implement `mergeChange()` to make them pass.
-2. Server `POST /api/sync/push` using `mergeChange`, rate snapshot + entry_date derivation,
-   one-running-timer rule, audit log; integration tests.
-3. Web outbox + `pushHook` in SyncEngine; entry repository (create/update/delete/start/stop).
-4. Timer dock, entries list (edit/duplicate/continue/delete), manual entry, weekly grid,
-   calendar day view, favourites/recents, command palette + shortcuts.
+1. PWA: `vite-plugin-pwa` (precache app shell, `registerType: prompt`), manifest + icons, offline
+   app start; show an "Offline" banner/status in the dock when the server is unreachable.
+2. Session persistence offline: the cached `/auth/me` already lets people keep working; verify with
+   an e2e test `e2e/offline.spec.ts` (context.setOffline(true) → edit/add entries → pending count →
+   setOffline(false) → Synced → reload shows edits).
+3. Conflict UX: toast + sync popover list for rejected changes (done); add "merged" notice.
+4. Clear local data on sign-out when the outbox is empty; warn if not.
 
 ## Open decisions (for the owner)
 - Repository: the brief asked for a new public repo via `gh repo create`; this environment has no
@@ -53,8 +57,8 @@ cd apps/web && bun run build && cd ../server && \
 # → setup wizard at http://localhost:47601/setup ; LAN HTTPS on :47600
 # or hot reload: `bun run dev:server` + `bun run dev:web` (Vite on :5173 proxies /api to :47601)
 bun install
-bun run lint && bun run typecheck && bun run test
-cd apps/web && bun run build   # production web build
+bun run check                  # lint + typecheck + unit/integration tests
+bun run test:e2e               # builds the web client, starts a throwaway server, runs Playwright
 ```
 
 ## Environment notes
