@@ -3,20 +3,24 @@
 > Single source of truth for where the work stands. Update after every meaningful step.
 
 ## Current phase
-**Phase 1 — Foundations** (in progress)
+**Phase 2 — Auth, users, organisation, setup wizard** (starting)
 
 ## Done
 - Architecture (`docs/ARCHITECTURE.md`) and roadmap (`docs/ROADMAP.md`)
 - Monorepo skeleton, Biome, TS strict, EditorConfig, LICENSE, CONTRIBUTING, CHANGELOG, CI
 - `packages/shared`: UUIDv7 (monotonic), HLC (+ tests)
 - `apps/server`: SQLite schema v1 (`0001_initial.sql`), migration runner with checksums (+ tests)
+- `apps/web`: Vite 8 + React 19 + Vitest 5 skeleton (+ test)
+- **Phase 1 complete** (lint, typecheck, tests green locally)
 
 ## In progress
-- Phase 1 wrap-up: web app skeleton so CI covers every workspace
+- Phase 2: server config loader + bootstrap
 
 ## Next step (exact)
-1. Scaffold `apps/web` (Vite + React + TS strict + Vitest) with a placeholder page and one test.
-2. Commit, push, confirm CI green → Phase 1 done → start Phase 2 (config + server bootstrap + auth).
+1. `apps/server/src/config.ts` (defaults < stint.config.json < env) + `stint.config.example.json`.
+2. `apps/server/src/app.ts` Hono app factory taking `{db, config, clock}` for testability.
+3. Shared Zod schemas: org settings, user, login; permissions module + tests.
+4. Auth routes (setup, login, logout, me) + sessions + rate limiter + integration tests.
 
 ## Open decisions (for the owner)
 - Repository: the brief asked for a new public repo via `gh repo create`; this environment has no
@@ -31,6 +35,7 @@
 ```bash
 bun install
 bun run lint && bun run typecheck && bun run test
+cd apps/web && bun run build   # production web build
 ```
 
 ## Environment notes

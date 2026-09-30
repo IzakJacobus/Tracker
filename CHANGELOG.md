@@ -12,3 +12,4 @@ All notable changes to Stint are documented here. The format follows
 - Architecture and roadmap documents.
 - SQLite schema v1 and a checksummed, transactional migration runner.
 - UUIDv7 generator and hybrid logical clock (HLC) in the shared package.
+- Web client skeleton (Vite + React 19 + Vitest).
