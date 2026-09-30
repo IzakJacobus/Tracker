@@ -29,3 +29,12 @@ All notable changes to Stint are documented here. The format follows
   fields, switches, segmented controls, dialogs with focus trap, popovers/menus, toasts.
 - Web: app shell with collapsible sidebar and phone drawer, sign-in, six-step setup wizard,
   forced password change, account page, organisation settings, team management.
+- Rate resolution (task › per-person project rate › project tree › client › person › organisation),
+  billability inheritance, tree rollups, budgets with 80 % / 100 % warnings, rounding rules.
+- APIs for clients (archive, protected Internal client), nested projects (move with cycle check,
+  subtree follows to another client), tasks, tags and project members; per-role shaping hides money
+  from members.
+- Sync pull endpoint (incremental, paged by a global change sequence, epoch-based full resync).
+- Web: local IndexedDB copy (Dexie) with a pull loop and a visible sync status pill; Projects tree
+  editor with drag-and-drop re-parenting, keyboard-friendly "Move to…", tasks and people tabs,
+  budget progress; Clients page.

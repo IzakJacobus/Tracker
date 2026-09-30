@@ -14,6 +14,7 @@ import type { AppContext } from "../context.ts";
 import { actorOf, body, clientIp, type HonoEnv } from "../http.ts";
 import { audit } from "../lib/audit.ts";
 import { ApiError, badRequest } from "../lib/errors.ts";
+import { getMeta } from "../lib/meta.ts";
 import { accessContext } from "../services/access.ts";
 import { getOrganization } from "../services/org.ts";
 import { findUserByEmail, getUser, shapeUser } from "../services/users.ts";
@@ -88,6 +89,7 @@ export function authRoutes(ctx: AppContext) {
     const org = getOrganization(ctx.db);
     const access = accessContext(ctx.db, actor);
     return c.json({
+      serverId: getMeta(ctx.db, "server_id"),
       user: shapeUser(user, actor, access),
       organization: org,
       permissions: {

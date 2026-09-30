@@ -2,7 +2,7 @@
   "name": "stint",
   "private": true,
   "version": "0.1.0",
-  "description": "Stint — self-hosted, local-first time tracking for consulting firms",
+  "description": "Stint \u2014 self-hosted, local-first time tracking for consulting firms",
   "license": "MIT",
   "type": "module",
   "workspaces": [
@@ -22,7 +22,8 @@
     "test:server": "cd apps/server && bun test",
     "test:web": "cd apps/web && bun run test",
     "test:e2e": "playwright test -c e2e/playwright.config.ts",
-    "seed": "bun run --filter '@stint/server' seed"
+    "seed": "bun run --filter '@stint/server' seed",
+    "check": "bun run lint && bun run typecheck && bun run test"
   },
   "devDependencies": {
     "@biomejs/biome": "2.5.15",

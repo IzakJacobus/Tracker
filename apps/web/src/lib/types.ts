@@ -1,6 +1,7 @@
 import type { Organization, User } from "@stint/shared";
 
 export interface Me {
+  serverId: string;
   user: User;
   organization: Organization | null;
   permissions: { seeRates: boolean };

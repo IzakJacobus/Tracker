@@ -3,7 +3,7 @@
 > Single source of truth for where the work stands. Update after every meaningful step.
 
 ## Current phase
-**Phase 3 — Clients, nested projects, tasks, rates, budgets** (starting)
+**Phase 4 — Time entries, timer, weekly grid, calendar** (starting)
 
 ## Done
 - Architecture (`docs/ARCHITECTURE.md`) and roadmap (`docs/ROADMAP.md`)
@@ -16,19 +16,25 @@
   setup (loopback only), org + users APIs, TLS CA/leaf, port fallback, pairing code + QR (+38
   integration tests); web design system, shell, login, setup wizard, settings, team (+3 tests).
   Verified in Chromium via Playwright screenshots (wizard, settings, team light/dark).
-- **Phase 2 complete** — except wizard step 4 ("first client and project") which calls
-  `/api/clients` + `/api/projects`, arriving in Phase 3.
+- **Phase 2 complete**.
+- Phase 3: rates/rollups/rounding (+31 unit tests); clients/projects/tasks/tags/members APIs +
+  sync pull (+19 integration tests); Dexie store + pull engine (+4 tests); Projects tree page with
+  drag-and-drop (verified in Chromium: WP2 dragged under Construction monitoring), Clients page.
+  Setup wizard step 4 now works.
+- **Phase 3 complete.**
 
 ## In progress
-- Phase 3 (see ROADMAP "Plan adjustment")
+- Phase 4 (see ROADMAP "Plan adjustment": sync push is built with time entries)
 
 ## Next step (exact)
-1. `packages/shared/src/rates.ts` (task > member > project(ancestors) > client > user > org) + tests.
-2. `packages/shared/src/rollup.ts` (tree totals, budgets 80/100 %) + `rounding.ts` + tests.
-3. Server REST: `/api/clients`, `/api/projects` (tree, reparent with cycle check, archive),
-   `/api/tasks`, `/api/tags`, `/api/projects/:id/members` + integration tests.
-4. Server `GET /api/sync/pull` (per-role shaping, sync epoch) + tests.
-5. Web: Dexie store + pull loop; Projects tree page (dnd-kit), Clients page.
+1. `packages/shared/src/sync.ts`: write the conflict tests FIRST (`test/sync-merge.test.ts`):
+   field-level LWW by HLC, delete-wins tombstones, locked periods reject, dual running timers,
+   unknown/forbidden fields stripped. Then implement `mergeChange()` to make them pass.
+2. Server `POST /api/sync/push` using `mergeChange`, rate snapshot + entry_date derivation,
+   one-running-timer rule, audit log; integration tests.
+3. Web outbox + `pushHook` in SyncEngine; entry repository (create/update/delete/start/stop).
+4. Timer dock, entries list (edit/duplicate/continue/delete), manual entry, weekly grid,
+   calendar day view, favourites/recents, command palette + shortcuts.
 
 ## Open decisions (for the owner)
 - Repository: the brief asked for a new public repo via `gh repo create`; this environment has no

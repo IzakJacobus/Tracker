@@ -1,13 +1,17 @@
 import { type ReactNode, useEffect } from "react";
 import { createBrowserRouter, Navigate, RouterProvider } from "react-router";
 import { Shell } from "./app/Shell.tsx";
+import { SyncPill } from "./app/SyncPill.tsx";
 import { SessionProvider, useSession } from "./app/session.tsx";
+import { DataProvider } from "./data/DataProvider.tsx";
 import { applyTheme, watchSystemTheme } from "./lib/theme.ts";
 import { AccountPage } from "./pages/Account.tsx";
 import { ForcePassword } from "./pages/auth/ForcePassword.tsx";
 import { Login } from "./pages/auth/Login.tsx";
 import { Setup } from "./pages/auth/Setup.tsx";
+import { ClientsPage } from "./pages/clients/ClientsPage.tsx";
 import { Placeholder } from "./pages/Placeholder.tsx";
+import { ProjectsPage } from "./pages/projects/ProjectsPage.tsx";
 import { OrgSettingsPage } from "./pages/settings/OrgSettings.tsx";
 import { SettingsLayout } from "./pages/settings/SettingsLayout.tsx";
 import { TeamPage } from "./pages/team/Team.tsx";
@@ -38,7 +42,11 @@ const appRouter = () =>
   createBrowserRouter([
     {
       path: "/",
-      element: <Shell />,
+      element: (
+        <DataProvider>
+          <Shell statusSlot={<SyncPill />} />
+        </DataProvider>
+      ),
       children: [
         { index: true, element: <Placeholder title="Track" /> },
         { path: "reports/*", element: <Placeholder title="Reports" /> },
@@ -50,12 +58,12 @@ const appRouter = () =>
             </RequireRole>
           ),
         },
-        { path: "projects/*", element: <Placeholder title="Projects" /> },
+        { path: "projects/*", element: <ProjectsPage /> },
         {
           path: "clients",
           element: (
             <RequireRole roles={["admin"]}>
-              <Placeholder title="Clients" />
+              <ClientsPage />
             </RequireRole>
           ),
         },
