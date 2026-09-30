@@ -142,15 +142,17 @@ schema_migrations  version, name, checksum, applied_at
 
 ### 3.2 Rate resolution (most specific wins)
 
-`task.rate → project_member.rate → project.rate (walking up to the nearest ancestor with a rate)
-→ client.rate → user.rate → organization.default_rate`
+`task.rate → project tree, nearest level first → client.rate → user.rate → organization.default_rate`
 
-The per-person project rate (`project_member.rate`) is an extension. Consulting firms often
-bill a senior engineer at a different rate on one project. Sub-projects inherit the rate of
-their nearest ancestor that has one. The resolved rate is **snapshotted** onto the time entry
-when the server accepts it. It is recomputed only when the entry's project, task or user
-changes, or when an admin runs the **Re-rate** tool (date range + filters, recorded in the
-audit log). A later change to a rate never rewrites history.
+At each level of the project tree (the entry's project first, then its parent, and so on up to
+the top), a **per-person project rate** (`project_member.rate`) is checked first, then that
+project's own rate. So a sub-project's rate beats a per-person rate set on its parent. This
+extends the brief's `task > project > client > user > organisation` order: consulting firms
+often bill one senior engineer at a special rate on one project. The resolved rate is
+**snapshotted** onto the time entry when the server accepts it. It is recomputed only when the
+entry's project, task or user changes, or when an admin runs the **Re-rate** tool (date range
+plus filters, recorded in the audit log). A rate of 0 is a real rate (pro-bono work). Only
+`null` means "not set". Implemented in `packages/shared/src/rates.ts` and unit-tested.
 
 ### 3.3 Rollups
 
