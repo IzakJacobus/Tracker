@@ -133,7 +133,10 @@ export function pull(db: Database, actor: Actor, since: number, limit: number, n
   const changes: Partial<Record<TableName, Row[]>> = {};
   for (const c of page) {
     const shaped = FILTERS[c.table](fromDb(TABLES[c.table], c.raw), actor, access, { visibleClientIds });
-    if (shaped) (changes[c.table] ??= []).push(shaped);
+    if (!shaped) continue;
+    const list = changes[c.table];
+    if (list) list.push(shaped);
+    else changes[c.table] = [shaped];
   }
 
   const org = getOrganization(db);
