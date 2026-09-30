@@ -14,6 +14,7 @@
   "dependencies": {
     "@peculiar/x509": "2.1.0",
     "@stint/shared": "workspace:*",
+    "bonjour-service": "1.4.4",
     "hono": "4.13.12",
     "qrcode": "1.5.4",
     "reflect-metadata": "0.2.2",

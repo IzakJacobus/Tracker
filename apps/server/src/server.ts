@@ -13,6 +13,7 @@ import { openDatabase } from "./db/open.ts";
 import { createLogger, type Logger } from "./lib/log.ts";
 import { getMeta, setMeta } from "./lib/meta.ts";
 import { isLoopback, lanAddresses, machineName } from "./net/addresses.ts";
+import { startDiscovery } from "./net/discovery.ts";
 import { listenWithFallback } from "./net/listen.ts";
 import { ensureTls } from "./net/tls.ts";
 import { getOrgRow } from "./services/org.ts";
@@ -154,6 +155,20 @@ export async function startServer(config: ServerConfig, opts: StartOptions): Pro
   });
 
   const housekeeping = setInterval(() => pruneSessions(db, Date.now()), 3600_000);
+  const discovery = config.discovery
+    ? startDiscovery(
+        () => ({
+          serverId: getMeta(db, "server_id") ?? "",
+          organizationName: getOrgRow(db)?.name ?? "",
+          version: opts.version,
+          port: https.port!,
+          caFingerprint: tls.caFingerprint,
+          addresses: () => ctx.runtime.addresses,
+        }),
+        config.discoveryPort,
+        log,
+      )
+    : null;
 
   return {
     ctx,
@@ -162,6 +177,7 @@ export async function startServer(config: ServerConfig, opts: StartOptions): Pro
     adminUrl,
     async stop() {
       clearInterval(housekeeping);
+      discovery?.stop();
       await https.stop(true);
       await http.stop(true);
       db.close();
