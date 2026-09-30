@@ -71,7 +71,17 @@ All notable changes to Stint are documented here. The format follows
 - Reminders when today (after the reminder time) or the last working day is under-filled, with
   optional browser notifications.
 
+- Server discovery on the LAN: mDNS/DNS-SD (`_stint._tcp`) plus a UDP broadcast responder.
+- Desktop app (Tauri 2): finds the company's server by itself (or accepts a pairing code),
+  pins the server's own certificate authority, keeps the session token inside the app, fails over
+  between addresses and rediscovers the server when its IP changes; tray timer (start/stop,
+  tooltip with the running entry), closes to the tray, optional start at sign-in, idle detection
+  ("you were away 25 min — keep / discard / discard and stop"), native save dialog and reminder
+  notifications. Verified on Linux (WebKitGTK under Xvfb) against a live server.
+- CI job that builds the web client and runs the desktop Rust tests.
+
 ### Fixed
 - Submitting a timesheet right after an edit could lock the period before the edit reached the
   server, silently rolling it back. Submitting now sends pending changes first.
 - `.gitignore` hid `apps/web/src/data` and `apps/web/build` from the repository.
+- Demo seed attached parent-project tasks to sub-project entries; now tested for consistency.

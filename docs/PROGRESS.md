@@ -3,7 +3,7 @@
 > Single source of truth for where the work stands. Update after every meaningful step.
 
 ## Current phase
-**Phase 8 — Desktop app (Tauri): pinned HTTPS, discovery, tray timer, idle detection** (starting)
+**Phase 9 — Ship it: installers, service, backups, health, updates, docs** (starting)
 
 ## Done
 - Architecture (`docs/ARCHITECTURE.md`) and roadmap (`docs/ROADMAP.md`)
@@ -41,23 +41,32 @@
   resubmit → approve → admin unlock). 12/12 e2e green. Bug found and fixed: submit raced pending
   edits (see CHANGELOG "Fixed").
 - **Phase 7 complete.**
+- Phase 8: server mDNS + UDP responder (+1 test); `apps/desktop/src-tauri` (pin.rs, net.rs,
+  discovery.rs, pairing.rs, store.rs, idle.rs, lib.rs; 3 Rust tests; `examples/probe.rs` live check);
+  web PairScreen, DesktopGate, DesktopBridge (tray + idle dialog), desktop settings. Built with
+  `bunx tauri build --debug --no-bundle` and driven under Xvfb with xdotool: discovery → pair →
+  sign in → synced Track screen (screenshots in docs/screenshots). Windows build: CI (Phase 9).
+- **Phase 8 complete.** Not verifiable here: Windows tray/idle APIs (compile-checked only in CI).
 
 ## In progress
-- Phase 8
+- Phase 9
 
 ## Next step (exact)
-1. `apps/desktop/src-tauri`: Tauri 2 app (identifier `za.stint.desktop`), frontendDist =
-   `../../web/dist`, window + tray. Rust modules: `pinned.rs` (reqwest + rustls custom
-   `ServerCertVerifier` checking the CA SPKI SHA-256 pin), `api.rs` (`api_request` command,
-   bearer token kept in Rust, persisted in app data), `discovery.rs` (mdns-sd browse
-   `_stint._tcp` + UDP broadcast `STINT?` on 47609), `pairing` (decode code → connect → verify
-   fingerprint prefix), `idle.rs` (Windows GetLastInputInfo / macOS CGEventSource / Linux none),
-   tray menu (Start/Stop, current project, Open, Quit), `save_file` command.
-2. Web: pairing screen when running in Tauri and not paired (`/pair`): list discovered servers,
-   pairing code entry; idle prompt ("You were away 25 min — keep / discard / discard & stop").
-3. Server: mDNS advertiser + UDP responder (Phase 9 list, but needed to test pairing).
-4. CI: build desktop on windows-latest (and macos/ubuntu if cheap) in the release workflow.
-   Local build not possible here (no webkit2gtk) — rely on `cargo check` where possible.
+1. Server background ops: `services/backup.ts` (nightly VACUUM INTO to chosen folder, keep N,
+   integrity check, pre-migration + pre-restore backups), restore endpoint, folder browser API;
+   `platform/windows.ts` (sleep guard via bun:ffi SetThreadExecutionState, network category via
+   PowerShell Get-NetConnectionProfile, make-private button, firewall rule check); update check
+   (GitHub releases API, daily); `GET /api/admin/health`. Tests.
+2. Web: Settings → Health (status, DB size, last backup, connected users, pairing code, fixes),
+   Backups (folder picker, run now, list, restore), Remote access (Tailscale guide + toggle),
+   Import (CSV incl. Toggl export format).
+3. Packaging: `apps/server/scripts/build.ts` (embed web dist, `bun build --compile` for
+   windows-x64 / linux-x64 / darwin-arm64), WinSW service XML, NSIS installer script
+   (installer/server.nsi: service, firewall rules private/domain, Start-menu "Stint Server — Open",
+   uninstall removes rules), release workflow on tags (server installers + Tauri bundles).
+4. Docs: README (screenshots, quick start, backup/restore, upgrading, remote access,
+   troubleshooting), docs/USER_GUIDE.md, docs/ADMIN_GUIDE.md, docs/REMOTE_ACCESS.md,
+   docs/INSTALL_TEST.md (clean-Windows test procedure + what could not be tested here).
 
 ## Open decisions (for the owner)
 - Repository: the brief asked for a new public repo via `gh repo create`; this environment has no

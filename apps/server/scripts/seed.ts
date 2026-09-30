@@ -237,7 +237,8 @@ const tailings = project(ferrum, null, "Tailings dam inspection", {
   budgetAmount: 16_000_000,
 });
 
-const siteVisit = task(bridge, "Site visit");
+const siteVisit = task(monitoring, "Site visit");
+task(bridge, "Site visit");
 const reportWriting = task(bridge, "Report writing");
 const drawings = task(design, "Drawings & modelling");
 task(pipeline, "Meetings");
@@ -290,7 +291,7 @@ const work: Record<string, [string, string | null, number, string[]][]> = {
     [tailings, tailingsSite, 1, ["Annual inspection", "Piezometer data review"]],
   ],
   [aisha]: [
-    [wp1, drawings, 4, ["Pier design", "Load combinations", "Revit model"]],
+    [wp1, null, 4, ["Pier design", "Load combinations", "Revit model"]],
     [wp2, null, 2, ["Borehole logs", "Pile capacity"]],
     [eia, null, 2, ["Water use licence application", "Specialist study review"]],
     [tailings, null, 1, ["Stability analysis"]],

@@ -89,7 +89,9 @@ function EntryRow({ entry, now, onEdit }: { entry: TimeEntry; now: number; onEdi
   const menuAnchor = useRef<HTMLButtonElement>(null);
   const [menu, setMenu] = useState(false);
   const running = entry.durationS === null;
-  const item = byKey.get(comboKey({ projectId: entry.projectId, taskId: entry.taskId }));
+  const item =
+    byKey.get(comboKey({ projectId: entry.projectId, taskId: entry.taskId })) ??
+    byKey.get(comboKey({ projectId: entry.projectId, taskId: null }));
   const secs = entrySeconds(entry, now);
   const end = entry.startedAt + secs * 1000;
   const entryTags = tags.filter((t) => entry.tagIds.includes(t.id));

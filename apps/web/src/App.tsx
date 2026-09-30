@@ -1,6 +1,7 @@
 import { type ReactNode, useEffect } from "react";
 import { createBrowserRouter, Navigate, RouterProvider } from "react-router";
 import { CommandLayer } from "./app/CommandPalette.tsx";
+import { DesktopGate } from "./app/DesktopGate.tsx";
 import { Shell } from "./app/Shell.tsx";
 import { SyncPill } from "./app/SyncPill.tsx";
 import { SessionProvider, useSession } from "./app/session.tsx";
@@ -26,6 +27,7 @@ import { SettingsLayout } from "./pages/settings/SettingsLayout.tsx";
 import { TeamPage } from "./pages/team/Team.tsx";
 import { TrackPage } from "./pages/track/TrackPage.tsx";
 import { onAppUpdate } from "./pwa/register.ts";
+import { DesktopBridge } from "./tracking/DesktopBridge.tsx";
 import { EntryDialogHost, useEntryDialog } from "./tracking/EntryDialogHost.tsx";
 import { TimerDock } from "./tracking/TimerDock.tsx";
 import { Logo } from "./ui/misc.tsx";
@@ -56,6 +58,7 @@ function AppFrame() {
     <>
       <Shell statusSlot={<SyncPill />} dock={<TimerDock onAddManual={() => dialog.open({})} />} />
       <CommandLayer />
+      <DesktopBridge />
     </>
   );
 }
@@ -172,9 +175,11 @@ export function App() {
   }, []);
   return (
     <ToastProvider>
-      <SessionProvider>
-        <Gate />
-      </SessionProvider>
+      <DesktopGate>
+        <SessionProvider>
+          <Gate />
+        </SessionProvider>
+      </DesktopGate>
     </ToastProvider>
   );
 }

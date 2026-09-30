@@ -1,6 +1,7 @@
 import { addDays, dayOfWeek, formatDuration, localTime } from "@stint/shared";
 import { BellRing, X } from "lucide-react";
 import { useEffect, useState } from "react";
+import { desktop, isDesktop } from "../lib/desktop.ts";
 import { Button } from "../ui/Button.tsx";
 import { useMyEntries, useNow, useSettings } from "./hooks.ts";
 
@@ -47,7 +48,7 @@ export function Reminder({ today }: { today: string }) {
     <div className="reminder" role="status">
       <BellRing aria-hidden="true" />
       <span className="grow">{message}</span>
-      {typeof Notification !== "undefined" && Notification.permission === "default" && (
+      {!isDesktop() && typeof Notification !== "undefined" && Notification.permission === "default" && (
         <Button size="sm" variant="ghost" onClick={() => void Notification.requestPermission()}>
           Remind me with notifications
         </Button>
