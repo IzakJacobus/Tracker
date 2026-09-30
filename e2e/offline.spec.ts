@@ -19,7 +19,7 @@ test("offline edit, then sync", async ({ page, context }) => {
   await page.getByLabel("Duration").fill("1:15");
   await page.getByRole("button", { name: "Add time" }).last().click();
   await expect(page.locator(".entry-row", { hasText: "Offline site notes" })).toBeVisible();
-  await expect(page.locator(".sync-pill")).toContainText("Offline", { timeout: 10_000 });
+  await expect(page.locator(".sidebar .sync-pill")).toContainText("Offline", { timeout: 10_000 });
 
   // Edit it while still offline.
   await page
@@ -28,7 +28,7 @@ test("offline edit, then sync", async ({ page, context }) => {
     .click();
   await page.getByPlaceholder("What did you work on?").fill("Offline site notes (edited)");
   await page.getByRole("dialog").getByRole("button", { name: "Save", exact: true }).click();
-  await expect(page.locator(".sync-pill")).toContainText("2 saved");
+  await expect(page.locator(".sidebar .sync-pill")).toContainText("2 saved");
 
   // Stint still opens with no network: the app shell comes from the service worker,
   // the data from this computer's local copy.

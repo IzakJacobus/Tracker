@@ -17,5 +17,5 @@ export async function login(page: Page, who: keyof typeof PEOPLE) {
 }
 
 export async function waitSynced(page: Page) {
-  await expect(page.locator(".sync-pill")).toHaveText(/Synced/, { timeout: 15_000 });
+  await expect(page.locator(".sidebar .sync-pill")).toHaveText(/Synced/, { timeout: 15_000 });
 }

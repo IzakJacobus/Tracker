@@ -13,6 +13,11 @@ import { Setup } from "./pages/auth/Setup.tsx";
 import { ClientsPage } from "./pages/clients/ClientsPage.tsx";
 import { Placeholder } from "./pages/Placeholder.tsx";
 import { ProjectsPage } from "./pages/projects/ProjectsPage.tsx";
+import { ClientReportPage } from "./pages/reports/ClientReport.tsx";
+import { MonthlyReport } from "./pages/reports/Monthly.tsx";
+import { Overview } from "./pages/reports/Overview.tsx";
+import { ProjectReportPage } from "./pages/reports/ProjectReport.tsx";
+import { ReportsLayout } from "./pages/reports/ReportsLayout.tsx";
 import { OrgSettingsPage } from "./pages/settings/OrgSettings.tsx";
 import { SettingsLayout } from "./pages/settings/SettingsLayout.tsx";
 import { TeamPage } from "./pages/team/Team.tsx";
@@ -77,7 +82,16 @@ const appRouter = () =>
       ),
       children: [
         { index: true, element: <TrackPage /> },
-        { path: "reports/*", element: <Placeholder title="Reports" /> },
+        {
+          path: "reports",
+          element: <ReportsLayout />,
+          children: [
+            { index: true, element: <Overview /> },
+            { path: "monthly", element: <MonthlyReport /> },
+            { path: "project", element: <ProjectReportPage /> },
+            { path: "clients", element: <ClientReportPage /> },
+          ],
+        },
         {
           path: "approvals",
           element: (

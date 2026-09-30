@@ -1254,3 +1254,234 @@
 .mobile-bar__status .sync-pill {
   padding: 0 8px;
 }
+
+/* ============================================================
+   Reports
+   ============================================================ */
+.filters {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-3);
+  align-items: flex-end;
+  padding: var(--space-4);
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+}
+.filters .field {
+  min-width: 150px;
+}
+.stat-row {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: var(--space-3);
+}
+.stat {
+  padding: var(--space-4);
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+}
+.stat__label {
+  font-size: var(--text-sm);
+  color: var(--text-muted);
+}
+.stat__value {
+  font-size: var(--text-3xl);
+  font-weight: var(--weight-semibold);
+  letter-spacing: -0.02em;
+  margin-top: 2px;
+}
+.stat__sub {
+  font-size: var(--text-xs);
+  color: var(--text-subtle);
+}
+.report-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1.6fr) minmax(0, 1fr);
+  gap: var(--space-4);
+}
+@media (max-width: 1000px) {
+  .report-grid {
+    grid-template-columns: 1fr;
+  }
+}
+.chart {
+  margin: 0;
+}
+.chart__legend {
+  display: flex;
+  gap: var(--space-4);
+  font-size: var(--text-sm);
+  color: var(--text-muted);
+  margin-bottom: var(--space-3);
+}
+.chart__key {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+.chart__swatch {
+  width: 10px;
+  height: 10px;
+  border-radius: 2px;
+}
+.chart__plot {
+  position: relative;
+}
+.chart__grid {
+  position: absolute;
+  left: 34px;
+  right: 0;
+  height: 0;
+  border-top: 1px solid var(--chart-grid);
+}
+.chart__grid span {
+  position: absolute;
+  left: -34px;
+  top: -8px;
+  width: 28px;
+  text-align: right;
+  font-size: 11px;
+  color: var(--text-subtle);
+  font-family: var(--font-mono);
+}
+.chart__cols {
+  position: absolute;
+  right: 0;
+  top: 0;
+  display: flex;
+  align-items: stretch;
+}
+.chart__col {
+  position: relative;
+  height: 100%;
+  padding: 0 2px;
+  border: 0;
+  background: transparent;
+  cursor: default;
+}
+.chart__col:focus-visible {
+  box-shadow: none;
+  outline: 2px solid var(--primary);
+  outline-offset: -2px;
+  border-radius: 4px;
+}
+.chart__col[data-hover] {
+  background: color-mix(in srgb, var(--text) 5%, transparent);
+  border-radius: 4px;
+}
+.chart__stack {
+  position: absolute;
+  left: 22%;
+  right: 22%;
+  top: 0;
+  bottom: 0;
+}
+.chart__seg {
+  position: absolute;
+  left: 0;
+  right: 0;
+}
+.chart__seg[data-top] {
+  border-radius: 4px 4px 0 0;
+}
+.chart__xlabel {
+  position: absolute;
+  left: 50%;
+  bottom: -20px;
+  transform: translateX(-50%);
+  font-size: 11px;
+  color: var(--text-subtle);
+  white-space: nowrap;
+}
+.chart__tip {
+  position: absolute;
+  top: 0;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 5;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  min-width: 150px;
+  padding: var(--space-2) var(--space-3);
+  background: var(--surface-raised);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-md);
+  text-align: left;
+  font-size: var(--text-sm);
+  pointer-events: none;
+}
+.chart__tip[data-right] {
+  left: auto;
+  right: 50%;
+  transform: none;
+}
+.chart__tip-title {
+  font-size: var(--text-xs);
+  color: var(--text-muted);
+  font-weight: var(--weight-medium);
+}
+.chart__tip-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.chart__tip-key {
+  width: 12px;
+  height: 3px;
+  border-radius: 2px;
+}
+.barlist {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+.barlist li {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 70px;
+  grid-template-areas:
+    "label value"
+    "track track";
+  gap: 4px var(--space-3);
+}
+.barlist__label {
+  grid-area: label;
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  font-size: var(--text-sm);
+  font-weight: var(--weight-medium);
+}
+.barlist__sub {
+  font-size: var(--text-xs);
+  font-weight: var(--weight-regular);
+}
+.barlist__track {
+  grid-area: track;
+  height: 6px;
+  border-radius: var(--radius-pill);
+  background: var(--surface-sunken);
+}
+.barlist__track span {
+  display: block;
+  height: 100%;
+  border-radius: var(--radius-pill);
+  background: var(--chart-billable);
+}
+.barlist__value {
+  grid-area: value;
+  text-align: right;
+  font-size: var(--text-sm);
+  align-self: end;
+}
+.export-bar {
+  display: flex;
+  gap: var(--space-2);
+  flex-wrap: wrap;
+}

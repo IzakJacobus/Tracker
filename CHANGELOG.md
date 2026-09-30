@@ -53,3 +53,13 @@ All notable changes to Stint are documented here. The format follows
 - Sign-out deletes this person's local copy on shared computers, and warns before discarding
   changes that haven't reached the server.
 - End-to-end test: offline edit, offline reload, reconnect, synced to the server.
+- Reports computed from the local copy (so they work offline): company overview (hours,
+  billable utilisation, hours-per-day chart, top projects, budget burn, people, missing
+  timesheets), monthly timesheet per person, project timesheet (whole subtree, by person/task/
+  sub-project), client summary for invoicing; filters for period, client, project subtree,
+  person, tag and billability.
+- Exports: branded A4 PDF (logo, address, registration/VAT, accent colour, signature lines, page
+  numbers), Excel (.xlsx) and CSV (Excel-friendly, formula-injection safe).
+- Demo seed: `bun run seed` creates Karoo Consulting Engineers with 5 people, 4 clients, nested
+  projects, internal work, leave and three months of entries.
+- E2E: monthly PDF export, money hidden from members.

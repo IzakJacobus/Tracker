@@ -27,10 +27,30 @@ function orgBlock(o: Organization): ExportDoc["organization"] {
 
 const fd = (o: Organization, d: string) => formatDate(d, o.settings.dateFormat);
 
-export function linesTable(lines: Line[], opts: DocOptions, title = "Entries"): ExportTable {
+type LineColumn =
+  | "date"
+  | "person"
+  | "client"
+  | "project"
+  | "task"
+  | "description"
+  | "tags"
+  | "billable"
+  | "hours"
+  | "billed"
+  | "rate"
+  | "amount";
+
+export function linesTable(
+  lines: Line[],
+  opts: DocOptions,
+  title = "Entries",
+  omit: LineColumn[] = [],
+): ExportTable {
   const tagName = new Map((opts.tags ?? []).map((t) => [t.id, t.name]));
   const o = opts.organization;
-  return {
+  const skip = new Set<string>(omit);
+  const table: ExportTable = {
     title,
     columns: [
       { key: "date", header: "Date", kind: "date", width: 1.3 },
@@ -74,6 +94,8 @@ export function linesTable(lines: Line[], opts: DocOptions, title = "Entries"): 
       amount: lines.reduce((s, l) => s + l.amount, 0),
     },
   };
+  table.columns = table.columns.filter((c) => !skip.has(c.key));
+  return table;
 }
 
 export function monthlyTimesheetDoc(m: MonthlyTimesheet, opts: DocOptions & { status?: string }): ExportDoc {
@@ -143,9 +165,12 @@ export function monthlyTimesheetDoc(m: MonthlyTimesheet, opts: DocOptions & { st
           expected: m.expectedSeconds,
         },
       },
-      {
-        ...linesTable(m.lines, { ...opts, showMoney: false }, "All entries"),
-      },
+      linesTable(m.lines, { ...opts, showMoney: false }, "All entries", [
+        "person",
+        "client",
+        "tags",
+        "billed",
+      ]),
     ],
     signatures: ["Employee signature", "Approved by (manager)"],
     currency: o.settings.currency,
@@ -209,7 +234,7 @@ export function projectReportDoc(
         rows: r.byTask.map((t) => ({ name: t.task?.name ?? "(no task)", ...s(t.sum) })),
         totals: { name: "Total", ...s(r.total) },
       },
-      linesTable(r.lines, opts),
+      linesTable(r.lines, opts, "Entries", ["client", "tags", "billed", "rate"]),
     ],
     currency: o.settings.currency,
     organization: orgBlock(o),

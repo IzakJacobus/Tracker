@@ -202,9 +202,17 @@ export async function toPdf(doc: ExportDoc): Promise<Uint8Array> {
 
   // tables
   for (const table of doc.tables) {
+    // Fixed minimums for dates and numbers; text columns share what's left by weight.
+    const MIN: Record<string, number> = { date: 56, hours: 38, decimal: 38, int: 30, money: 62, text: 44 };
     const weights = table.columns.map((c) => c.width ?? (c.kind === "text" ? 3 : 1.2));
     const sum = weights.reduce((a, b) => a + b, 0);
-    const widths = weights.map((w) => (w / sum) * contentW);
+    let widths = weights.map((w, i) => Math.max(MIN[table.columns[i]!.kind] ?? 40, (w / sum) * contentW));
+    const over = widths.reduce((a, b) => a + b, 0) - contentW;
+    if (over > 0) {
+      const textIdx = table.columns.map((c, i) => (c.kind === "text" ? i : -1)).filter((i) => i >= 0);
+      const textW = textIdx.reduce((a, i) => a + widths[i]!, 0);
+      widths = widths.map((w, i) => (textIdx.includes(i) ? Math.max(30, w - (over * w) / textW) : w));
+    }
     const xs = widths.map((_, i) => M.left + widths.slice(0, i).reduce((a, b) => a + b, 0));
     const rowH = 15;
     const pad = 4;

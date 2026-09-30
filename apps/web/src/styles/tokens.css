@@ -204,3 +204,16 @@
   --shadow-lg: 0 16px 40px rgb(0 0 0 / 55%);
   --overlay: rgb(0 0 0 / 60%);
 }
+
+/* Chart palette — validated with the dataviz validator (lightness band, chroma, CVD ΔE ≥ 8, contrast) */
+:root,
+:root[data-theme="light"] {
+  --chart-billable: #128a60;
+  --chart-other: #b86e12;
+  --chart-grid: var(--stone-200);
+}
+:root[data-theme="dark"] {
+  --chart-billable: #2c9e76;
+  --chart-other: #c27a1c;
+  --chart-grid: var(--stone-800);
+}

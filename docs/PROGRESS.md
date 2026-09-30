@@ -3,7 +3,7 @@
 > Single source of truth for where the work stands. Update after every meaningful step.
 
 ## Current phase
-**Phase 6 — Reports, dashboard, PDF/CSV/XLSX** (starting)
+**Phase 7 — Timesheet submission, approval, locking, audit log** (starting)
 
 ## Done
 - Architecture (`docs/ARCHITECTURE.md`) and roadmap (`docs/ROADMAP.md`)
@@ -31,19 +31,28 @@
   (`bun scripts/make-icons.ts`), update prompt, safe sign-out, mobile sync status; e2e
   `offline.spec.ts` passes (8/8 e2e).
 - **Phase 5 complete.**
+- Phase 6: `packages/shared/src/reports.ts` (+11 tests), exporters in `src/export/` (+9 tests),
+  reports UI (overview/monthly/project/client) with validated chart palette, demo seed
+  (`apps/server/scripts/seed.ts`), e2e for PDF export (11/11 e2e). PDFs checked visually.
+- **Phase 6 complete.** Decision: reports run client-side over the synced local copy (members see
+  only their own data because the server never sends them more).
 
 ## In progress
-- Phase 6
+- Phase 7
 
 ## Next step (exact)
-1. `packages/shared/src/reports.ts`: pure builders over (entries, projects, clients, tasks, users,
-   settings) → project timesheet (by person/task/date, subtree), monthly per-person timesheet (daily
-   totals + per-project summary, billable vs internal), client summary (billable hours/amounts per
-   project), dashboard stats (week/month hours, utilisation, top projects, budget burn). Unit tests.
-2. Server `GET /api/reports/entries?from&to&...` returning entries + reference data the caller may
-   see (managers: team + managed projects; members: own), shaped per role. Integration tests.
-3. Exporters in shared: CSV, XLSX (fflate), PDF (pdf-lib) with logo, accent colour, signature line.
-4. Web: Reports pages (Overview dashboard, Project, Monthly timesheet, Client summary), filters.
+1. Server `routes/timesheets.ts`: `POST /api/timesheets/submit {periodStart}` (own), `POST
+   /api/timesheets/:id/approve|reject {comment}` (manager of the person / admin, not own unless
+   admin), `POST /api/timesheets/:id/unlock {reason}` (admin; audit), `POST .../withdraw`
+   (own, while submitted). Period derived from org approvalPeriod. Integration tests incl. locking.
+2. Web: "Submit timesheet" card on Track (current/previous period, totals, warnings for short
+   days), Approvals page (team periods, open monthly report, approve/reject with comment), locked
+   badges already shown.
+3. Audit log viewer (Settings → Audit log) with filters; `GET /api/audit` (admin).
+4. Reminders: in-app banner when yesterday/today is under the configured hours; desktop
+   notification later (Phase 8).
+5. Re-rate tool (Settings → Re-rate): `POST /api/admin/rerate {from,to,projectId?,userId?}`.
+6. E2E: submit and approve a timesheet.
 
 ## Open decisions (for the owner)
 - Repository: the brief asked for a new public repo via `gh repo create`; this environment has no
