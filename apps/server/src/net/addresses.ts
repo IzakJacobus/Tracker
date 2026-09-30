@@ -1,14 +1,34 @@
 import { hostname, networkInterfaces } from "node:os";
 
-/** Private IPv4 addresses of this machine (excludes loopback / link-local). */
+const VIRTUAL_IFACE =
+  /vethernet|virtualbox|vmware|docker|br-|veth|hyper-v|wsl|loopback|tailscale|zerotier|utun/i;
+
+/** IPv4 addresses of this machine (excludes loopback / link-local), physical adapters first. */
 export function lanAddresses(): string[] {
-  const out: string[] = [];
-  for (const list of Object.values(networkInterfaces())) {
+  const physical: string[] = [];
+  const virtual: string[] = [];
+  for (const [name, list] of Object.entries(networkInterfaces())) {
     for (const a of list ?? []) {
-      if (a.family === "IPv4" && !a.internal && !a.address.startsWith("169.254.")) out.push(a.address);
+      if (a.family !== "IPv4" || a.internal || a.address.startsWith("169.254.")) continue;
+      (VIRTUAL_IFACE.test(name) ? virtual : physical).push(a.address);
     }
   }
-  return [...new Set(out)].sort();
+  return [...new Set([...physical.sort(), ...virtual.sort()])];
+}
+
+function isPrivate(ip: string): boolean {
+  const [a, b] = ip.split(".").map(Number);
+  return a === 10 || (a === 192 && b === 168) || (a === 172 && b !== undefined && b >= 16 && b <= 31);
+}
+
+/** The address most likely to be reachable by other office PCs. */
+export function primaryAddress(addresses: string[]): string | null {
+  return (
+    addresses.find((a) => isPrivate(a) && !isTailscaleAddress(a)) ??
+    addresses.find((a) => !isTailscaleAddress(a)) ??
+    addresses[0] ??
+    null
+  );
 }
 
 export function machineName(): string {

@@ -3,6 +3,14 @@
 Each phase ends with: all tests green → app runs → CHANGELOG updated → commit + push.
 Live status lives in [PROGRESS.md](PROGRESS.md).
 
+> **Plan adjustment (Phase 2):** the local-first store and sync protocol are built *together with*
+> time entries rather than after them, so the tracking UI is written once against IndexedDB
+> instead of first against REST and then rewritten. Concretely: Phase 3 adds the pull endpoint and
+> the Dexie store for reference data; Phase 4 starts with the conflict tests, then the push
+> endpoint, outbox and tracking UI; Phase 5 hardens offline behaviour (status UI, service worker,
+> rejection handling, offline e2e). The pairing code (planned for Phase 9) was pulled into
+> Phase 2 because the setup wizard's last step shows it.
+
 ## Phase 1 — Foundations
 - Monorepo (Bun workspaces): `apps/server`, `apps/web`, `apps/desktop`, `packages/shared`, `e2e`
 - Tooling: TypeScript strict, Biome (lint + format), EditorConfig, bun test, Vitest

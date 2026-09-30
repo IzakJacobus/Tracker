@@ -24,6 +24,8 @@ export interface RuntimeInfo {
   addresses: string[];
   hostname: string;
   caFingerprint: string | null;
+  /** Plain-language warning when other PCs probably can't connect (e.g. network marked Public). */
+  networkWarning?: string | null;
 }
 
 export interface HostServices {

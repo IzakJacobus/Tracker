@@ -1,0 +1,206 @@
+/*
+ * Stint design tokens.
+ *
+ * Palette: "Fynbos" green (brand), "Ochre" (live/running, highlights) and
+ * warm "Stone" neutrals. Semantic tokens are what components use; raw scales
+ * are only referenced here.
+ */
+:root {
+  /* Fynbos */
+  --fynbos-950: #0b261f;
+  --fynbos-900: #10362c;
+  --fynbos-800: #154537;
+  --fynbos-700: #1f5c4a;
+  --fynbos-600: #257259;
+  --fynbos-500: #2f8a6c;
+  --fynbos-400: #4fa987;
+  --fynbos-300: #86c9ae;
+  --fynbos-200: #bfe3d3;
+  --fynbos-100: #e3f3ec;
+  --fynbos-50: #f2faf6;
+
+  /* Ochre */
+  --ochre-700: #8f520c;
+  --ochre-600: #b86e12;
+  --ochre-500: #d4861f;
+  --ochre-400: #e8a445;
+  --ochre-200: #f6d9a8;
+  --ochre-100: #fbeed9;
+
+  /* Stone */
+  --stone-975: #0f110e;
+  --stone-950: #151714;
+  --stone-900: #1d201c;
+  --stone-850: #242823;
+  --stone-800: #2a2e29;
+  --stone-700: #3d423c;
+  --stone-600: #565c55;
+  --stone-500: #737a72;
+  --stone-400: #9aa198;
+  --stone-300: #c4c9c2;
+  --stone-200: #dfe2dc;
+  --stone-100: #eef0eb;
+  --stone-50: #f7f8f5;
+  --white: #ffffff;
+
+  /* Brick / signal */
+  --brick-600: #b3361f;
+  --brick-500: #c2412d;
+  --brick-100: #fbe4df;
+  --amber-600: #9a6300;
+  --amber-100: #fcf0d6;
+  --sky-600: #2463a6;
+  --sky-100: #e1ecf8;
+
+  /* Typography */
+  --font-sans: "IBM Plex Sans", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  --font-mono: "IBM Plex Mono", ui-monospace, "Cascadia Mono", "Segoe UI Mono", Menlo, monospace;
+  --text-xs: 0.75rem; /* 12 */
+  --text-sm: 0.8125rem; /* 13 */
+  --text-md: 0.875rem; /* 14 — base */
+  --text-lg: 1rem; /* 16 */
+  --text-xl: 1.125rem; /* 18 */
+  --text-2xl: 1.375rem; /* 22 */
+  --text-3xl: 1.75rem; /* 28 */
+  --text-4xl: 2.25rem; /* 36 */
+  --leading-tight: 1.25;
+  --leading-normal: 1.5;
+  --weight-regular: 400;
+  --weight-medium: 500;
+  --weight-semibold: 600;
+
+  /* Spacing (4px grid) */
+  --space-0: 0;
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 20px;
+  --space-6: 24px;
+  --space-8: 32px;
+  --space-10: 40px;
+  --space-12: 48px;
+  --space-16: 64px;
+
+  /* Shape */
+  --radius-sm: 4px;
+  --radius-md: 6px;
+  --radius-lg: 10px;
+  --radius-xl: 14px;
+  --radius-pill: 999px;
+
+  /* Motion */
+  --ease-out: cubic-bezier(0.2, 0.8, 0.2, 1);
+  --duration-fast: 120ms;
+  --duration-normal: 200ms;
+
+  /* Layout */
+  --sidebar-width: 232px;
+  --sidebar-collapsed: 64px;
+  --dock-height: 72px;
+  --content-max: 1240px;
+
+  /* z-index */
+  --z-dock: 20;
+  --z-sidebar: 30;
+  --z-popover: 40;
+  --z-dialog: 50;
+  --z-toast: 60;
+}
+
+/* ---------------- Light theme (default) ---------------- */
+:root,
+:root[data-theme="light"] {
+  color-scheme: light;
+  --bg: var(--stone-50);
+  --bg-subtle: var(--stone-100);
+  --surface: var(--white);
+  --surface-raised: var(--white);
+  --surface-sunken: var(--stone-100);
+  --surface-hover: var(--stone-100);
+  --surface-selected: var(--fynbos-50);
+  --sidebar-bg: #f1f3ee;
+  --border: var(--stone-200);
+  --border-strong: var(--stone-300);
+  --text: var(--stone-900);
+  --text-muted: var(--stone-600);
+  --text-subtle: var(--stone-500);
+  --text-inverse: var(--white);
+
+  --primary: var(--fynbos-700);
+  --primary-hover: var(--fynbos-800);
+  --primary-active: var(--fynbos-900);
+  --primary-soft: var(--fynbos-100);
+  --primary-soft-text: var(--fynbos-800);
+  --on-primary: var(--white);
+
+  --live: var(--ochre-600);
+  --live-hover: var(--ochre-700);
+  --live-soft: var(--ochre-100);
+  --live-soft-text: var(--ochre-700);
+  --on-live: var(--white);
+
+  --danger: var(--brick-500);
+  --danger-hover: var(--brick-600);
+  --danger-soft: var(--brick-100);
+  --warning: var(--amber-600);
+  --warning-soft: var(--amber-100);
+  --success: var(--fynbos-600);
+  --success-soft: var(--fynbos-100);
+  --info: var(--sky-600);
+  --info-soft: var(--sky-100);
+
+  --focus-ring: 0 0 0 3px color-mix(in srgb, var(--fynbos-500) 45%, transparent);
+  --shadow-sm: 0 1px 2px rgb(21 23 20 / 6%);
+  --shadow-md: 0 2px 6px rgb(21 23 20 / 8%), 0 1px 2px rgb(21 23 20 / 6%);
+  --shadow-lg: 0 12px 32px rgb(21 23 20 / 14%), 0 2px 6px rgb(21 23 20 / 8%);
+  --overlay: rgb(15 17 14 / 40%);
+}
+
+/* ---------------- Dark theme ---------------- */
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --bg: var(--stone-950);
+  --bg-subtle: var(--stone-900);
+  --surface: var(--stone-900);
+  --surface-raised: var(--stone-850);
+  --surface-sunken: var(--stone-975);
+  --surface-hover: var(--stone-850);
+  --surface-selected: color-mix(in srgb, var(--fynbos-500) 16%, var(--stone-900));
+  --sidebar-bg: var(--stone-975);
+  --border: var(--stone-800);
+  --border-strong: var(--stone-700);
+  --text: #e9ebe6;
+  --text-muted: var(--stone-400);
+  --text-subtle: var(--stone-500);
+  --text-inverse: var(--stone-950);
+
+  --primary: var(--fynbos-400);
+  --primary-hover: var(--fynbos-300);
+  --primary-active: var(--fynbos-200);
+  --primary-soft: color-mix(in srgb, var(--fynbos-500) 20%, transparent);
+  --primary-soft-text: var(--fynbos-200);
+  --on-primary: var(--fynbos-950);
+
+  --live: var(--ochre-400);
+  --live-hover: var(--ochre-200);
+  --live-soft: color-mix(in srgb, var(--ochre-500) 20%, transparent);
+  --live-soft-text: var(--ochre-200);
+  --on-live: var(--stone-950);
+
+  --danger: #e2735f;
+  --danger-hover: #ef9585;
+  --danger-soft: color-mix(in srgb, var(--brick-500) 22%, transparent);
+  --warning: #e3b04b;
+  --warning-soft: color-mix(in srgb, #e3b04b 18%, transparent);
+  --success: var(--fynbos-400);
+  --success-soft: color-mix(in srgb, var(--fynbos-500) 20%, transparent);
+  --info: #7aaee6;
+  --info-soft: color-mix(in srgb, #7aaee6 18%, transparent);
+
+  --focus-ring: 0 0 0 3px color-mix(in srgb, var(--fynbos-400) 55%, transparent);
+  --shadow-sm: 0 1px 2px rgb(0 0 0 / 40%);
+  --shadow-md: 0 2px 8px rgb(0 0 0 / 45%);
+  --shadow-lg: 0 16px 40px rgb(0 0 0 / 55%);
+  --overlay: rgb(0 0 0 / 60%);
+}

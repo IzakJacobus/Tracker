@@ -5,6 +5,7 @@ import type { HonoEnv } from "./http.ts";
 import { ApiError } from "./lib/errors.ts";
 import { authRoutes } from "./routes/auth.ts";
 import { orgRoutes } from "./routes/org.ts";
+import { pairingRoutes } from "./routes/pairing.ts";
 import { systemRoutes } from "./routes/system.ts";
 import { userRoutes } from "./routes/users.ts";
 
@@ -26,6 +27,7 @@ export function createApp(ctx: AppContext) {
   api.route("/auth", authRoutes(ctx));
   api.route("/org", orgRoutes(ctx));
   api.route("/users", userRoutes(ctx));
+  api.route("/pairing", pairingRoutes(ctx));
   api.all("*", (c) => c.json({ error: { code: "not_found", message: "Unknown API route." } }, 404));
 
   app.route("/api", api);

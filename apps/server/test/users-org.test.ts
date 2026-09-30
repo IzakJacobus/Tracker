@@ -146,3 +146,22 @@ describe("users", () => {
     expect(rows.map((r) => r.action)).toEqual(["create", "update"]);
   });
 });
+
+describe("pairing", () => {
+  test("returns a decodable code and a QR code for signed-in users", async () => {
+    const { decodePairingCode } = await import("@stint/shared");
+    const s = createTestServer();
+    s.ctx.runtime.addresses = ["192.168.1.23"];
+    s.ctx.runtime.caFingerprint = "obLD1AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA";
+    const admin = await s.setup();
+    const r = await s.json<{ code: string; qrSvg: string }>("GET", "/api/pairing", { as: admin });
+    expect(r.status).toBe(200);
+    expect(decodePairingCode(r.body.code)).toEqual({
+      ip: "192.168.1.23",
+      port: 47600,
+      fingerprintPrefix: "a1b2c3d4",
+    });
+    expect(r.body.qrSvg).toContain("<svg");
+    expect((await s.json("GET", "/api/pairing")).status).toBe(401);
+  });
+});
