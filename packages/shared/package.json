@@ -5,6 +5,7 @@
   "type": "module",
   "exports": {
     ".": "./src/index.ts",
+    "./export": "./src/export/index.ts",
     "./*": "./src/*.ts"
   },
   "scripts": {
@@ -12,6 +13,8 @@
     "test": "bun test"
   },
   "dependencies": {
+    "fflate": "0.8.3",
+    "pdf-lib": "1.17.1",
     "zod": "4.6.5"
   }
 }
