@@ -1,0 +1,64 @@
+import { SetupInput } from "@stint/shared";
+import { Hono } from "hono";
+import { setCookie } from "hono/cookie";
+import { createSession, SESSION_COOKIE, SESSION_TTL_MS } from "../auth/sessions.ts";
+import type { AppContext } from "../context.ts";
+import { body, clientIp, type HonoEnv } from "../http.ts";
+import { ApiError, conflict } from "../lib/errors.ts";
+import { getMeta } from "../lib/meta.ts";
+import { runSetup } from "../services/bootstrap.ts";
+import { getOrgRow, isSetupComplete } from "../services/org.ts";
+
+export function systemRoutes(ctx: AppContext) {
+  const r = new Hono<HonoEnv>();
+
+  /** Public: lets clients and the pairing screen identify this server. */
+  r.get("/info", (c) => {
+    const org = getOrgRow(ctx.db);
+    return c.json({
+      product: "stint",
+      version: ctx.version,
+      serverId: getMeta(ctx.db, "server_id"),
+      organizationName: org?.name ?? null,
+      setupComplete: org !== null,
+      caFingerprint: ctx.runtime.caFingerprint,
+      time: ctx.now(),
+    });
+  });
+
+  r.get("/setup/status", (c) =>
+    c.json({ setupComplete: isSetupComplete(ctx.db), fromServerPc: c.env?.loopback === true }),
+  );
+
+  /**
+   * First-run setup. Only allowed from the server PC itself (loopback), so nobody
+   * else on the network can claim a freshly installed server.
+   */
+  r.post("/setup", async (c) => {
+    if (isSetupComplete(ctx.db)) throw conflict("Stint is already set up.");
+    if (c.env?.loopback !== true) {
+      throw new ApiError(
+        403,
+        "setup_local_only",
+        "Finish setup on the computer where Stint Server is installed.",
+      );
+    }
+    const input = await body(c, SetupInput);
+    const { adminId } = await runSetup(ctx.db, input, ctx.now(), clientIp(c));
+    const token = createSession(ctx.db, adminId, "browser", ctx.now(), {
+      userAgent: c.req.header("user-agent"),
+      ip: clientIp(c),
+    });
+    setCookie(c, SESSION_COOKIE, token, {
+      httpOnly: true,
+      secure: true,
+      sameSite: "Strict",
+      path: "/",
+      maxAge: SESSION_TTL_MS / 1000,
+    });
+    ctx.log.info("Setup complete", { organization: input.organizationName });
+    return c.json({ ok: true, userId: adminId }, 201);
+  });
+
+  return r;
+}

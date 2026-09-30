@@ -1,0 +1,10 @@
+{
+  "port": 47600,
+  "httpPort": 47601,
+  "discoveryPort": 47609,
+  "discovery": true,
+  "sleepGuard": true,
+  "openBrowser": true,
+  "logLevel": "info",
+  "updateCheck": true
+}
