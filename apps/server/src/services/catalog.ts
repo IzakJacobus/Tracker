@@ -49,3 +49,18 @@ export const PROJECT_COLORS = [
   "#ca8a04",
   "#be185d",
 ];
+
+/** Ancestors of a project, nearest first (excluding the project itself). */
+export function ancestorsNearestFirst(db: Database, projectId: string): Project[] {
+  const out: Project[] = [];
+  const seen = new Set<string>([projectId]);
+  let cur = getProject(db, projectId)?.parentId ?? null;
+  while (cur && !seen.has(cur)) {
+    seen.add(cur);
+    const p = getProject(db, cur);
+    if (!p) break;
+    out.push(p);
+    cur = p.parentId;
+  }
+  return out;
+}

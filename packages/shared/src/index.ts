@@ -6,4 +6,5 @@ export * from "./rates.ts";
 export * from "./rollup.ts";
 export * from "./rounding.ts";
 export * from "./schemas.ts";
+export * from "./sync.ts";
 export * from "./uuid.ts";

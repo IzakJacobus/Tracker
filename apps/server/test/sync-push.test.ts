@@ -1,0 +1,425 @@
+import { describe, expect, test } from "bun:test";
+import { type Client, formatHlc, type Project, type Task, type TimeEntry, uuidv7 } from "@stint/shared";
+import { type Agent, createTestServer } from "./helpers.ts";
+
+interface PushResult {
+  changeId: string;
+  status: "accepted" | "merged" | "noop" | "rejected";
+  code?: string;
+  message?: string;
+  row: (TimeEntry & Record<string, unknown>) | null;
+}
+
+let seq = 0;
+const hlc = (ms: number, node = "devA") => formatHlc({ ms, counter: 0, node });
+
+async function world() {
+  const s = createTestServer(Date.UTC(2026, 8, 30, 8, 0));
+  const admin = await s.setup();
+  await s.json("PATCH", "/api/org", { as: admin, body: { settings: { defaultRate: 50000 } } });
+  const alice = await s.createUser(admin, { email: "alice@example.com", name: "Alice", rate: 70000 });
+  const bob = await s.createUser(admin, { email: "bob@example.com", name: "Bob" });
+  const client = (
+    await s.json<Client>("POST", "/api/clients", { as: admin, body: { name: "Acme", rate: 90000 } })
+  ).body;
+  const project = (
+    await s.json<Project>("POST", "/api/projects", {
+      as: admin,
+      body: { clientId: client.id, name: "Bridge", rate: 100000 },
+    })
+  ).body;
+  const other = (
+    await s.json<Project>("POST", "/api/projects", {
+      as: admin,
+      body: { clientId: client.id, name: "Secret" },
+    })
+  ).body;
+  const task = (
+    await s.json<Task>("POST", "/api/tasks", {
+      as: admin,
+      body: { projectId: project.id, name: "Site visit", rate: 120000 },
+    })
+  ).body;
+  await s.json("PUT", `/api/projects/${project.id}/members/${alice.id}`, { as: admin, body: {} });
+  await s.json("PUT", `/api/projects/${project.id}/members/${bob.id}`, { as: admin, body: {} });
+
+  const pushAs = async (as: Agent, changes: Record<string, unknown>[]) =>
+    (
+      await s.json<{ results: PushResult[]; serverHlc: string }>("POST", "/api/sync/push", {
+        as,
+        body: { changes },
+      })
+    ).body;
+  const entry = (id: string, patch: Record<string, unknown>, at: number, op = "create", node = "devA") => ({
+    changeId: `c${++seq}`,
+    table: "timeEntries",
+    id,
+    op,
+    patch,
+    hlc: hlc(at, node),
+  });
+  const now = s.clock.now;
+  const startedAt = Date.UTC(2026, 8, 29, 7, 0); // 09:00 in Johannesburg, 29 Sept
+  return { s, admin, alice, bob, client, project, other, task, pushAs, entry, now, startedAt };
+}
+
+function dbEntry(s: ReturnType<typeof createTestServer>, id: string) {
+  return s.ctx.db
+    .query<
+      {
+        description: string;
+        duration_s: number | null;
+        rate_snapshot: number | null;
+        entry_date: string;
+        deleted_at: number | null;
+        billable: number;
+        project_id: string;
+      },
+      [string]
+    >("SELECT * FROM time_entries WHERE id = ?")
+    .get(id);
+}
+
+describe("sync push: time entries", () => {
+  test("a member creates an entry; the server derives the date and snapshots the rate", async () => {
+    const w = await world();
+    const id = uuidv7();
+    const r = await w.pushAs(w.alice.agent, [
+      w.entry(
+        id,
+        { projectId: w.project.id, description: "Design", startedAt: w.startedAt, durationS: 3600 },
+        w.now,
+      ),
+    ]);
+    expect(r.results[0]!.status).toBe("accepted");
+    const row = dbEntry(w.s, id)!;
+    expect(row.entry_date).toBe("2026-09-29");
+    expect(row.rate_snapshot).toBe(100000); // project rate wins over client/user/org
+    expect(row.billable).toBe(1); // inherited from project
+    // members don't see rates in the response
+    expect(r.results[0]!.row!.rateSnapshot).toBeNull();
+  });
+
+  test("the entry date follows the organisation's time zone, not UTC", async () => {
+    const w = await world();
+    const id = uuidv7();
+    const lateEvening = Date.UTC(2026, 8, 29, 22, 30); // 00:30 on 30 Sept in Johannesburg
+    await w.pushAs(w.alice.agent, [
+      w.entry(id, { projectId: w.project.id, startedAt: lateEvening, durationS: 600 }, w.now),
+    ]);
+    expect(dbEntry(w.s, id)!.entry_date).toBe("2026-09-30");
+  });
+
+  test("task rate wins; changing the project re-snapshots; later rate changes don't rewrite history", async () => {
+    const w = await world();
+    const id = uuidv7();
+    await w.pushAs(w.alice.agent, [
+      w.entry(
+        id,
+        { projectId: w.project.id, taskId: w.task.id, startedAt: w.startedAt, durationS: 60 },
+        w.now,
+      ),
+    ]);
+    expect(dbEntry(w.s, id)!.rate_snapshot).toBe(120000);
+    await w.s.json("PATCH", `/api/tasks/${w.task.id}`, { as: w.admin, body: { rate: 1 } });
+    await w.pushAs(w.alice.agent, [w.entry(id, { description: "still 1200" }, w.now + 1000, "update")]);
+    expect(dbEntry(w.s, id)!.rate_snapshot).toBe(120000);
+    await w.pushAs(w.alice.agent, [w.entry(id, { taskId: null }, w.now + 2000, "update")]);
+    expect(dbEntry(w.s, id)!.rate_snapshot).toBe(100000);
+  });
+
+  test("members cannot track on projects they're not assigned to", async () => {
+    const w = await world();
+    const r = await w.pushAs(w.alice.agent, [
+      w.entry(uuidv7(), { projectId: w.other.id, startedAt: w.startedAt, durationS: 60 }, w.now),
+    ]);
+    expect(r.results[0]).toMatchObject({ status: "rejected", code: "forbidden", row: null });
+  });
+
+  test("members cannot edit or delete someone else's entry", async () => {
+    const w = await world();
+    const id = uuidv7();
+    await w.pushAs(w.bob.agent, [
+      w.entry(id, { projectId: w.project.id, startedAt: w.startedAt, durationS: 60 }, w.now),
+    ]);
+    const r = await w.pushAs(w.alice.agent, [
+      w.entry(id, { description: "mine now" }, w.now + 1, "update"),
+      w.entry(id, {}, w.now + 2, "delete"),
+    ]);
+    expect(r.results.map((x) => x.code)).toEqual(["forbidden", "forbidden"]);
+    expect(dbEntry(w.s, id)!.deleted_at).toBeNull();
+  });
+
+  test("server-owned fields can't be set by the client", async () => {
+    const w = await world();
+    const id = uuidv7();
+    await w.pushAs(w.alice.agent, [
+      w.entry(
+        id,
+        { projectId: w.project.id, startedAt: w.startedAt, durationS: 60, rateSnapshot: 1, userId: w.bob.id },
+        w.now,
+      ),
+    ]);
+    const row = w.s.ctx.db
+      .query<{ user_id: string; rate_snapshot: number }, [string]>(
+        "SELECT user_id, rate_snapshot FROM time_entries WHERE id = ?",
+      )
+      .get(id)!;
+    expect(row.user_id).toBe(w.alice.id);
+    expect(row.rate_snapshot).toBe(100000);
+  });
+
+  test("two devices editing different fields: both edits survive", async () => {
+    const w = await world();
+    const id = uuidv7();
+    await w.pushAs(w.alice.agent, [
+      w.entry(
+        id,
+        { projectId: w.project.id, startedAt: w.startedAt, durationS: 60, description: "x" },
+        w.now,
+      ),
+    ]);
+    await w.pushAs(w.alice.agent, [
+      w.entry(id, { description: "from laptop" }, w.now + 5000, "update", "laptop"),
+    ]);
+    const late = await w.pushAs(w.alice.agent, [
+      w.entry(id, { durationS: 5400 }, w.now + 3000, "update", "desktop"),
+    ]);
+    expect(late.results[0]!.status).toBe("accepted");
+    const row = dbEntry(w.s, id)!;
+    expect(row.description).toBe("from laptop");
+    expect(row.duration_s).toBe(5400);
+  });
+
+  test("an older edit arriving late loses, and the client gets the winning row back", async () => {
+    const w = await world();
+    const id = uuidv7();
+    await w.pushAs(w.alice.agent, [
+      w.entry(
+        id,
+        { projectId: w.project.id, startedAt: w.startedAt, durationS: 60, description: "x" },
+        w.now,
+      ),
+    ]);
+    await w.pushAs(w.alice.agent, [w.entry(id, { description: "newer" }, w.now + 5000, "update", "laptop")]);
+    const r = await w.pushAs(w.alice.agent, [
+      w.entry(id, { description: "older" }, w.now + 1000, "update", "desktop"),
+    ]);
+    expect(r.results[0]!.status).toBe("noop");
+    expect(r.results[0]!.row!.description).toBe("newer");
+  });
+
+  test("a deleted entry is never revived by a later edit", async () => {
+    const w = await world();
+    const id = uuidv7();
+    await w.pushAs(w.alice.agent, [
+      w.entry(id, { projectId: w.project.id, startedAt: w.startedAt, durationS: 60 }, w.now),
+    ]);
+    await w.pushAs(w.alice.agent, [w.entry(id, {}, w.now + 1000, "delete")]);
+    const r = await w.pushAs(w.alice.agent, [
+      w.entry(id, { description: "zombie" }, w.now + 9000, "update", "other"),
+    ]);
+    expect(r.results[0]).toMatchObject({ status: "noop", code: "deleted" });
+    expect(dbEntry(w.s, id)!.deleted_at).not.toBeNull();
+  });
+
+  test("approved periods are locked: edits, deletes and new entries are rejected", async () => {
+    const w = await world();
+    const id = uuidv7();
+    await w.pushAs(w.alice.agent, [
+      w.entry(id, { projectId: w.project.id, startedAt: w.startedAt, durationS: 60 }, w.now),
+    ]);
+    w.s.ctx.db
+      .query(
+        "INSERT INTO timesheets (id, user_id, period_start, period_end, status, created_at, updated_at) VALUES (?, ?, '2026-09-01', '2026-09-30', 'approved', 0, 0)",
+      )
+      .run(uuidv7(), w.alice.id);
+    const r = await w.pushAs(w.alice.agent, [
+      w.entry(id, { description: "after approval" }, w.now + 1000, "update"),
+      w.entry(id, {}, w.now + 2000, "delete"),
+      w.entry(uuidv7(), { projectId: w.project.id, startedAt: w.startedAt, durationS: 60 }, w.now + 3000),
+    ]);
+    expect(r.results.map((x) => x.code)).toEqual(["locked", "locked", "locked"]);
+    expect(r.results[0]!.message).toContain("approved");
+    // moving an open entry into the locked month is rejected too
+    const oct = uuidv7();
+    await w.pushAs(w.alice.agent, [
+      w.entry(oct, { projectId: w.project.id, startedAt: Date.UTC(2026, 9, 1, 8), durationS: 60 }, w.now),
+    ]);
+    const mv = await w.pushAs(w.alice.agent, [
+      w.entry(oct, { startedAt: w.startedAt }, w.now + 4000, "update"),
+    ]);
+    expect(mv.results[0]!.code).toBe("locked");
+  });
+
+  test("starting a second timer on another device stops the first one", async () => {
+    const w = await world();
+    const a = uuidv7();
+    const b = uuidv7();
+    const t0 = w.now;
+    await w.pushAs(w.alice.agent, [
+      w.entry(
+        a,
+        { projectId: w.project.id, startedAt: t0, durationS: null, source: "timer" },
+        t0,
+        "create",
+        "laptop",
+      ),
+    ]);
+    await w.pushAs(w.alice.agent, [
+      w.entry(
+        b,
+        { projectId: w.project.id, startedAt: t0 + 25 * 60_000, durationS: null, source: "timer" },
+        t0 + 1,
+        "create",
+        "desktop",
+      ),
+    ]);
+    expect(dbEntry(w.s, a)!.duration_s).toBe(25 * 60);
+    expect(dbEntry(w.s, b)!.duration_s).toBeNull();
+    const reason = w.s.ctx.db
+      .query<{ reason: string }, [string]>(
+        "SELECT reason FROM audit_log WHERE entity_id = ? ORDER BY id DESC LIMIT 1",
+      )
+      .get(a)!.reason;
+    expect(reason).toContain("automatically");
+  });
+
+  test("validation: 24-hour cap and tasks must belong to the project", async () => {
+    const w = await world();
+    const otherTask = (
+      await w.s.json<Task>("POST", "/api/tasks", { as: w.admin, body: { projectId: w.other.id, name: "X" } })
+    ).body;
+    const r = await w.pushAs(w.alice.agent, [
+      w.entry(uuidv7(), { projectId: w.project.id, startedAt: w.startedAt, durationS: 90_000 }, w.now),
+      w.entry(
+        uuidv7(),
+        { projectId: w.project.id, taskId: otherTask.id, startedAt: w.startedAt, durationS: 60 },
+        w.now,
+      ),
+      w.entry(uuidv7(), { startedAt: w.startedAt, durationS: 60 }, w.now),
+    ]);
+    expect(r.results.map((x) => x.status)).toEqual(["rejected", "rejected", "rejected"]);
+  });
+
+  test("one bad change in a batch doesn't block the good ones", async () => {
+    const w = await world();
+    const good = uuidv7();
+    const r = await w.pushAs(w.alice.agent, [
+      w.entry(uuidv7(), { projectId: w.other.id, startedAt: w.startedAt, durationS: 60 }, w.now),
+      w.entry(good, { projectId: w.project.id, startedAt: w.startedAt, durationS: 60 }, w.now),
+    ]);
+    expect(r.results.map((x) => x.status)).toEqual(["rejected", "accepted"]);
+    expect(dbEntry(w.s, good)).not.toBeNull();
+  });
+
+  test("a device clock years in the future can't win forever", async () => {
+    const w = await world();
+    const id = uuidv7();
+    await w.pushAs(w.alice.agent, [
+      w.entry(
+        id,
+        { projectId: w.project.id, startedAt: w.startedAt, durationS: 60, description: "a" },
+        w.now,
+      ),
+    ]);
+    await w.pushAs(w.alice.agent, [
+      w.entry(id, { description: "wrong clock" }, Date.UTC(2099, 0, 1), "update", "broken"),
+    ]);
+    w.s.clock.advance(60_000);
+    const r = await w.pushAs(w.alice.agent, [
+      w.entry(id, { description: "fixed" }, w.s.clock.now, "update", "good"),
+    ]);
+    expect(r.results[0]!.status).toBe("accepted");
+    expect(dbEntry(w.s, id)!.description).toBe("fixed");
+  });
+
+  test("every change to time data is audited", async () => {
+    const w = await world();
+    const id = uuidv7();
+    await w.pushAs(w.alice.agent, [
+      w.entry(id, { projectId: w.project.id, startedAt: w.startedAt, durationS: 60 }, w.now),
+    ]);
+    await w.pushAs(w.alice.agent, [w.entry(id, { description: "edited" }, w.now + 1, "update")]);
+    await w.pushAs(w.alice.agent, [w.entry(id, {}, w.now + 2, "delete")]);
+    const actions = w.s.ctx.db
+      .query<{ action: string }, [string]>(
+        "SELECT action FROM audit_log WHERE entity = 'time_entry' AND entity_id = ? ORDER BY id",
+      )
+      .all(id)
+      .map((r) => r.action);
+    expect(actions).toEqual(["create", "update", "delete"]);
+  });
+
+  test("admins see the rate snapshot through pull; pulls include pushed entries", async () => {
+    const w = await world();
+    const id = uuidv7();
+    await w.pushAs(w.alice.agent, [
+      w.entry(id, { projectId: w.project.id, startedAt: w.startedAt, durationS: 60 }, w.now),
+    ]);
+    const pull = await w.s.json<{ changes: { timeEntries?: TimeEntry[] } }>("GET", "/api/sync/pull?since=0", {
+      as: w.admin,
+    });
+    expect(pull.body.changes.timeEntries?.find((e) => e.id === id)?.rateSnapshot).toBe(100000);
+    const bobPull = await w.s.json<{ changes: { timeEntries?: TimeEntry[] } }>(
+      "GET",
+      "/api/sync/pull?since=0",
+      { as: w.bob.agent },
+    );
+    expect(bobPull.body.changes.timeEntries ?? []).toEqual([]);
+  });
+});
+
+describe("sync push: favourites and tags", () => {
+  test("favourites are personal", async () => {
+    const w = await world();
+    const fav = uuidv7();
+    const r = await w.pushAs(w.alice.agent, [
+      {
+        changeId: "f1",
+        table: "favorites",
+        id: fav,
+        op: "create",
+        patch: { projectId: w.project.id },
+        hlc: hlc(w.now),
+      },
+    ]);
+    expect(r.results[0]!.status).toBe("accepted");
+    const steal = await w.pushAs(w.bob.agent, [
+      { changeId: "f2", table: "favorites", id: fav, op: "delete", patch: {}, hlc: hlc(w.now + 1) },
+    ]);
+    expect(steal.results[0]!.code).toBe("forbidden");
+  });
+
+  test("anyone can create a tag offline; duplicates are rejected", async () => {
+    const w = await world();
+    const r = await w.pushAs(w.alice.agent, [
+      {
+        changeId: "t1",
+        table: "tags",
+        id: uuidv7(),
+        op: "create",
+        patch: { name: "Overtime" },
+        hlc: hlc(w.now),
+      },
+      {
+        changeId: "t2",
+        table: "tags",
+        id: uuidv7(),
+        op: "create",
+        patch: { name: "overtime" },
+        hlc: hlc(w.now),
+      },
+    ]);
+    expect(r.results.map((x) => x.status)).toEqual(["accepted", "rejected"]);
+  });
+
+  test("the push body is validated", async () => {
+    const w = await world();
+    const r = await w.s.json("POST", "/api/sync/push", {
+      as: w.alice.agent,
+      body: { changes: [{ table: "users", id: "x" }] },
+    });
+    expect(r.status).toBe(422);
+  });
+});
