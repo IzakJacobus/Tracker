@@ -1,0 +1,19 @@
+{
+  "name": "@stint/server",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "bun --watch src/main.ts",
+    "start": "bun src/main.ts",
+    "build": "bun scripts/build.ts",
+    "typecheck": "tsc -p tsconfig.json",
+    "test": "bun test",
+    "seed": "bun scripts/seed.ts"
+  },
+  "dependencies": {
+    "@stint/shared": "workspace:*",
+    "hono": "4.13.12",
+    "zod": "4.6.5"
+  }
+}
