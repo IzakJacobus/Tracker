@@ -1,0 +1,43 @@
+import { tauri } from "../lib/transport.ts";
+
+type UpdateListener = (apply: () => void) => void;
+const listeners = new Set<UpdateListener>();
+
+/** Called when a new version of the web app has been downloaded and is waiting. */
+export function onAppUpdate(fn: UpdateListener): () => void {
+  listeners.add(fn);
+  return () => listeners.delete(fn);
+}
+
+/**
+ * Registers the service worker (browser/PWA only — the desktop app bundles its
+ * files already). Needs a secure context: HTTPS on the LAN, or localhost.
+ */
+export function registerServiceWorker(): void {
+  if (tauri() || !("serviceWorker" in navigator) || !window.isSecureContext || import.meta.env.DEV) return;
+  window.addEventListener("load", async () => {
+    try {
+      const reg = await navigator.serviceWorker.register("/sw.js");
+      const announce = (worker: ServiceWorker) => {
+        const apply = () => {
+          worker.postMessage("skip-waiting");
+          navigator.serviceWorker.addEventListener("controllerchange", () => window.location.reload(), {
+            once: true,
+          });
+        };
+        for (const l of listeners) l(apply);
+      };
+      if (reg.waiting && navigator.serviceWorker.controller) announce(reg.waiting);
+      reg.addEventListener("updatefound", () => {
+        const w = reg.installing;
+        w?.addEventListener("statechange", () => {
+          if (w.state === "installed" && navigator.serviceWorker.controller) announce(w);
+        });
+      });
+      // Check for a new version every hour while open.
+      setInterval(() => void reg.update(), 3600_000);
+    } catch {
+      // Not fatal: Stint still works online without the service worker.
+    }
+  });
+}

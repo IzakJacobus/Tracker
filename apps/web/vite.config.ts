@@ -1,8 +1,9 @@
 import react from "@vitejs/plugin-react";
 import { defineConfig } from "vitest/config";
+import { serviceWorker } from "./build/sw-plugin.ts";
 
 export default defineConfig({
-  plugins: [react()],
+  plugins: [react(), serviceWorker()],
   server: {
     port: 5173,
     proxy: {

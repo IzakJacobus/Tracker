@@ -17,8 +17,10 @@ import {
 } from "lucide-react";
 import { type ReactNode, useEffect, useRef, useState } from "react";
 import { NavLink, Outlet, useLocation, useNavigate } from "react-router";
+import { useData } from "../data/DataProvider.tsx";
 import { getThemePref, setThemePref, type ThemePref } from "../lib/theme.ts";
 import { Button } from "../ui/Button.tsx";
+import { ConfirmDialog } from "../ui/Dialog.tsx";
 import { Avatar, Logo } from "../ui/misc.tsx";
 import { Menu, Popover } from "../ui/Popover.tsx";
 import { useMe, useSession } from "./session.tsx";
@@ -75,7 +77,7 @@ export function Shell({ dock, statusSlot }: { dock?: ReactNode; statusSlot?: Rea
           onClick={() => setDrawer(true)}
         />
         <Logo size={24} />
-        <span style={{ width: 34 }} />
+        <span className="mobile-bar__status">{statusSlot}</span>
       </header>
       <nav className="sidebar" aria-label="Main">
         <div className="sidebar__brand">
@@ -117,7 +119,22 @@ export function Shell({ dock, statusSlot }: { dock?: ReactNode; statusSlot?: Rea
 function UserMenu() {
   const me = useMe();
   const { logout } = useSession();
+  const { db, engine } = useData();
   const navigate = useNavigate();
+  const [unsent, setUnsent] = useState<number | null>(null);
+
+  async function signOut(force = false) {
+    await engine.syncNow().catch(() => {});
+    const pending = await db.outbox.count();
+    if (pending > 0 && !force) {
+      setUnsent(pending);
+      return;
+    }
+    engine.stop();
+    // Don't leave a copy of this person's time on a shared computer.
+    await db.delete().catch(() => {});
+    await logout();
+  }
   const anchor = useRef<HTMLButtonElement>(null);
   const [open, setOpen] = useState(false);
   const [theme, setTheme] = useState<ThemePref>(getThemePref());
@@ -164,10 +181,19 @@ function UserMenu() {
             { label: `Light${theme === "light" ? " ✓" : ""}`, icon: <Sun />, onSelect: () => pick("light") },
             { label: `Dark${theme === "dark" ? " ✓" : ""}`, icon: <Moon />, onSelect: () => pick("dark") },
             "sep",
-            { label: "Sign out", icon: <LogOut />, onSelect: () => void logout(), danger: true },
+            { label: "Sign out", icon: <LogOut />, onSelect: () => void signOut(), danger: true },
           ]}
         />
       </Popover>
+      <ConfirmDialog
+        open={unsent !== null}
+        onClose={() => setUnsent(null)}
+        onConfirm={() => void signOut(true)}
+        title="Some changes haven't been sent yet"
+        message={`${unsent} change${unsent === 1 ? " is" : "s are"} saved only on this computer because the Stint server can't be reached. If you sign out now, ${unsent === 1 ? "it" : "they"} will be lost. Connect to the office network and wait for “Synced” first.`}
+        confirmLabel="Sign out and discard"
+        danger
+      />
     </>
   );
 }

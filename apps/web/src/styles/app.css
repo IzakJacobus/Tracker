@@ -1248,3 +1248,9 @@
 .palette__list .menu-item {
   min-height: 38px;
 }
+.mobile-bar__status .sync-pill__label {
+  display: none;
+}
+.mobile-bar__status .sync-pill {
+  padding: 0 8px;
+}

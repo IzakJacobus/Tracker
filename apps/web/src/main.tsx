@@ -11,8 +11,10 @@ import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
 import { App } from "./App.tsx";
 import { applyTheme } from "./lib/theme.ts";
+import { registerServiceWorker } from "./pwa/register.ts";
 
 applyTheme();
+registerServiceWorker();
 
 createRoot(document.getElementById("root")!).render(
   <StrictMode>

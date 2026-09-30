@@ -17,10 +17,11 @@ import { OrgSettingsPage } from "./pages/settings/OrgSettings.tsx";
 import { SettingsLayout } from "./pages/settings/SettingsLayout.tsx";
 import { TeamPage } from "./pages/team/Team.tsx";
 import { TrackPage } from "./pages/track/TrackPage.tsx";
+import { onAppUpdate } from "./pwa/register.ts";
 import { EntryDialogHost, useEntryDialog } from "./tracking/EntryDialogHost.tsx";
 import { TimerDock } from "./tracking/TimerDock.tsx";
 import { Logo } from "./ui/misc.tsx";
-import { ToastProvider } from "./ui/Toast.tsx";
+import { ToastProvider, useToast } from "./ui/Toast.tsx";
 
 function Splash() {
   return (
@@ -32,6 +33,17 @@ function Splash() {
 
 function AppFrame() {
   const dialog = useEntryDialog();
+  const toast = useToast();
+  useEffect(
+    () =>
+      onAppUpdate((apply) =>
+        toast.show("A new version of Stint is ready.", {
+          action: { label: "Reload", onClick: apply },
+          durationMs: 120_000,
+        }),
+      ),
+    [toast],
+  );
   return (
     <>
       <Shell statusSlot={<SyncPill />} dock={<TimerDock onAddManual={() => dialog.open({})} />} />

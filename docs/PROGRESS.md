@@ -3,7 +3,7 @@
 > Single source of truth for where the work stands. Update after every meaningful step.
 
 ## Current phase
-**Phase 5 — Local-first hardening: offline, PWA, sync status** (starting)
+**Phase 6 — Reports, dashboard, PDF/CSV/XLSX** (starting)
 
 ## Done
 - Architecture (`docs/ARCHITECTURE.md`) and roadmap (`docs/ROADMAP.md`)
@@ -27,18 +27,23 @@
   palette + shortcuts; Playwright e2e harness (`e2e/`) with 6 passing tests; CI e2e job.
   Bug found by e2e and fixed: Enter in the grid's last row didn't save.
 - **Phase 4 complete.** (Idle detection → Phase 8 desktop; under-filled-day reminders → Phase 7.)
+- Phase 5: service worker (build plugin `apps/web/build/sw-plugin.ts`), manifest, icons
+  (`bun scripts/make-icons.ts`), update prompt, safe sign-out, mobile sync status; e2e
+  `offline.spec.ts` passes (8/8 e2e).
+- **Phase 5 complete.**
 
 ## In progress
-- Phase 5
+- Phase 6
 
 ## Next step (exact)
-1. PWA: `vite-plugin-pwa` (precache app shell, `registerType: prompt`), manifest + icons, offline
-   app start; show an "Offline" banner/status in the dock when the server is unreachable.
-2. Session persistence offline: the cached `/auth/me` already lets people keep working; verify with
-   an e2e test `e2e/offline.spec.ts` (context.setOffline(true) → edit/add entries → pending count →
-   setOffline(false) → Synced → reload shows edits).
-3. Conflict UX: toast + sync popover list for rejected changes (done); add "merged" notice.
-4. Clear local data on sign-out when the outbox is empty; warn if not.
+1. `packages/shared/src/reports.ts`: pure builders over (entries, projects, clients, tasks, users,
+   settings) → project timesheet (by person/task/date, subtree), monthly per-person timesheet (daily
+   totals + per-project summary, billable vs internal), client summary (billable hours/amounts per
+   project), dashboard stats (week/month hours, utilisation, top projects, budget burn). Unit tests.
+2. Server `GET /api/reports/entries?from&to&...` returning entries + reference data the caller may
+   see (managers: team + managed projects; members: own), shaped per role. Integration tests.
+3. Exporters in shared: CSV, XLSX (fflate), PDF (pdf-lib) with logo, accent colour, signature line.
+4. Web: Reports pages (Overview dashboard, Project, Monthly timesheet, Client summary), filters.
 
 ## Open decisions (for the owner)
 - Repository: the brief asked for a new public repo via `gh repo create`; this environment has no

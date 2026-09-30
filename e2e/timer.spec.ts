@@ -14,12 +14,12 @@ test("start and stop a timer; the entry is saved and synced", async ({ page }) =
   await page.getByRole("button", { name: "Stop timer" }).click();
   await expect(page.getByRole("button", { name: "Start timer" })).toBeVisible();
   await expect(page.locator(".entry-row[data-running]")).toHaveCount(0);
-  await expect(page.locator(".entry-row").first()).toContainText("Deck reinforcement check");
+  await expect(page.locator(".entry-row", { hasText: "Deck reinforcement check" })).toBeVisible();
   await waitSynced(page);
 
   // the entry survives a reload (it came back from the server / local store)
   await page.reload();
-  await expect(page.locator(".entry-row").first()).toContainText("Deck reinforcement check");
+  await expect(page.locator(".entry-row", { hasText: "Deck reinforcement check" })).toBeVisible();
 });
 
 test("the S key toggles the timer", async ({ page }) => {
@@ -41,9 +41,11 @@ test("adding time in the weekly grid", async ({ page }) => {
   await page.getByPlaceholder("Search projects and tasks").fill("site visit");
   await page.keyboard.press("Enter");
   const row = page.locator("tr", { hasText: "Site visit" });
-  const cell = row.locator("input").first();
-  await cell.fill("2:15");
-  await cell.press("Enter");
-  await expect(row.locator(".week-grid__total")).toHaveText("2:15");
+  const sunday = row.locator("input").nth(6);
+  await sunday.fill("2:15");
+  await sunday.press("Enter");
+  await expect(sunday).toHaveValue("2:15");
   await waitSynced(page);
+  await page.reload();
+  await expect(page.locator("tr", { hasText: "Site visit" }).locator("input").nth(6)).toHaveValue("2:15");
 });

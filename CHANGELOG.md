@@ -48,3 +48,8 @@ All notable changes to Stint are documented here. The format follows
   with continue/duplicate/undoable delete; spreadsheet-style weekly grid; day calendar with
   drag-to-move/resize; command palette (Ctrl/Cmd+K) and keyboard shortcuts.
 - Playwright end-to-end tests (sign-in, start/stop timer, weekly grid) and a CI e2e job.
+- Offline start as an installable PWA: a build-time service worker precaches the app shell (never
+  API data), web manifest and icons, and an "update available — Reload" prompt.
+- Sign-out deletes this person's local copy on shared computers, and warns before discarding
+  changes that haven't reached the server.
+- End-to-end test: offline edit, offline reload, reconnect, synced to the server.
