@@ -14,6 +14,7 @@ export async function login(page: Page, who: keyof typeof PEOPLE) {
   await page.getByLabel("Password").fill(p.password);
   await page.getByRole("button", { name: "Sign in" }).click();
   await expect(page.getByRole("heading", { name: "Track" })).toBeVisible();
+  await waitSynced(page);
 }
 
 export async function waitSynced(page: Page) {

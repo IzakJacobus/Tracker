@@ -2,6 +2,7 @@ import { dayOfWeek, formatDuration, monthlyTimesheet, monthName, parseIsoDate } 
 import { monthlyTimesheetDoc } from "@stint/shared/export";
 import { useLiveQuery } from "dexie-react-hooks";
 import { useMemo, useState } from "react";
+import { useSearchParams } from "react-router";
 import { useMe } from "../../app/session.tsx";
 import { useData } from "../../data/DataProvider.tsx";
 import { fmtDate } from "../../lib/format.ts";
@@ -26,8 +27,11 @@ export function MonthlyReport() {
   const today = useToday();
   const { db } = useData();
   const data = useReportData();
-  const [userId, setUserId] = useState(me.user.id);
-  const [month, setMonth] = useState(today.slice(0, 7));
+  const [params] = useSearchParams();
+  const [userId, setUserId] = useState(params.get("user") ?? me.user.id);
+  const [month, setMonth] = useState(
+    /^\d{4}-\d{2}$/.test(params.get("month") ?? "") ? params.get("month")! : today.slice(0, 7),
+  );
   const opts = useDocOptions(data?.tags ?? []);
   const m = useMemo(() => (data ? monthlyTimesheet(data, userId, month) : null), [data, userId, month]);
   const sheet = useLiveQuery(

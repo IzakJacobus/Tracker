@@ -3,7 +3,7 @@
 > Single source of truth for where the work stands. Update after every meaningful step.
 
 ## Current phase
-**Phase 7 — Timesheet submission, approval, locking, audit log** (starting)
+**Phase 8 — Desktop app (Tauri): pinned HTTPS, discovery, tray timer, idle detection** (starting)
 
 ## Done
 - Architecture (`docs/ARCHITECTURE.md`) and roadmap (`docs/ROADMAP.md`)
@@ -36,23 +36,28 @@
   (`apps/server/scripts/seed.ts`), e2e for PDF export (11/11 e2e). PDFs checked visually.
 - **Phase 6 complete.** Decision: reports run client-side over the synced local copy (members see
   only their own data because the server never sends them more).
+- Phase 7: timesheet routes + admin audit/rerate (+10 integration tests), submit card, reminders,
+  approvals page, audit viewer, re-rate page; e2e `approval.spec.ts` (submit → send back →
+  resubmit → approve → admin unlock). 12/12 e2e green. Bug found and fixed: submit raced pending
+  edits (see CHANGELOG "Fixed").
+- **Phase 7 complete.**
 
 ## In progress
-- Phase 7
+- Phase 8
 
 ## Next step (exact)
-1. Server `routes/timesheets.ts`: `POST /api/timesheets/submit {periodStart}` (own), `POST
-   /api/timesheets/:id/approve|reject {comment}` (manager of the person / admin, not own unless
-   admin), `POST /api/timesheets/:id/unlock {reason}` (admin; audit), `POST .../withdraw`
-   (own, while submitted). Period derived from org approvalPeriod. Integration tests incl. locking.
-2. Web: "Submit timesheet" card on Track (current/previous period, totals, warnings for short
-   days), Approvals page (team periods, open monthly report, approve/reject with comment), locked
-   badges already shown.
-3. Audit log viewer (Settings → Audit log) with filters; `GET /api/audit` (admin).
-4. Reminders: in-app banner when yesterday/today is under the configured hours; desktop
-   notification later (Phase 8).
-5. Re-rate tool (Settings → Re-rate): `POST /api/admin/rerate {from,to,projectId?,userId?}`.
-6. E2E: submit and approve a timesheet.
+1. `apps/desktop/src-tauri`: Tauri 2 app (identifier `za.stint.desktop`), frontendDist =
+   `../../web/dist`, window + tray. Rust modules: `pinned.rs` (reqwest + rustls custom
+   `ServerCertVerifier` checking the CA SPKI SHA-256 pin), `api.rs` (`api_request` command,
+   bearer token kept in Rust, persisted in app data), `discovery.rs` (mdns-sd browse
+   `_stint._tcp` + UDP broadcast `STINT?` on 47609), `pairing` (decode code → connect → verify
+   fingerprint prefix), `idle.rs` (Windows GetLastInputInfo / macOS CGEventSource / Linux none),
+   tray menu (Start/Stop, current project, Open, Quit), `save_file` command.
+2. Web: pairing screen when running in Tauri and not paired (`/pair`): list discovered servers,
+   pairing code entry; idle prompt ("You were away 25 min — keep / discard / discard & stop").
+3. Server: mDNS advertiser + UDP responder (Phase 9 list, but needed to test pairing).
+4. CI: build desktop on windows-latest (and macos/ubuntu if cheap) in the release workflow.
+   Local build not possible here (no webkit2gtk) — rely on `cargo check` where possible.
 
 ## Open decisions (for the owner)
 - Repository: the brief asked for a new public repo via `gh repo create`; this environment has no

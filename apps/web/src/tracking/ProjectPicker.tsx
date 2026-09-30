@@ -3,7 +3,7 @@ import { ChevronDown, FolderOpen, Search, Star } from "lucide-react";
 import { type ReactNode, useEffect, useMemo, useRef, useState } from "react";
 import { useMe } from "../app/session.tsx";
 import { accessFromLocal } from "../data/access.ts";
-import { useData } from "../data/DataProvider.tsx";
+import { useData, useSyncStatus } from "../data/DataProvider.tsx";
 import { useMembers, useProjectOptions, useProjects, useTasks } from "../data/hooks.ts";
 import { Dot } from "../ui/misc.tsx";
 import { Popover } from "../ui/Popover.tsx";
@@ -156,6 +156,7 @@ export function PickerList({
   onPick: (c: Combo) => void;
 }) {
   const { entries } = useData();
+  const sync = useSyncStatus();
   const favorites = useFavorites();
   const recent = useRecentCombos();
   const [q, setQ] = useState("");
@@ -233,9 +234,11 @@ export function PickerList({
       <div className="picker__list" id="picker-list" role="listbox" ref={listRef} aria-label="Projects">
         {flat.length === 0 && (
           <div className="subtle" style={{ padding: 12, fontSize: "var(--text-sm)" }}>
-            {items.length === 0
-              ? "You aren't on any projects yet. Ask a manager to add you."
-              : "Nothing matches."}
+            {items.length > 0
+              ? "Nothing matches."
+              : sync.lastSyncedAt === null
+                ? "Loading your projects…"
+                : "You aren't on any projects yet. Ask a manager to add you."}
           </div>
         )}
         {sections.map((s) =>

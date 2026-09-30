@@ -7,6 +7,7 @@ import { SessionProvider, useSession } from "./app/session.tsx";
 import { DataProvider } from "./data/DataProvider.tsx";
 import { applyTheme, watchSystemTheme } from "./lib/theme.ts";
 import { AccountPage } from "./pages/Account.tsx";
+import { ApprovalsPage } from "./pages/approvals/ApprovalsPage.tsx";
 import { ForcePassword } from "./pages/auth/ForcePassword.tsx";
 import { Login } from "./pages/auth/Login.tsx";
 import { Setup } from "./pages/auth/Setup.tsx";
@@ -18,7 +19,9 @@ import { MonthlyReport } from "./pages/reports/Monthly.tsx";
 import { Overview } from "./pages/reports/Overview.tsx";
 import { ProjectReportPage } from "./pages/reports/ProjectReport.tsx";
 import { ReportsLayout } from "./pages/reports/ReportsLayout.tsx";
+import { AuditLogPage } from "./pages/settings/AuditLog.tsx";
 import { OrgSettingsPage } from "./pages/settings/OrgSettings.tsx";
+import { ReratePage } from "./pages/settings/Rerate.tsx";
 import { SettingsLayout } from "./pages/settings/SettingsLayout.tsx";
 import { TeamPage } from "./pages/team/Team.tsx";
 import { TrackPage } from "./pages/track/TrackPage.tsx";
@@ -96,7 +99,7 @@ const appRouter = () =>
           path: "approvals",
           element: (
             <RequireRole roles={["admin", "manager"]}>
-              <Placeholder title="Approvals" />
+              <ApprovalsPage />
             </RequireRole>
           ),
         },
@@ -126,6 +129,8 @@ const appRouter = () =>
           ),
           children: [
             { index: true, element: <OrgSettingsPage /> },
+            { path: "audit", element: <AuditLogPage /> },
+            { path: "rerate", element: <ReratePage /> },
             { path: "*", element: <Placeholder title="Coming soon" /> },
           ],
         },

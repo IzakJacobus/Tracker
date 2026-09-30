@@ -27,7 +27,7 @@ test("the S key toggles the timer", async ({ page }) => {
   await page.locator("#dock-project").click();
   await page.getByPlaceholder("Search projects and tasks").fill("paarl");
   await page.keyboard.press("Enter");
-  await page.locator("body").click({ position: { x: 700, y: 500 } });
+  await page.getByRole("heading", { name: "Track", level: 1 }).click();
   await page.keyboard.press("s");
   await expect(page.getByRole("button", { name: "Stop timer" })).toBeVisible();
   await page.keyboard.press("s");

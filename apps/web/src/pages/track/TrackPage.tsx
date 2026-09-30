@@ -4,6 +4,8 @@ import { useEffect } from "react";
 import { useSearchParams } from "react-router";
 import { useEntryDialog } from "../../tracking/EntryDialogHost.tsx";
 import { useMyEntries, useSettings } from "../../tracking/hooks.ts";
+import { Reminder } from "../../tracking/Reminder.tsx";
+import { SubmitCard } from "../../tracking/SubmitCard.tsx";
 import { Button } from "../../ui/Button.tsx";
 import { Segmented } from "../../ui/Field.tsx";
 import { DayCalendar } from "./DayCalendar.tsx";
@@ -84,6 +86,8 @@ export function TrackPage() {
           </Button>
         </div>
       </div>
+      <Reminder today={today} />
+      <SubmitCard today={today} />
       <WeekHeader
         days={days}
         entries={entries}

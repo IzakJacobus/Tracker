@@ -111,6 +111,9 @@ export class SyncEngine {
 
   /** Call after writing to the outbox: updates the pending count now, syncs shortly. */
   async notifyLocalChange(): Promise<void> {
+    // Flip to "pending" straight away so nobody sees "Synced" while a change is queued.
+    if (this.status.state === "synced")
+      this.set({ state: "pending", pending: Math.max(1, this.status.pending) });
     const pending = await this.db.outbox.count();
     if (this.status.state !== "offline" && this.status.state !== "error")
       this.set({ state: "pending", pending });

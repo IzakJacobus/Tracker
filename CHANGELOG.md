@@ -63,3 +63,15 @@ All notable changes to Stint are documented here. The format follows
 - Demo seed: `bun run seed` creates Karoo Consulting Engineers with 5 people, 4 clients, nested
   projects, internal work, leave and three months of entries.
 - E2E: monthly PDF export, money hidden from members.
+- Timesheet workflow: submit, withdraw, approve, send back with a comment, admin unlock with a
+  reason; submitted and approved periods lock their entries (enforced by the server). Track shows
+  a submission card (short-day warnings, rejection comments); Approvals page with review, a
+  pending-count badge in the menu and the admin unlock.
+- Audit log viewer (Settings → Audit log) and a re-rate tool with preview (Settings → Re-rate).
+- Reminders when today (after the reminder time) or the last working day is under-filled, with
+  optional browser notifications.
+
+### Fixed
+- Submitting a timesheet right after an edit could lock the period before the edit reached the
+  server, silently rolling it back. Submitting now sends pending changes first.
+- `.gitignore` hid `apps/web/src/data` and `apps/web/build` from the repository.

@@ -1,3 +1,4 @@
+import { useLiveQuery } from "dexie-react-hooks";
 import {
   BarChart3,
   Building2,
@@ -62,6 +63,26 @@ export function Shell({ dock, statusSlot }: { dock?: ReactNode; statusSlot?: Rea
   };
 
   const items = NAV.filter((n) => !n.roles || n.roles.includes(me.user.role));
+  const { db } = useData();
+  const waiting =
+    useLiveQuery(async () => {
+      if (me.user.role === "member") return 0;
+      const [sheets, users] = await Promise.all([
+        db.timesheets
+          .where("status")
+          .equals("submitted")
+          .toArray()
+          .catch(() => db.timesheets.toArray()),
+        db.users.toArray(),
+      ]);
+      const team = new Set(users.filter((u) => u.managerId === me.user.id).map((u) => u.id));
+      return sheets.filter(
+        (t) =>
+          t.status === "submitted" &&
+          t.userId !== me.user.id &&
+          (me.user.role === "admin" || team.has(t.userId)),
+      ).length;
+    }, [db, me.user.id, me.user.role]) ?? 0;
 
   return (
     <div className="shell" data-collapsed={collapsed} data-drawer={drawer ? "open" : "closed"}>
@@ -99,6 +120,12 @@ export function Shell({ dock, statusSlot }: { dock?: ReactNode; statusSlot?: Rea
             <NavLink key={n.to} to={n.to} end={n.end} title={collapsed ? n.label : undefined}>
               {n.icon}
               <span>{n.label}</span>
+              {n.to === "/approvals" && waiting > 0 && (
+                <span className="badge badge--live nav__badge">
+                  {waiting}
+                  <span className="sr-only"> waiting</span>
+                </span>
+              )}
             </NavLink>
           ))}
         </div>
