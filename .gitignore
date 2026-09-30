@@ -1,6 +1,5 @@
 node_modules/
 dist/
-build/
 coverage/
 *.log
 .DS_Store
@@ -8,8 +7,8 @@ Thumbs.db
 .env
 .env.*
 !.env.example
-# runtime data
-data/
+# runtime data (server data folders only — not source folders named data/)
+/data/
 apps/server/data/
 *.db
 *.db-wal
