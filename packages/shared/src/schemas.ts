@@ -323,3 +323,68 @@ export const UpdateUserInput = z
   .partial();
 
 export const ResetPasswordInput = z.object({ password: Password });
+
+/* ------------------------------------------------------------------ */
+/* Clients, projects, tasks, tags, members                            */
+/* ------------------------------------------------------------------ */
+
+const optionalCode = z.string().trim().max(40).nullable().optional();
+
+export const CreateClientInput = z.object({
+  id: Id.optional(),
+  name: Name,
+  code: optionalCode,
+  rate: Money.nullable().optional(),
+  notes: z.string().max(5000).optional(),
+});
+export const UpdateClientInput = CreateClientInput.omit({ id: true }).partial();
+
+export const CreateProjectInput = z.object({
+  id: Id.optional(),
+  clientId: Id.optional(),
+  parentId: Id.nullable().optional(),
+  name: Name,
+  code: optionalCode,
+  color: Color.optional(),
+  billableDefault: z.boolean().optional(),
+  rate: Money.nullable().optional(),
+  budgetMinutes: z.number().int().min(0).max(10_000_000).nullable().optional(),
+  budgetAmount: Money.nullable().optional(),
+  visibility: ProjectVisibility.optional(),
+  notes: z.string().max(5000).optional(),
+});
+export const UpdateProjectInput = CreateProjectInput.omit({
+  id: true,
+  clientId: true,
+  parentId: true,
+}).partial();
+
+export const MoveProjectInput = z.object({
+  parentId: Id.nullable(),
+  /** Only when moving a top-level project to another client (admins). */
+  clientId: Id.optional(),
+  sortOrder: z.number().optional(),
+});
+
+export const CreateTaskInput = z.object({
+  id: Id.optional(),
+  projectId: Id,
+  name: Name,
+  rate: Money.nullable().optional(),
+  billable: z.boolean().nullable().optional(),
+});
+export const UpdateTaskInput = CreateTaskInput.omit({ id: true, projectId: true })
+  .partial()
+  .extend({ sortOrder: z.number().optional() });
+
+export const CreateTagInput = z.object({
+  id: Id.optional(),
+  name: z.string().trim().min(1).max(60),
+  color: Color.optional(),
+});
+export const UpdateTagInput = CreateTagInput.omit({ id: true }).partial();
+
+export const SetMemberInput = z.object({
+  role: z.enum(["member", "manager"]).default("member"),
+  rate: Money.nullable().default(null),
+});

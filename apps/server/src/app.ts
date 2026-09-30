@@ -4,9 +4,13 @@ import type { AppContext } from "./context.ts";
 import type { HonoEnv } from "./http.ts";
 import { ApiError } from "./lib/errors.ts";
 import { authRoutes } from "./routes/auth.ts";
+import { clientRoutes } from "./routes/clients.ts";
 import { orgRoutes } from "./routes/org.ts";
 import { pairingRoutes } from "./routes/pairing.ts";
+import { projectRoutes } from "./routes/projects.ts";
+import { syncRoutes } from "./routes/sync.ts";
 import { systemRoutes } from "./routes/system.ts";
+import { tagRoutes, taskRoutes } from "./routes/tasks.ts";
 import { userRoutes } from "./routes/users.ts";
 
 export function createApp(ctx: AppContext) {
@@ -28,6 +32,11 @@ export function createApp(ctx: AppContext) {
   api.route("/org", orgRoutes(ctx));
   api.route("/users", userRoutes(ctx));
   api.route("/pairing", pairingRoutes(ctx));
+  api.route("/clients", clientRoutes(ctx));
+  api.route("/projects", projectRoutes(ctx));
+  api.route("/tasks", taskRoutes(ctx));
+  api.route("/tags", tagRoutes(ctx));
+  api.route("/sync", syncRoutes(ctx));
   api.all("*", (c) => c.json({ error: { code: "not_found", message: "Unknown API route." } }, 404));
 
   app.route("/api", api);
