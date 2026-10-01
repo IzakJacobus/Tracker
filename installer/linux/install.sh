@@ -122,7 +122,7 @@ RULE
   chmod 0644 "$POLKIT_RULE"
 }
 
-uninstall() {
+do_uninstall() {
   say "Removing Stint Server…"
   systemctl disable --now "$SERVICE" >/dev/null 2>&1 || true
   rm -f "$UNIT" "$BIN" "$POLKIT_RULE"
@@ -137,7 +137,7 @@ uninstall() {
   fi
 }
 
-install() {
+do_install() {
   [ -f "$BIN_SRC" ] || die "can't find the program at $BIN_SRC (use --binary PATH)."
   [ -f "$UNIT_SRC" ] || die "can't find $UNIT_SRC next to this script."
   "$BIN_SRC" version >/dev/null 2>&1 || die "$BIN_SRC doesn't run on this machine (wrong architecture?)."
@@ -203,6 +203,6 @@ install() {
 }
 
 case "$action" in
-  install) install ;;
-  uninstall) uninstall ;;
+  install) do_install ;;
+  uninstall) do_uninstall ;;
 esac
