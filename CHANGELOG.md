@@ -114,6 +114,9 @@ All notable changes to Stint are documented here. The format follows
 - Idle detection in the Linux desktop app: GNOME (X11 and Wayland) and other X11 desktops.
 
 - Projects → New project: choose "+ New client…" to create the client in the same step.
+- Track: each day's bar is split into the projects you worked on, in each project's colour and
+  sized by time (sub-projects count with their parent; past four, the rest fold into "Other").
+  Hover a day to see each project's hours.
 
 ### Security
 - Sync push no longer returns another person's time entry or favourite when it rejects a change

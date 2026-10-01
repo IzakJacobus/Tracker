@@ -1,5 +1,14 @@
-import { addDays, dayOfWeek, formatDuration, localDate, parseIsoDate, type TimeEntry } from "@stint/shared";
+import {
+  addDays,
+  dayOfWeek,
+  formatDuration,
+  localDate,
+  type Project,
+  parseIsoDate,
+  type TimeEntry,
+} from "@stint/shared";
 import { ChevronLeft, ChevronRight } from "lucide-react";
+import { useProjects } from "../../data/hooks.ts";
 import { useNow, useSettings } from "../../tracking/hooks.ts";
 import { Button } from "../../ui/Button.tsx";
 
@@ -8,6 +17,64 @@ const MONTH = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "O
 
 export function entrySeconds(e: TimeEntry, now: number): number {
   return e.durationS ?? Math.max(0, Math.floor((now - e.startedAt) / 1000));
+}
+
+/** Projects shown as their own piece of a day's bar; the rest are folded into "Other". */
+const MAX_SEGMENTS = 4;
+const OTHER_COLOR = "var(--stone-400)";
+
+export interface DaySegment {
+  key: string;
+  label: string;
+  color: string;
+  seconds: number;
+}
+
+/** The top-level project a project belongs to (itself, if it has no parent). */
+function rootProject(id: string, byId: Map<string, Project>): Project | undefined {
+  const seen = new Set<string>();
+  let p = byId.get(id);
+  while (p?.parentId && byId.has(p.parentId) && !seen.has(p.id)) {
+    seen.add(p.id);
+    p = byId.get(p.parentId);
+  }
+  return p;
+}
+
+/**
+ * A day's time per top-level project, largest first, in each project's own colour (the same as
+ * its dot everywhere else). Sub-projects share their parent's colour, so they're counted with it:
+ * one colour is always one piece. Beyond MAX_SEGMENTS the smallest are folded into "Other".
+ */
+export function daySegments(entries: TimeEntry[], byId: Map<string, Project>, now: number): DaySegment[] {
+  const perRoot = new Map<string, DaySegment>();
+  for (const e of entries) {
+    const secs = entrySeconds(e, now);
+    if (secs <= 0) continue;
+    const root = rootProject(e.projectId, byId);
+    const key = root?.id ?? e.projectId;
+    const seg = perRoot.get(key) ?? {
+      key,
+      label: root?.name ?? "Unknown project",
+      color: root?.color ?? OTHER_COLOR,
+      seconds: 0,
+    };
+    seg.seconds += secs;
+    perRoot.set(key, seg);
+  }
+  const all = [...perRoot.values()].sort((a, b) => b.seconds - a.seconds || a.label.localeCompare(b.label));
+  if (all.length <= MAX_SEGMENTS) return all;
+  const shown = all.slice(0, MAX_SEGMENTS - 1);
+  const rest = all.slice(MAX_SEGMENTS - 1);
+  return [
+    ...shown,
+    {
+      key: "other",
+      label: `${rest.length} other projects`,
+      color: OTHER_COLOR,
+      seconds: rest.reduce((sum, x) => sum + x.seconds, 0),
+    },
+  ];
 }
 
 export function rangeLabel(from: string, to: string): string {
@@ -36,8 +103,14 @@ export function WeekHeader({
   const settings = useSettings();
   const now = useNow(30_000);
   const today = localDate(now, settings.timezone);
+  const projects = useProjects();
+  const projectById = new Map(projects.map((p) => [p.id, p]));
   const byDay = new Map<string, number>();
-  for (const e of entries) byDay.set(e.entryDate, (byDay.get(e.entryDate) ?? 0) + entrySeconds(e, now));
+  const entriesByDay = new Map<string, TimeEntry[]>();
+  for (const e of entries) {
+    byDay.set(e.entryDate, (byDay.get(e.entryDate) ?? 0) + entrySeconds(e, now));
+    entriesByDay.set(e.entryDate, [...(entriesByDay.get(e.entryDate) ?? []), e]);
+  }
   const total = [...byDay.values()].reduce((a, b) => a + b, 0);
   const expected =
     days.filter((d) => settings.workingDays.includes(dayOfWeek(d))).length * settings.workdayMinutes * 60;
@@ -73,11 +146,13 @@ export function WeekHeader({
         </div>
       </div>
       <div className="week-strip" role="tablist" aria-label="Days">
-        {days.map((d) => {
+        {days.map((d, i) => {
           const secs = byDay.get(d) ?? 0;
+          const segments = daySegments(entriesByDay.get(d) ?? [], projectById, now);
           const working = settings.workingDays.includes(dayOfWeek(d));
           const target = working ? settings.workdayMinutes * 60 : 0;
-          const pct = target ? Math.min(1, secs / target) : secs ? 1 : 0;
+          // The coloured part fills up towards a full working day; past that the bar is full.
+          const empty = target && secs < target ? target - secs : 0;
           const short = working && d < today && secs < settings.reminders.minMinutes * 60;
           return (
             <button
@@ -97,8 +172,33 @@ export function WeekHeader({
                 {secs ? formatDuration(secs) : "–"}
               </span>
               <span className="week-strip__bar" aria-hidden="true">
-                <span style={{ width: `${pct * 100}%` }} />
+                {segments.map((sg) => (
+                  <span key={sg.key} style={{ flexGrow: sg.seconds, background: sg.color }} />
+                ))}
+                {(empty > 0 || segments.length === 0) && (
+                  <span className="week-strip__rest" style={{ flexGrow: empty || 1 }} />
+                )}
               </span>
+              {segments.length > 0 && (
+                <>
+                  <span className="sr-only">
+                    {segments.map((sg) => `${sg.label} ${formatDuration(sg.seconds)}`).join(", ")}
+                  </span>
+                  <span
+                    className="week-strip__tip"
+                    aria-hidden="true"
+                    data-align={i >= 5 ? "end" : undefined}
+                  >
+                    {segments.map((sg) => (
+                      <span key={sg.key} className="week-strip__tip-row">
+                        <span className="week-strip__tip-dot" style={{ background: sg.color }} />
+                        <span className="week-strip__tip-label">{sg.label}</span>
+                        <span className="mono">{formatDuration(sg.seconds)}</span>
+                      </span>
+                    ))}
+                  </span>
+                </>
+              )}
             </button>
           );
         })}
