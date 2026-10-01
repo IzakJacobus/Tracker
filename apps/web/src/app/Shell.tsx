@@ -199,7 +199,7 @@ function UserMenu() {
           onClose={() => setOpen(false)}
           items={[
             { group: me.user.email },
-            { label: "Change password", icon: <KeyRound />, onSelect: () => navigate("/account") },
+            { label: "Your account", icon: <KeyRound />, onSelect: () => navigate("/account") },
             "sep",
             { group: "Appearance" },
             {

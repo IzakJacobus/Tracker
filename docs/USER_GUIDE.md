@@ -1,5 +1,8 @@
 # Stint user guide
 
+> New to Stint? Start with **[How to open Stint](OPENING_STINT.md)**: the app or a browser, and
+> working without Wi-Fi.
+
 This guide is for everyone who records time in Stint. You don't need to know anything about
 servers or networks.
 

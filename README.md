@@ -169,6 +169,7 @@ with nothing exposed to the internet. Its free plan covers up to 6 users. Step-b
 
 ## Documentation
 
+- [How to open Stint](docs/OPENING_STINT.md): the app or a browser, and working offline (for staff)
 - [User guide](docs/USER_GUIDE.md): for everyone who tracks time
 - [Admin guide](docs/ADMIN_GUIDE.md): setting up the firm, people, rates, approvals, backups
 - [Remote access](docs/REMOTE_ACCESS.md): Tailscale (recommended) or Cloudflare Tunnel
