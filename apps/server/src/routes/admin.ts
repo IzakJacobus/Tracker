@@ -1,3 +1,5 @@
+import { existsSync } from "node:fs";
+import { join } from "node:path";
 import { Id, IsoDate, subtreeIds, type TimeEntry } from "@stint/shared";
 import { Hono } from "hono";
 import { z } from "zod";
@@ -6,7 +8,15 @@ import type { AppContext } from "../context.ts";
 import { listRows, TABLES, updateRow } from "../db/tables.ts";
 import { actorOf, body, clientIp, type HonoEnv, query } from "../http.ts";
 import { audit } from "../lib/audit.ts";
-import { badRequest } from "../lib/errors.ts";
+import { badRequest, conflict, notFound } from "../lib/errors.ts";
+import {
+  backupFolder,
+  browseFolders,
+  lastBackup,
+  listBackups,
+  restoreBackup,
+  runBackup,
+} from "../services/backup.ts";
 import { projectTree } from "../services/catalog.ts";
 import { getOrgSettings } from "../services/org.ts";
 import { isPeriodLocked, snapshotRate } from "../services/syncPush.ts";
@@ -29,6 +39,10 @@ const RerateInput = z.object({
   dryRun: z.boolean().default(true),
   reason: z.string().trim().max(500).default(""),
 });
+
+const BackupName = z.object({ name: z.string().regex(/^stint-[\w-]+\.db$/, "Pick a backup from the list.") });
+const RunBackupInput = z.object({ folder: z.string().trim().min(1).max(1000).optional() });
+const FsQuery = z.object({ path: z.string().max(1000).optional() });
 
 export function adminRoutes(ctx: AppContext) {
   const r = new Hono<HonoEnv>();
@@ -157,6 +171,69 @@ export function adminRoutes(ctx: AppContext) {
       })();
     }
     return c.json(summary);
+  });
+
+  /* ---------------------------- Backups ---------------------------- */
+
+  r.get("/backups", (c) => {
+    const folder = backupFolder(ctx);
+    return c.json({
+      folder,
+      last: lastBackup(ctx.db),
+      files: listBackups(folder).map(({ name, sizeBytes, createdAt }) => ({ name, sizeBytes, createdAt })),
+      safetyCopies: listBackups(join(ctx.config.dataDir, "restore-safety")).map(
+        ({ name, sizeBytes, createdAt }) => ({
+          name,
+          sizeBytes,
+          createdAt,
+        }),
+      ),
+    });
+  });
+
+  /** Runs a backup now. With `folder`, it is a test write to a folder the admin is about to choose. */
+  r.post("/backups/run", async (c) => {
+    const actor = actorOf(c);
+    const input = await body(c, RunBackupInput);
+    const result = runBackup(ctx, "manual", input.folder);
+    audit(ctx.db, ctx.now(), {
+      actorId: actor.id,
+      action: "backup",
+      entity: "server",
+      entityId: null,
+      before: null,
+      after: { ok: result.ok, path: result.path, error: result.error },
+      ip: clientIp(c),
+    });
+    return c.json(result, result.ok ? 200 : 422);
+  });
+
+  r.post("/backups/restore", async (c) => {
+    const actor = actorOf(c);
+    const input = await body(c, BackupName);
+    const folders = [backupFolder(ctx), join(ctx.config.dataDir, "restore-safety")];
+    const file = folders.map((f) => join(f, input.name)).find((p) => existsSync(p));
+    if (!file) throw notFound("Backup");
+    const result = restoreBackup(ctx, file);
+    if (!result.ok) throw conflict(result.error ?? "Restore failed.");
+    // Logged into the restored database so the history shows who restored what.
+    audit(ctx.db, ctx.now(), {
+      actorId: actor.id,
+      action: "backup_restore",
+      entity: "server",
+      entityId: null,
+      before: null,
+      after: { file: input.name, safetyCopy: result.safetyCopy },
+      ip: clientIp(c),
+    });
+    if (result.restartRequired) ctx.services.requestRestart?.();
+    return c.json(result);
+  });
+
+  /** Lists folders on the server PC so an admin can pick a backup location from any browser. */
+  r.get("/fs", (c) => {
+    const q = query(c, FsQuery);
+    return c.json(browseFolders(q.path ?? null, ctx.config.dataDir));
   });
 
   return r;

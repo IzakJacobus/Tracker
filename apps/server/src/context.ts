@@ -5,6 +5,7 @@ import type { Logger } from "./lib/log.ts";
 
 /** Everything a request handler needs. Tests build one with an in-memory DB and a fake clock. */
 export interface AppContext {
+  /** Replaced when a backup is restored, so always read it from the context. */
   db: Database;
   config: ServerConfig;
   log: Logger;
@@ -29,9 +30,8 @@ export interface RuntimeInfo {
 }
 
 export interface HostServices {
-  runBackup(
-    kind: "manual" | "scheduled" | "pre-migration" | "pre-restore",
-  ): Promise<{ ok: boolean; path?: string; error?: string }>;
+  /** Asks the host to restart the server process (the Windows service restarts it). */
+  requestRestart(): void;
 }
 
 /** Per-request variables set by middleware. */

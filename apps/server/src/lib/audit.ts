@@ -20,6 +20,7 @@ export type AuditAction =
   | "password_change"
   | "password_reset"
   | "setup"
+  | "backup"
   | "backup_restore"
   | "settings";
 

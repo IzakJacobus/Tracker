@@ -1,7 +1,7 @@
 import { addDays, dayOfWeek, formatDuration, localTime } from "@stint/shared";
 import { BellRing, X } from "lucide-react";
 import { useEffect, useState } from "react";
-import { desktop, isDesktop } from "../lib/desktop.ts";
+import { isDesktop } from "../lib/desktop.ts";
 import { Button } from "../ui/Button.tsx";
 import { useMyEntries, useNow, useSettings } from "./hooks.ts";
 

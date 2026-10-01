@@ -7,7 +7,7 @@ import { LoginLimiter } from "./auth/rateLimit.ts";
 import { pruneSessions } from "./auth/sessions.ts";
 import type { ServerConfig } from "./config.ts";
 import type { AppContext } from "./context.ts";
-import { migrate } from "./db/migrate.ts";
+import { appliedMigrations, migrate } from "./db/migrate.ts";
 import { migrations } from "./db/migrations/index.ts";
 import { openDatabase } from "./db/open.ts";
 import { createLogger, type Logger } from "./lib/log.ts";
@@ -16,6 +16,7 @@ import { isLoopback, lanAddresses, machineName } from "./net/addresses.ts";
 import { startDiscovery } from "./net/discovery.ts";
 import { listenWithFallback } from "./net/listen.ts";
 import { ensureTls } from "./net/tls.ts";
+import { runBackup, startBackupScheduler } from "./services/backup.ts";
 import { getOrgRow } from "./services/org.ts";
 import { emptySource, folderSource, type StaticSource, serveStatic } from "./web/static.ts";
 
@@ -31,6 +32,8 @@ export interface StartOptions {
   version: string;
   web?: StaticSource;
   log?: Logger;
+  /** Provided when running as a service: exit so the service manager starts us again. */
+  requestRestart?: () => void;
 }
 
 export interface RuntimeFile {
@@ -49,7 +52,14 @@ export async function startServer(config: ServerConfig, opts: StartOptions): Pro
   const log = opts.log ?? createLogger(config.logLevel, join(config.dataDir, "logs"));
   const dbPath = join(config.dataDir, "stint.db");
   const db = openDatabase(dbPath);
-  const result = migrate(db, migrations);
+  const result = migrate(db, migrations, {
+    // Upgrades never touch data without a copy to go back to.
+    beforeApply: () => {
+      if (!appliedMigrations(db).length || !getOrgRow(db)) return;
+      const r = runBackup({ db, config, log, now: Date.now }, "pre-migration");
+      if (!r.ok) throw new Error(`Could not back up before upgrading the database: ${r.error}`);
+    },
+  });
   if (result.applied.length) log.info("Database migrated", { applied: result.applied });
   if (!getMeta(db, "server_id")) setMeta(db, "server_id", uuidv7());
 
@@ -77,7 +87,7 @@ export async function startServer(config: ServerConfig, opts: StartOptions): Pro
       hostname,
       caFingerprint: tls.caFingerprint,
     },
-    services: {},
+    services: { requestRestart: opts.requestRestart },
   };
   const app = createApp(ctx);
   const web = opts.web ?? (config.webDir ? folderSource(config.webDir) : emptySource);
@@ -154,12 +164,14 @@ export async function startServer(config: ServerConfig, opts: StartOptions): Pro
     dataDir: config.dataDir,
   });
 
-  const housekeeping = setInterval(() => pruneSessions(db, Date.now()), 3600_000);
+  // ctx.db (not db): a restore swaps the database underneath us.
+  const housekeeping = setInterval(() => pruneSessions(ctx.db, Date.now()), 3600_000);
+  const stopBackups = startBackupScheduler(ctx);
   const discovery = config.discovery
     ? startDiscovery(
         () => ({
-          serverId: getMeta(db, "server_id") ?? "",
-          organizationName: getOrgRow(db)?.name ?? "",
+          serverId: getMeta(ctx.db, "server_id") ?? "",
+          organizationName: getOrgRow(ctx.db)?.name ?? "",
           version: opts.version,
           port: https.port!,
           caFingerprint: tls.caFingerprint,
@@ -177,10 +189,11 @@ export async function startServer(config: ServerConfig, opts: StartOptions): Pro
     adminUrl,
     async stop() {
       clearInterval(housekeeping);
+      stopBackups();
       discovery?.stop();
       await https.stop(true);
       await http.stop(true);
-      db.close();
+      ctx.db.close();
     },
   };
 }

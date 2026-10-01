@@ -45,7 +45,16 @@ export async function cli(argv: string[], web?: StaticSource): Promise<void> {
     case "run":
     case "--service": {
       const service = argv.includes("--service") || cmd === "--service";
-      const server = await startServer(config, { version: VERSION, web });
+      const server = await startServer(config, {
+        version: VERSION,
+        web,
+        // The service wrapper restarts us when we exit with an error code.
+        requestRestart: service
+          ? () => {
+              setTimeout(() => process.exit(75), 1500);
+            }
+          : undefined,
+      });
       const setupDone = server.ctx.db.query("SELECT 1 FROM organization").get() !== null;
       if (!setupDone && config.openBrowser && !service) openInBrowser(`${server.adminUrl}setup`);
       const shutdown = async () => {
