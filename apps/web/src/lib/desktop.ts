@@ -27,6 +27,8 @@ export const desktop = {
   pairWithCode: (code: string) => invoke<PairingStatus>("pair_with_code", { code }),
   unpair: () => invoke<void>("unpair"),
   idleSeconds: () => invoke<number>("idle_seconds"),
+  /** "windows" | "macos" | "gnome" | "x11", or null where idle time can't be read. */
+  idleSupport: () => invoke<string | null>("idle_support"),
   rememberAddresses: (addresses: string[]) => invoke<void>("remember_addresses", { addresses }),
   trayUpdate: (running: boolean, tooltip: string) => invoke<void>("tray_update", { running, tooltip }),
   notify: (title: string, body: string) => invoke<void>("notify", { title, body }),

@@ -192,6 +192,17 @@ fn idle_seconds() -> u64 {
     idle::idle_seconds()
 }
 
+/// How idle time is measured here ("windows", "macos", "gnome", "x11"), or null if it can't be.
+#[tauri::command]
+fn idle_support() -> Option<&'static str> {
+    idle::idle_support()
+}
+
+/// Used by `examples/idle.rs`.
+pub fn debug_idle() -> (Option<&'static str>, u64) {
+    (idle::idle_support(), idle::idle_seconds())
+}
+
 #[tauri::command]
 fn tray_update(state: State<'_, AppState>, app: AppHandle, running: bool, tooltip: String) {
     if let Some(item) = state.tray_toggle.lock().unwrap().as_ref() {
@@ -288,6 +299,7 @@ pub fn run() {
             api_request,
             remember_addresses,
             idle_seconds,
+            idle_support,
             tray_update,
             save_file,
             notify

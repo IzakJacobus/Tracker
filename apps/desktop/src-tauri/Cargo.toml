@@ -38,6 +38,11 @@ tokio = { version = "1", features = ["rt", "macros"] }
 [target.'cfg(windows)'.dependencies]
 windows-sys = { version = "0.59", features = ["Win32_UI_Input_KeyboardAndMouse", "Win32_System_SystemInformation", "Win32_Foundation"] }
 
+# Both are already part of the Tauri build on Linux; listed so idle detection can use them.
+[target.'cfg(target_os = "linux")'.dependencies]
+zbus = "5"
+libloading = "0.7"
+
 [target.'cfg(target_os = "macos")'.dependencies]
 core-graphics = "0.24"
 

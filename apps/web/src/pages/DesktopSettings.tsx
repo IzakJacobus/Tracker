@@ -11,8 +11,13 @@ export function DesktopSettings() {
   const [auto, setAuto] = useState<boolean | null>(null);
   const [status, setStatus] = useState<PairingStatus | null>(null);
   const [confirm, setConfirm] = useState(false);
+  const [idle, setIdle] = useState<string | null | undefined>(undefined);
   useEffect(() => {
     if (!isDesktop()) return;
+    desktop
+      .idleSupport()
+      .then(setIdle)
+      .catch(() => setIdle(null));
     desktop
       .autostartEnabled()
       .then(setAuto)
@@ -38,6 +43,13 @@ export function DesktopSettings() {
             }}
             label="Start Stint when I sign in (it waits quietly in the tray)"
           />
+        )}
+        {idle === null && (
+          <p className="muted" style={{ fontSize: "var(--text-sm)" }}>
+            Stint can't tell when you're away from this computer, so it won't ask about idle time. This
+            happens on Wayland desktops other than GNOME (for example KDE Plasma or Sway). Signing in to an
+            X11 session ("Plasma (X11)") turns it on.
+          </p>
         )}
         {status && (
           <div className="row row--between row--wrap">
