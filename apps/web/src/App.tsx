@@ -13,7 +13,6 @@ import { ForcePassword } from "./pages/auth/ForcePassword.tsx";
 import { Login } from "./pages/auth/Login.tsx";
 import { Setup } from "./pages/auth/Setup.tsx";
 import { ClientsPage } from "./pages/clients/ClientsPage.tsx";
-import { Placeholder } from "./pages/Placeholder.tsx";
 import { ProjectsPage } from "./pages/projects/ProjectsPage.tsx";
 import { ClientReportPage } from "./pages/reports/ClientReport.tsx";
 import { MonthlyReport } from "./pages/reports/Monthly.tsx";
@@ -21,7 +20,11 @@ import { Overview } from "./pages/reports/Overview.tsx";
 import { ProjectReportPage } from "./pages/reports/ProjectReport.tsx";
 import { ReportsLayout } from "./pages/reports/ReportsLayout.tsx";
 import { AuditLogPage } from "./pages/settings/AuditLog.tsx";
+import { BackupsPage } from "./pages/settings/Backups.tsx";
+import { HealthPage } from "./pages/settings/Health.tsx";
+import { ImportPage } from "./pages/settings/Import.tsx";
 import { OrgSettingsPage } from "./pages/settings/OrgSettings.tsx";
+import { RemoteAccessPage } from "./pages/settings/RemoteAccess.tsx";
 import { ReratePage } from "./pages/settings/Rerate.tsx";
 import { SettingsLayout } from "./pages/settings/SettingsLayout.tsx";
 import { TeamPage } from "./pages/team/Team.tsx";
@@ -134,7 +137,11 @@ const appRouter = () =>
             { index: true, element: <OrgSettingsPage /> },
             { path: "audit", element: <AuditLogPage /> },
             { path: "rerate", element: <ReratePage /> },
-            { path: "*", element: <Placeholder title="Coming soon" /> },
+            { path: "health", element: <HealthPage /> },
+            { path: "backups", element: <BackupsPage /> },
+            { path: "remote", element: <RemoteAccessPage /> },
+            { path: "import", element: <ImportPage /> },
+            { path: "*", element: <Navigate to="/settings" replace /> },
           ],
         },
         { path: "account", element: <AccountPage /> },

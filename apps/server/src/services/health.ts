@@ -1,5 +1,6 @@
 import { statfsSync, statSync } from "node:fs";
 import { join } from "node:path";
+import { localDate, localTime } from "@stint/shared";
 import type { AppContext } from "../context.ts";
 import { pairingInfo } from "../routes/pairing.ts";
 import { backupFolder, lastBackup, lastSuccessfulBackup } from "./backup.ts";
@@ -94,7 +95,7 @@ export function healthReport(ctx: AppContext) {
       id: "backup",
       label: "Backups",
       status: "ok",
-      detail: `Last backup ${new Date(lastOk).toISOString()}.`,
+      detail: `Last backup ${localDate(lastOk, settings.timezone)} at ${localTime(lastOk, settings.timezone)}, to ${folder}.`,
     });
   }
   if (!settings.backup.folder) {
@@ -205,7 +206,7 @@ export function healthReport(ctx: AppContext) {
             id: "certificate",
             label: "Certificate",
             status: "ok",
-            detail: `Valid until ${new Date(certExp).toISOString().slice(0, 10)}.`,
+            detail: `Valid until ${localDate(certExp, settings.timezone)}.`,
           },
     );
   }

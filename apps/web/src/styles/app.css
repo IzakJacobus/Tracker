@@ -111,6 +111,7 @@
 }
 
 .pair-code {
+  display: block;
   font-family: var(--font-mono);
   font-size: var(--text-3xl);
   letter-spacing: 0.08em;
@@ -1590,4 +1591,151 @@
 .pair-list__empty svg {
   width: 18px;
   height: 18px;
+}
+
+/* ============================================================
+   Settings: health, backups, import
+   ============================================================ */
+.health-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+.health-item {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  padding: var(--space-3) var(--space-5);
+  border-top: 1px solid var(--border);
+}
+.health-item:first-child {
+  border-top: 0;
+}
+.health-item__icon {
+  flex: none;
+  width: 20px;
+  height: 20px;
+}
+.health-item--ok .health-item__icon {
+  color: var(--success);
+}
+.health-item--info .health-item__icon {
+  color: var(--info);
+}
+.health-item--warning .health-item__icon {
+  color: var(--warning);
+}
+.health-item--error .health-item__icon {
+  color: var(--danger);
+}
+.health-item__label {
+  font-weight: var(--weight-semibold);
+}
+.health-item__detail {
+  color: var(--text-muted);
+  font-size: var(--text-sm);
+}
+.health-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+  gap: var(--space-4);
+}
+.pair-code {
+  display: block;
+  font-family: var(--font-mono);
+  font-size: var(--text-2xl);
+  font-weight: var(--weight-semibold);
+  letter-spacing: 0.06em;
+  padding: var(--space-3) var(--space-4);
+  border-radius: var(--radius-md);
+  background: var(--surface-sunken);
+  text-align: center;
+  user-select: all;
+}
+.plain-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: var(--space-2);
+}
+.kv {
+  display: grid;
+  grid-template-columns: 140px minmax(0, 1fr);
+  gap: var(--space-2) var(--space-4);
+  margin: 0;
+}
+.kv dt {
+  color: var(--text-muted);
+}
+.kv dd {
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+.howto-steps {
+  margin: 0;
+  padding-left: 1.25rem;
+  display: grid;
+  gap: var(--space-2);
+}
+.folder-browser {
+  display: grid;
+  max-height: 260px;
+  overflow: auto;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+}
+.folder-browser__item {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-2) var(--space-3);
+  border: 0;
+  border-bottom: 1px solid var(--border);
+  background: none;
+  color: var(--text);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+.folder-browser__item:hover {
+  background: var(--surface-hover);
+}
+.folder-browser__item:focus-visible {
+  outline: none;
+  box-shadow: inset 0 0 0 2px var(--primary);
+}
+.folder-browser__item svg {
+  width: 16px;
+  height: 16px;
+  color: var(--text-subtle);
+}
+.file-drop {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  padding: var(--space-5);
+  border: 2px dashed var(--border-strong);
+  border-radius: var(--radius-lg);
+  color: var(--text-muted);
+  cursor: pointer;
+}
+.file-drop:hover {
+  border-color: var(--primary);
+  color: var(--text);
+}
+.file-drop:focus-within {
+  box-shadow: var(--focus-ring);
+}
+.file-drop svg {
+  width: 22px;
+  height: 22px;
+}
+@media (max-width: 640px) {
+  .kv {
+    grid-template-columns: 1fr;
+  }
+  .kv dd {
+    margin-bottom: var(--space-2);
+  }
 }

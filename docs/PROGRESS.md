@@ -3,7 +3,7 @@
 > Single source of truth for where the work stands. Update after every meaningful step.
 
 ## Current phase
-**Phase 9 — Ship it: installers, service, backups, health, updates, docs** (starting)
+**Phase 9 — Ship it: installers, service, backups, health, updates, docs** (in progress)
 
 ## Done
 - Architecture (`docs/ARCHITECTURE.md`) and roadmap (`docs/ROADMAP.md`)
@@ -49,22 +49,18 @@
 - **Phase 8 complete.** Not verifiable here: Windows tray/idle APIs (compile-checked only in CI).
 
 ## In progress
-- Phase 9
+- Phase 9. Done so far: backups + restore + folder browser (`services/backup.ts`, +8 tests);
+  health report, sleep guard, Windows network/firewall checks, Tailscale status, update check
+  (`services/health.ts`, `platform/*`, `services/updates.ts`, +6 tests); CSV import
+  (`packages/shared/src/csvImport.ts` +8 tests, `services/importer.ts` +4 tests); web Settings →
+  Health / Backups / Remote access / Import (checked in Chromium, light + dark). 12/12 e2e green.
 
 ## Next step (exact)
-1. Server background ops: `services/backup.ts` (nightly VACUUM INTO to chosen folder, keep N,
-   integrity check, pre-migration + pre-restore backups), restore endpoint, folder browser API;
-   `platform/windows.ts` (sleep guard via bun:ffi SetThreadExecutionState, network category via
-   PowerShell Get-NetConnectionProfile, make-private button, firewall rule check); update check
-   (GitHub releases API, daily); `GET /api/admin/health`. Tests.
-2. Web: Settings → Health (status, DB size, last backup, connected users, pairing code, fixes),
-   Backups (folder picker, run now, list, restore), Remote access (Tailscale guide + toggle),
-   Import (CSV incl. Toggl export format).
-3. Packaging: `apps/server/scripts/build.ts` (embed web dist, `bun build --compile` for
+1. Packaging: `apps/server/scripts/build.ts` (embed web dist, `bun build --compile` for
    windows-x64 / linux-x64 / darwin-arm64), WinSW service XML, NSIS installer script
    (installer/server.nsi: service, firewall rules private/domain, Start-menu "Stint Server — Open",
    uninstall removes rules), release workflow on tags (server installers + Tauri bundles).
-4. Docs: README (screenshots, quick start, backup/restore, upgrading, remote access,
+2. Docs: README (screenshots, quick start, backup/restore, upgrading, remote access,
    troubleshooting), docs/USER_GUIDE.md, docs/ADMIN_GUIDE.md, docs/REMOTE_ACCESS.md,
    docs/INSTALL_TEST.md (clean-Windows test procedure + what could not be tested here).
 

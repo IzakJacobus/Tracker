@@ -80,6 +80,21 @@ All notable changes to Stint are documented here. The format follows
   notifications. Verified on Linux (WebKitGTK under Xvfb) against a live server.
 - CI job that builds the web client and runs the desktop Rust tests.
 
+- Nightly backups (`VACUUM INTO`, integrity-checked, keep the last N) to a folder the admin picks
+  from any browser (USB and OneDrive suggestions), a backup before every database upgrade, and
+  one-click restore with an automatic safety copy, rollback on failure and a full client re-sync.
+- Health page: database, backups, disk space, network, Windows firewall, sleep prevention, remote
+  access and certificate checks with one-click fixes (back up now, mark network Private), people
+  connected now, the pairing code and server details.
+- Sleep prevention while the server runs (Windows `SetThreadExecutionState`; `caffeinate` /
+  `systemd-inhibit` elsewhere), switchable in settings.
+- Daily update check against GitHub Releases (only the version is sent; can be turned off).
+- Remote access page recommending Tailscale, with live Tailscale status; the Tailscale name is added
+  to the server certificate.
+- CSV import for Toggl Track detailed exports, Stint's own exports and simple Date/Person/Project/
+  Duration files: exact dry-run preview, person mapping, creates missing clients/projects/tasks/
+  tags, skips duplicates and locked periods.
+
 ### Fixed
 - Submitting a timesheet right after an edit could lock the period before the edit reached the
   server, silently rolling it back. Submitting now sends pending changes first.

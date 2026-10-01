@@ -8,7 +8,7 @@ import type { AppContext } from "../context.ts";
 import { listRows, TABLES, updateRow } from "../db/tables.ts";
 import { actorOf, body, clientIp, type HonoEnv, query } from "../http.ts";
 import { audit } from "../lib/audit.ts";
-import { badRequest, conflict, notFound } from "../lib/errors.ts";
+import { ApiError, badRequest, conflict, notFound } from "../lib/errors.ts";
 import {
   backupFolder,
   browseFolders,
@@ -222,7 +222,8 @@ export function adminRoutes(ctx: AppContext) {
       after: { ok: result.ok, path: result.path, error: result.error },
       ip: clientIp(c),
     });
-    return c.json(result, result.ok ? 200 : 422);
+    if (!result.ok) throw new ApiError(422, "backup_failed", result.error ?? "The backup failed.");
+    return c.json(result);
   });
 
   r.post("/backups/restore", async (c) => {
