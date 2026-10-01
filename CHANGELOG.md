@@ -113,6 +113,8 @@ All notable changes to Stint are documented here. The format follows
   machine.
 - Idle detection in the Linux desktop app: GNOME (X11 and Wayland) and other X11 desktops.
 
+- Projects → New project: choose "+ New client…" to create the client in the same step.
+
 ### Security
 - Sync push no longer returns another person's time entry or favourite when it rejects a change
   to it (a member could read someone's entry by guessing its ID).
@@ -145,3 +147,8 @@ All notable changes to Stint are documented here. The format follows
 - With more than one admin, admins can no longer approve their own timesheet.
 - Switching the approval period from month to week could create a timesheet overlapping an
   already submitted or approved month.
+- The project list in Add time opened behind the window and couldn't be clicked; lists and menus
+  now open above dialogs, and Escape closes only the list.
+- "Create project" did nothing: the form could start with no client (the list was still loading)
+  and the server's error had nowhere to show. It now picks the client once the list loads and
+  shows any error it can't place next to a field.

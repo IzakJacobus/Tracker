@@ -66,7 +66,9 @@ export function Popover({
     };
     const onKey = (e: KeyboardEvent) => {
       if (e.key === "Escape") {
-        e.stopPropagation();
+        // Only this popover closes: not a dialog it was opened from (same document listener).
+        e.stopImmediatePropagation();
+        e.preventDefault();
         onCloseRef.current();
         anchor.current?.focus();
       }

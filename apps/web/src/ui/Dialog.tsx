@@ -35,6 +35,8 @@ export function Dialog({ open, onClose, title, children, footer, wide, initialFo
     first?.focus();
     const onKey = (e: KeyboardEvent) => {
       if (e.key === "Escape") {
+        // A list or menu opened from inside the dialog closes first; its own handler does that.
+        if (e.defaultPrevented || document.querySelector(".popover")) return;
         e.stopPropagation();
         onCloseRef.current();
       } else if (e.key === "Tab" && el) {

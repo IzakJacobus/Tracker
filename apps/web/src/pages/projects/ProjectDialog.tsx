@@ -1,6 +1,6 @@
 import type { Project, ProjectMember, Task, User } from "@stint/shared";
 import { Archive, ArchiveRestore, Plus, Trash2 } from "lucide-react";
-import { type FormEvent, useState } from "react";
+import { type FormEvent, useCallback, useEffect, useState } from "react";
 import { useMe } from "../../app/session.tsx";
 import { useData } from "../../data/DataProvider.tsx";
 import { useClients, useMembers, useProjects, useTasks, useUsers } from "../../data/hooks.ts";
@@ -28,6 +28,11 @@ const COLORS = [
 ];
 
 type Tab = "details" | "tasks" | "team";
+
+/** Select value meaning "create a new client together with this project". */
+const NEW_CLIENT = "__new_client__";
+/** Fields the details form shows errors next to. */
+const SHOWN_FIELDS = new Set(["name", "clientId", "newClient"]);
 
 export function ProjectDialog(
   props:
@@ -97,7 +102,10 @@ function DetailsForm({
   const seesMoney = me.permissions.seeRates;
   const defaultClient =
     parent?.clientId ?? clientId ?? clients.find((c) => !c.isInternal)?.id ?? clients[0]?.id ?? "";
-  const clientIsInternal = (id: string) => clients.find((c) => c.id === id)?.isInternal ?? false;
+  const clientIsInternal = useCallback(
+    (id: string) => clients.find((c) => c.id === id)?.isInternal ?? false,
+    [clients],
+  );
 
   const [f, setF] = useState({
     clientId: project?.clientId ?? defaultClient,
@@ -114,6 +122,27 @@ function DetailsForm({
   const [fields, setFields] = useState<Record<string, string>>({});
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  const [newClient, setNewClient] = useState("");
+  const canAddClient = me.user.role === "admin";
+  const creatingClient = f.clientId === NEW_CLIENT;
+
+  // The client list loads a moment after the form opens: pick the default client then, rather
+  // than submitting an empty one (which the server rejects).
+  useEffect(() => {
+    if (!project && !parent && !f.clientId && defaultClient) {
+      const internal = clientIsInternal(defaultClient);
+      setF((cur) =>
+        cur.clientId
+          ? cur
+          : {
+              ...cur,
+              clientId: defaultClient,
+              billableDefault: !internal,
+              visibility: internal ? "everyone" : "members",
+            },
+      );
+    }
+  }, [project, parent, f.clientId, defaultClient, clientIsInternal]);
 
   async function submit(e: FormEvent) {
     e.preventDefault();
@@ -140,15 +169,34 @@ function DetailsForm({
         await mutate(() => api.patch(`/projects/${project.id}`, common));
         toast.success("Project saved.");
       } else {
-        await mutate(() =>
-          api.post("/projects", { ...common, clientId: parent ? undefined : f.clientId, parentId }),
-        );
+        let clientId = parent ? undefined : f.clientId;
+        if (!parent && creatingClient) {
+          if (!newClient.trim()) {
+            setFields({ newClient: "Give the new client a name." });
+            return;
+          }
+          // Create the client first; if the project then fails, the client is kept and selected.
+          let c: { id: string };
+          try {
+            c = await mutate(() => api.post<{ id: string }>("/clients", { name: newClient.trim() }));
+          } catch (err) {
+            setFields({ newClient: errorMessage(err) });
+            return;
+          }
+          clientId = c.id;
+          setF((cur) => ({ ...cur, clientId: c.id }));
+          setNewClient("");
+        }
+        await mutate(() => api.post("/projects", { ...common, clientId, parentId }));
         toast.success(parent ? `Added “${f.name}” under “${parent.name}”.` : `Created “${f.name}”.`);
       }
       onDone();
     } catch (err) {
-      if (err instanceof ApiError && Object.keys(err.fields).length) setFields(err.fields);
-      else setError(errorMessage(err));
+      if (err instanceof ApiError && Object.keys(err.fields).length) {
+        setFields(err.fields);
+        // Errors for fields this form doesn't show must still be seen.
+        if (Object.keys(err.fields).some((k) => !SHOWN_FIELDS.has(k))) setError(errorMessage(err));
+      } else setError(errorMessage(err));
     } finally {
       setBusy(false);
     }
@@ -164,7 +212,7 @@ function DetailsForm({
       )}
       <div className="grid-2">
         {!project && !parent && (
-          <Field label="Client">
+          <Field label="Client" error={fields.clientId}>
             <Select
               value={f.clientId}
               onChange={(e) => {
@@ -182,7 +230,18 @@ function DetailsForm({
                   {c.name}
                 </option>
               ))}
+              {canAddClient && <option value={NEW_CLIENT}>+ New client…</option>}
             </Select>
+          </Field>
+        )}
+        {!project && !parent && creatingClient && (
+          <Field label="New client name" error={fields.newClient}>
+            <Input
+              value={newClient}
+              onChange={(e) => setNewClient(e.target.value)}
+              placeholder="e.g. Drakenstein Municipality"
+              autoFocus
+            />
           </Field>
         )}
         <Field label="Name" error={fields.name}>

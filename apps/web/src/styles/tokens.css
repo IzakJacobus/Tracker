@@ -103,8 +103,9 @@
   /* z-index */
   --z-dock: 20;
   --z-sidebar: 30;
-  --z-popover: 40;
   --z-dialog: 50;
+  /* Above dialogs: pickers and menus open from inside dialogs (e.g. the project list in Add time). */
+  --z-popover: 55;
   --z-toast: 60;
 }
 
