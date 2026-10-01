@@ -102,3 +102,55 @@ jobs:
           cp apps/desktop/src-tauri/icons/icon.ico stage/stint.ico
           makensis -V2 -DVERSION=0.0.0 -DSRC=$PWD/stage -DOUTFILE=$PWD/StintServer-Setup-ci.exe installer/windows/server.nsi
           ls -la StintServer-Setup-ci.exe
+
+  linux-install:
+    name: Linux install script (systemd)
+    runs-on: ubuntu-latest
+    needs: check
+    steps:
+      - uses: actions/checkout@v5
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: 1.3.14
+      - run: bun install --frozen-lockfile && bun run --filter @stint/web build
+      - run: bun apps/server/scripts/build.ts --target linux-x64
+      - name: Install with ufw active
+        run: |
+          sudo ufw --force enable
+          sudo bash installer/linux/install.sh --binary apps/server/dist/stint-server-linux-x64 | tee install.log
+          grep -q "Next: finish setup" install.log
+          systemctl is-active --quiet stint-server
+          systemctl is-enabled --quiet stint-server
+          sudo ufw status | grep -q "47600:47610/tcp.*192.168.0.0/16"
+          sudo ufw status | grep -q "5353/udp.*10.0.0.0/8"
+      - name: Data folder belongs to the service account only
+        run: |
+          [ "$(sudo stat -c '%U %a' /var/lib/stint)" = "stint 750" ]
+          if sudo -u nobody test -r /var/lib/stint/stint.db; then echo "::error::check failed"; exit 1; fi
+      - name: Setup, then the service keeps the PC awake
+        run: |
+          curl -fs -H 'x-stint-request: 1' -H 'content-type: application/json' \
+            -d '{"organizationName":"CI Ltd","admin":{"name":"CI Admin","email":"ci@example.com","password":"ci test password"}}' \
+            http://127.0.0.1:47601/api/setup | grep -q '"ok":true'
+          sleep 2
+          systemd-inhibit --list --no-pager | tee inhibitors.txt
+          grep -q "Stint Server" inhibitors.txt
+      - name: Upgrade in place keeps the data
+        run: |
+          sudo bash installer/linux/install.sh --binary apps/server/dist/stint-server-linux-x64 | tee upgrade.log
+          grep -q "(upgraded)" upgrade.log
+          if grep -q "Next: finish setup" upgrade.log; then echo "::error::check failed"; exit 1; fi
+          curl -fs http://127.0.0.1:47601/api/setup/status | grep -q '"setupComplete":true'
+      - name: Uninstall keeps data; purge removes everything
+        run: |
+          sudo bash installer/linux/install.sh --uninstall
+          if systemctl is-active --quiet stint-server; then echo "::error::check failed"; exit 1; fi
+          sudo test -f /var/lib/stint/stint.db
+          if sudo ufw status | grep -q 47600; then echo "::error::check failed"; exit 1; fi
+          [ ! -e /usr/local/bin/stint-server ]
+          sudo bash installer/linux/install.sh --uninstall --purge
+          [ ! -e /var/lib/stint ]
+          if id stint; then echo "::error::check failed"; exit 1; fi
+      - name: Service log
+        if: failure()
+        run: sudo journalctl -u stint-server --no-pager | tail -100

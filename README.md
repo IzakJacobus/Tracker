@@ -90,10 +90,34 @@ You can get back to it any time from the Start menu: **Stint Server**.
 3. If it can't find the server (some office networks block discovery), type the **pairing code**
    shown on the server's Health page, for example `R000-40NT-AG9D-AKMK`.
 
+**Linux desktops:** install the `.deb` (Debian, Ubuntu, Mint) or run the `.AppImage` from the
+release. It works the same way. Idle detection works on GNOME and on any X11 desktop; on other
+Wayland desktops (KDE Plasma, Sway) the app simply doesn't ask about time away.
+
 Phones, tablets and Macs can use a browser instead. Open `https://<server-pc-name>.local:47600`
 on the office network. The first time, the browser warns about the certificate, because
 Stint makes its own (see [Troubleshooting](#troubleshooting)). You can then install it as an app
 from the browser menu.
+
+### Running the server on Linux instead
+
+Any 64-bit Linux with systemd works (x64 or arm64, so a Raspberry Pi 4/5 is fine). Download
+`stint-server-x.y.z-linux-x64.tar.gz` (or `-linux-arm64`) from the release, then:
+
+```bash
+tar xzf stint-server-*-linux-*.tar.gz && cd stint-server-*/
+sudo ./install.sh
+```
+
+The script creates a `stint` service account, installs the `stint-server` service (it starts
+at boot), keeps the computer from sleeping, and, if ufw or firewalld is on, opens Stint's ports
+to private networks only. It then prints the setup address. Setup only opens on the server
+itself, so on a server without a screen it also prints the `ssh -L …` command that lets you
+finish setup from your own computer's browser.
+
+Re-run `sudo ./install.sh` from a newer release to upgrade.
+`sudo ./install.sh --uninstall` removes Stint but keeps the data in `/var/lib/stint`; add
+`--purge` to delete that too. Logs: `journalctl -u stint-server`.
 
 ## Backups and restore
 

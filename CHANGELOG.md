@@ -107,6 +107,12 @@ All notable changes to Stint are documented here. The format follows
 - Documentation: README with screenshots and a plain-language quick start, user guide, admin
   guide, remote access guide, install test checklist and release process.
 
+- Linux server install script (`installer/linux/install.sh`): service account, systemd
+  service, ufw/firewalld rules for private networks only, permission to keep the computer
+  awake, upgrade in place, uninstall with optional purge. Tested in CI on a real systemd
+  machine.
+- Idle detection in the Linux desktop app: GNOME (X11 and Wayland) and other X11 desktops.
+
 ### Fixed
 - Submitting a timesheet right after an edit could lock the period before the edit reached the
   server, silently rolling it back. Submitting now sends pending changes first.

@@ -1,24 +1,26 @@
-# systemd unit for Stint Server on Linux.
-#   sudo useradd --system --home /var/lib/stint --create-home stint
-#   sudo install -m 755 stint-server /usr/local/bin/stint-server
-#   sudo cp stint-server.service /etc/systemd/system/ && sudo systemctl enable --now stint-server
-# Then open http://localhost:47601/setup on the server itself.
+# systemd unit for Stint Server. install.sh installs it; see the comments there.
 [Unit]
 Description=Stint Server (time tracking)
+Documentation=https://github.com/IzakJacobus/Tracker
 After=network-online.target
 Wants=network-online.target
 
 [Service]
 Type=simple
 User=stint
+Group=stint
 Environment=STINT_DATA_DIR=/var/lib/stint
 Environment=STINT_OPEN_BROWSER=0
 ExecStart=/usr/local/bin/stint-server --service
+# Stint exits with an error code to ask for a restart (e.g. after restoring a backup from another server).
 Restart=on-failure
 RestartSec=5
+# Let a stopping server finish writing before it is killed.
+TimeoutStopSec=20
 NoNewPrivileges=true
 ProtectSystem=full
 PrivateTmp=true
+UMask=0027
 
 [Install]
 WantedBy=multi-user.target

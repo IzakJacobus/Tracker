@@ -24,6 +24,8 @@ the results in the table at the end.
 | Public-network warning and "Mark as Private" | ✅ UI and API, with simulated Windows data (tests); ❌ real PowerShell output | `apps/server/src/platform/network.ts` |
 | Setup wizard, sign-in, tracking, sync, approvals, PDF | ✅ | 12 Playwright end-to-end tests in Chromium, on every push |
 | Backups, restore, import, health | ✅ | Server integration tests, plus manual runs against a live server |
+| Linux install script: service, ufw rules (private networks only), data permissions, sleep inhibitor, upgrade, uninstall, purge | ✅ (via CI) | CI job *Linux install script* runs `installer/linux/install.sh` on a real Ubuntu runner with systemd and ufw |
+| Linux desktop idle detection | ✅ X11; ❌ GNOME (Mutter D-Bus) not run | `cargo run --example idle` under Xvfb: counts up, resets on input |
 | LAN discovery (mDNS + UDP broadcast) and pairing | ✅ Linux | Desktop app under Xvfb found the server, paired, signed in and synced (`docs/screenshots/desktop-*.png`) |
 | Desktop app on Windows (tray, idle detection, NSIS bundle) | ❌ needs Windows | Built by the release workflow on `windows-latest` |
 | Update notice | ✅ | Tests with a mocked GitHub Releases response |

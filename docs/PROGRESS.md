@@ -60,6 +60,11 @@
   Bugs found and fixed: managers saw "(deleted project)" for their team's projects; manager
   changes didn't resync the manager.
 - **Phase 9 complete** apart from running INSTALL_TEST.md on real Windows.
+- Linux follow-up (user request): `installer/linux/install.sh` (systemd service, `stint` account,
+  ufw/firewalld private-network rules, polkit rule for the sleep inhibitor, upgrade, uninstall,
+  `--purge`), CI job *Linux install script* runs it on a real systemd runner; Linux desktop idle
+  detection (`idle.rs`: Mutter D-Bus for GNOME, XScreenSaver for X11; verified under Xvfb).
+  Bug found and fixed: x11-dl looks for libXss.so.2/libXss.so, which desktops don't ship.
 
 ## In progress
 - nothing

@@ -5,7 +5,7 @@ approvals, backups and keeping the server healthy. No programming needed.
 
 ## 1. Choosing the server PC
 
-Stint Server runs on one Windows PC in the office. Choose one that:
+Stint Server runs on one Windows or Linux computer in the office. Choose one that:
 
 - stays switched on during working hours (Stint stops it from sleeping while it runs),
 - has a wired network connection if possible, and
@@ -14,8 +14,22 @@ Stint Server runs on one Windows PC in the office. Choose one that:
 It doesn't need to be powerful: Stint is a single small program with a single database file,
 and staff can keep using the PC as normal.
 
-Install it by running `StintServer-Setup-x.y.z.exe` as an administrator (see the README's
-quick start). The setup wizard opens when it finishes.
+On Windows, install it by running `StintServer-Setup-x.y.z.exe` as an administrator (see the
+README's quick start). The setup wizard opens when it finishes.
+
+On Linux, unpack the release's `stint-server-…-linux-x64.tar.gz` (or `-arm64`) and run
+`sudo ./install.sh`. Paths differ from the rest of this guide:
+
+| | Windows | Linux |
+| --- | --- | --- |
+| Data, backups, logs | `C:\ProgramData\Stint` | `/var/lib/stint` (owned by the `stint` account) |
+| Service | *Stint Server* in Services | `systemctl status stint-server`, `journalctl -u stint-server` |
+| Firewall | rules added by the installer | ufw or firewalld rules for private networks, added by `install.sh` |
+| Config file | `C:\ProgramData\Stint\stint.config.json` | `/var/lib/stint/stint.config.json` |
+
+A backup folder on Linux must be writable by the `stint` account. For a USB drive, for example:
+`sudo mkdir /media/usb/stint-backups && sudo chown stint: /media/usb/stint-backups`. The
+Health page's Public-network and firewall checks are Windows-only.
 
 ## 2. The setup wizard
 

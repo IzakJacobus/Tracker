@@ -93,6 +93,9 @@ administrator changed it), the desktop app asks what happened when you come back
 - **Discard and continue**: drop the time you were away, and carry on timing from now.
 - **Discard and stop**: stop the timer at the moment you left.
 
+On Linux this works on GNOME and on X11 desktops. On other Wayland desktops (KDE Plasma, Sway)
+the app can't tell when you're away, so it doesn't ask. Its settings page says so.
+
 ### Reminders
 
 If today (after the reminder time your firm set, 16:30 for example) or your last working day has

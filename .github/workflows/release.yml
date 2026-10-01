@@ -112,7 +112,7 @@ jobs:
             mkdir "$d"
             cp "apps/server/dist/stint-server-$t" "$d/stint-server"
             cp LICENSE "$d/"
-            cp installer/linux/stint-server.service "$d/"
+            cp installer/linux/stint-server.service installer/linux/install.sh "$d/"
             tar -czf "$d.tar.gz" "$d"
           done
       - name: Upload
