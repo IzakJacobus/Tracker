@@ -27,11 +27,26 @@ export interface RuntimeInfo {
   caFingerprint: string | null;
   /** Plain-language warning when other PCs probably can't connect (e.g. network marked Public). */
   networkWarning?: string | null;
+  certificateExpiresAt?: number | null;
+  /** Filled in by the platform monitor; absent in tests and before the first check. */
+  platform?: PlatformState;
+}
+
+export interface PlatformState {
+  checkedAt: number;
+  sleepGuard: { active: boolean; method: string | null };
+  networks: { name: string; interfaceAlias: string; category: string }[];
+  firewall: { checked: boolean; rules: { name: string; enabled: boolean; profile: string }[] };
+  tailscale: { installed: boolean; running: boolean; dnsName: string | null; ips: string[] };
 }
 
 export interface HostServices {
   /** Asks the host to restart the server process (the Windows service restarts it). */
   requestRestart(): void;
+  /** Re-reads network, firewall and Tailscale state and applies the sleep setting now. */
+  refreshPlatform(): Promise<void>;
+  /** Marks a Windows network as Private. */
+  makeNetworkPrivate(interfaceAlias: string): Promise<boolean>;
 }
 
 /** Per-request variables set by middleware. */

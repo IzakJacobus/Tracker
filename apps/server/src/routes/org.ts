@@ -45,6 +45,8 @@ export function orgRoutes(ctx: AppContext) {
       after: { name: after.name, settings: after.settings },
       ip: clientIp(c),
     });
+    // Sleep prevention and remote access take effect without a restart.
+    void ctx.services.refreshPlatform?.();
     return c.json(after);
   });
 

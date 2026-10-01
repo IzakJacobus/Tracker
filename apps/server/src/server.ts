@@ -16,8 +16,13 @@ import { isLoopback, lanAddresses, machineName } from "./net/addresses.ts";
 import { startDiscovery } from "./net/discovery.ts";
 import { listenWithFallback } from "./net/listen.ts";
 import { ensureTls } from "./net/tls.ts";
+import { makeNetworkPrivate } from "./platform/network.ts";
+import { createSleepGuard } from "./platform/sleep.ts";
+import { tailscaleStatus } from "./platform/tailscale.ts";
 import { runBackup, startBackupScheduler } from "./services/backup.ts";
-import { getOrgRow } from "./services/org.ts";
+import { getOrgRow, getOrgSettings } from "./services/org.ts";
+import { startPlatformMonitor } from "./services/platformMonitor.ts";
+import { startUpdateChecks } from "./services/updates.ts";
 import { emptySource, folderSource, type StaticSource, serveStatic } from "./web/static.ts";
 
 export interface RunningServer {
@@ -66,9 +71,14 @@ export async function startServer(config: ServerConfig, opts: StartOptions): Pro
   const hostname = machineName();
   const addresses = lanAddresses();
   const org = getOrgRow(db);
+  // With remote access on, the certificate also covers the Tailscale name (office-pc.tailnet.ts.net).
+  const tailscale = getOrgSettings(db).remoteAccess.enabled ? await tailscaleStatus() : null;
   const tls = await ensureTls(
     db,
-    { dns: ["localhost", hostname, `${hostname}.local`], ips: ["127.0.0.1", ...addresses] },
+    {
+      dns: ["localhost", hostname, `${hostname}.local`, ...(tailscale?.dnsName ? [tailscale.dnsName] : [])],
+      ips: ["127.0.0.1", ...addresses],
+    },
     org?.name ?? "",
   );
 
@@ -86,9 +96,12 @@ export async function startServer(config: ServerConfig, opts: StartOptions): Pro
       addresses,
       hostname,
       caFingerprint: tls.caFingerprint,
+      certificateExpiresAt: tls.leafNotAfter,
     },
-    services: { requestRestart: opts.requestRestart },
+    services: { requestRestart: opts.requestRestart, makeNetworkPrivate },
   };
+  const platform = startPlatformMonitor(ctx, createSleepGuard(log));
+  ctx.services.refreshPlatform = platform.refresh;
   const app = createApp(ctx);
   const web = opts.web ?? (config.webDir ? folderSource(config.webDir) : emptySource);
 
@@ -167,6 +180,7 @@ export async function startServer(config: ServerConfig, opts: StartOptions): Pro
   // ctx.db (not db): a restore swaps the database underneath us.
   const housekeeping = setInterval(() => pruneSessions(ctx.db, Date.now()), 3600_000);
   const stopBackups = startBackupScheduler(ctx);
+  const stopUpdates = startUpdateChecks(ctx);
   const discovery = config.discovery
     ? startDiscovery(
         () => ({
@@ -190,6 +204,8 @@ export async function startServer(config: ServerConfig, opts: StartOptions): Pro
     async stop() {
       clearInterval(housekeeping);
       stopBackups();
+      stopUpdates();
+      platform.stop();
       discovery?.stop();
       await https.stop(true);
       await http.stop(true);

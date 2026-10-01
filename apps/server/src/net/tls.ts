@@ -15,6 +15,8 @@ export interface TlsMaterial {
   /** base64url(SHA-256(CA SubjectPublicKeyInfo)) — what clients pin */
   caFingerprint: string;
   sans: string[];
+  /** When the server certificate expires (it is renewed on restart within 30 days of this). */
+  leafNotAfter: number;
 }
 
 function randomSerial(): string {
@@ -127,5 +129,6 @@ export async function ensureTls(
     caPem,
     caFingerprint: await spkiFingerprint(ca.cert),
     sans: wanted,
+    leafNotAfter: leaf.notAfter.getTime(),
   };
 }

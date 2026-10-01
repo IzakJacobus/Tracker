@@ -18,8 +18,10 @@ import {
   runBackup,
 } from "../services/backup.ts";
 import { projectTree } from "../services/catalog.ts";
+import { healthReport } from "../services/health.ts";
 import { getOrgSettings } from "../services/org.ts";
 import { isPeriodLocked, snapshotRate } from "../services/syncPush.ts";
+import { checkForUpdate, storedUpdateInfo } from "../services/updates.ts";
 
 const AuditQuery = z.object({
   entity: z.string().max(40).optional(),
@@ -43,6 +45,7 @@ const RerateInput = z.object({
 const BackupName = z.object({ name: z.string().regex(/^stint-[\w-]+\.db$/, "Pick a backup from the list.") });
 const RunBackupInput = z.object({ folder: z.string().trim().min(1).max(1000).optional() });
 const FsQuery = z.object({ path: z.string().max(1000).optional() });
+const MakePrivateInput = z.object({ interfaceAlias: z.string().trim().min(1).max(256) });
 
 export function adminRoutes(ctx: AppContext) {
   const r = new Hono<HonoEnv>();
@@ -229,6 +232,41 @@ export function adminRoutes(ctx: AppContext) {
     if (result.restartRequired) ctx.services.requestRestart?.();
     return c.json(result);
   });
+
+  /* ----------------------------- Health ----------------------------- */
+
+  r.get("/health", (c) => c.json(healthReport(ctx)));
+
+  r.post("/health/refresh", async (c) => {
+    await ctx.services.refreshPlatform?.();
+    return c.json(healthReport(ctx));
+  });
+
+  r.post("/network/private", async (c) => {
+    const actor = actorOf(c);
+    const input = await body(c, MakePrivateInput);
+    const known = ctx.runtime.platform?.networks.some((n) => n.interfaceAlias === input.interfaceAlias);
+    if (!known || !ctx.services.makeNetworkPrivate) throw notFound("Network");
+    const ok = await ctx.services.makeNetworkPrivate(input.interfaceAlias);
+    audit(ctx.db, ctx.now(), {
+      actorId: actor.id,
+      action: "update",
+      entity: "network",
+      entityId: input.interfaceAlias,
+      before: { category: "Public" },
+      after: { category: ok ? "Private" : "Public" },
+      ip: clientIp(c),
+    });
+    await ctx.services.refreshPlatform?.();
+    if (!ok)
+      throw conflict(
+        "Windows didn't allow the change. Open Settings → Network on the server PC and choose Private.",
+      );
+    return c.json(healthReport(ctx));
+  });
+
+  r.get("/updates", (c) => c.json(storedUpdateInfo(ctx)));
+  r.post("/updates/check", async (c) => c.json(await checkForUpdate(ctx)));
 
   /** Lists folders on the server PC so an admin can pick a backup location from any browser. */
   r.get("/fs", (c) => {
