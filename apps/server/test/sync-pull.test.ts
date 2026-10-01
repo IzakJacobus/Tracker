@@ -131,6 +131,49 @@ describe("sync pull", () => {
     expect((r2.body.changes.projects ?? []).map((p) => p.name)).toContain("Bob's project");
   });
 
+  test("opening up, closing or moving a project makes every app resync its sub-projects and tasks", async () => {
+    const s = createTestServer();
+    const admin = await s.setup();
+    const bob = await s.createUser(admin, { email: "bob@example.com", name: "Bob" });
+    const client = (await s.json<Client>("POST", "/api/clients", { as: admin, body: { name: "Acme" } })).body;
+    const make = async (body: Record<string, unknown>) =>
+      (await s.json<Project>("POST", "/api/projects", { as: admin, body: { clientId: client.id, ...body } }))
+        .body;
+    const secret = await make({ name: "Secret" });
+    const sub = await make({ name: "Secret sub", parentId: secret.id });
+    await s.json("POST", "/api/tasks", { as: admin, body: { projectId: sub.id, name: "Secret task" } });
+    const open = await make({ name: "Open", visibility: "everyone" });
+    const pull = async () => (await s.json<Pull>("GET", "/api/sync/pull?since=0", { as: bob.agent })).body;
+    const names = (p: Pull) => [...(p.changes.projects ?? []), ...(p.changes.tasks ?? [])].map((x) => x.name);
+
+    const p0 = await pull();
+    expect(names(p0)).not.toContain("Secret sub");
+
+    await s.json("PATCH", `/api/projects/${secret.id}`, { as: admin, body: { visibility: "everyone" } });
+    const p1 = await pull();
+    expect(p1.epoch).not.toBe(p0.epoch);
+    expect(names(p1)).toEqual(expect.arrayContaining(["Secret", "Secret sub", "Secret task"]));
+
+    await s.json("PATCH", `/api/projects/${secret.id}`, { as: admin, body: { visibility: "members" } });
+    const p2 = await pull();
+    expect(p2.epoch).not.toBe(p1.epoch);
+    expect(names(p2)).not.toContain("Secret sub");
+
+    // Moving the sub-project under an open project opens it up for Bob.
+    await s.json("POST", `/api/projects/${sub.id}/move`, { as: admin, body: { parentId: open.id } });
+    const p3 = await pull();
+    expect(p3.epoch).not.toBe(p2.epoch);
+    expect(names(p3)).toEqual(expect.arrayContaining(["Secret sub", "Secret task"]));
+
+    // A plain reorder or rename doesn't force everyone to resync.
+    await s.json("POST", `/api/projects/${sub.id}/move`, {
+      as: admin,
+      body: { parentId: open.id, sortOrder: 5 },
+    });
+    await s.json("PATCH", `/api/projects/${open.id}`, { as: admin, body: { name: "Open (renamed)" } });
+    expect((await pull()).epoch).toBe(p3.epoch);
+  });
+
   test("requires sign-in", async () => {
     const s = createTestServer();
     await s.setup();

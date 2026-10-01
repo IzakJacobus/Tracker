@@ -66,6 +66,9 @@
   detection (`idle.rs`: Mutter D-Bus for GNOME, XScreenSaver for X11; verified under Xvfb).
   Bug found and fixed: x11-dl looks for libXss.so.2/libXss.so, which desktops don't ship.
 
+- Code review follow-up: fixed 8 findings plus 4 smaller ones (see CHANGELOG "Security"/"Fixed"),
+  each with a regression test that fails without the fix. Pairing codes are now 24 characters.
+
 ## In progress
 - nothing
 

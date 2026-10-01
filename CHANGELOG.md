@@ -24,7 +24,7 @@ All notable changes to Stint are documented here. The format follows
 - Organisation settings and user management APIs, with last-admin protection and rate hiding.
 - Self-generated local certificate authority + leaf certificate (re-issued when IPs change),
   HTTPS on the LAN, loopback HTTP for the setup wizard, automatic port fallback.
-- Pairing codes (`XXXX-XXXX-XXXX-XXXX`: IP + port + certificate fingerprint prefix) and QR code.
+- Pairing codes (`XXXX-XXXX-XXXX-XXXX-XXXX-XXXX`: IP + port + 72-bit certificate fingerprint prefix) and QR code.
 - Design system: Fynbos/Ochre/Stone colour tokens, IBM Plex type, light + dark themes, buttons,
   fields, switches, segmented controls, dialogs with focus trap, popovers/menus, toasts.
 - Web: app shell with collapsible sidebar and phone drawer, sign-in, six-step setup wizard,
@@ -113,6 +113,18 @@ All notable changes to Stint are documented here. The format follows
   machine.
 - Idle detection in the Linux desktop app: GNOME (X11 and Wayland) and other X11 desktops.
 
+### Security
+- Sync push no longer returns another person's time entry or favourite when it rejects a change
+  to it (a member could read someone's entry by guessing its ID).
+- People with an admin-set temporary password must choose their own before the server lets
+  them use anything else (it was only enforced by the app's screen).
+- Pairing codes carry 72 bits of the server's certificate fingerprint (24 characters) instead
+  of 32, which a LAN attacker could have forged by generating keys.
+- "From the server PC" (first-run setup, plain-HTTP admin) now also requires a local host name,
+  closing DNS rebinding and requests arriving through a tunnel on the same PC.
+- Favourite updates are checked like creates (no repointing at off-limits projects or foreign
+  tasks); tag renames are trimmed, length-limited, de-duplicated and colour-checked.
+
 ### Fixed
 - Submitting a timesheet right after an edit could lock the period before the edit reached the
   server, silently rolling it back. Submitting now sends pending changes first.
@@ -122,3 +134,14 @@ All notable changes to Stint are documented here. The format follows
   manager isn't a member of. Managers can now see (not track on) their team's projects.
 - Changing someone's line manager, or a team member's project access, didn't send the manager
   the older rows they could now see. Their local copy is now rebuilt.
+- Opening up, closing or moving a project didn't sync its sub-projects and tasks (or retract
+  them); every app now resyncs after such a change.
+- One broken change in a sync batch failed the whole push with a 500 (and the device resent it
+  forever); it is now rejected on its own.
+- Safety copies and folder tests counted as "the nightly backup", so a restore could make the
+  scheduler skip that night's backup and Health show a misleading date.
+- "Reports to" accepted unknown people (a 500) and loops; it now must be an existing manager or
+  admin, without loops.
+- With more than one admin, admins can no longer approve their own timesheet.
+- Switching the approval period from month to week could create a timesheet overlapping an
+  already submitted or approved month.

@@ -23,10 +23,11 @@ import {
 import { z } from "zod";
 import { getFieldClock, getRow, insertRow, listRows, type Row, TABLES, updateRow } from "../db/tables.ts";
 import { audit } from "../lib/audit.ts";
+import type { Logger } from "../lib/log.ts";
 import { accessContext } from "./access.ts";
 import { ancestorsNearestFirst, getClient, getProject, getTask } from "./catalog.ts";
 import { getOrgSettings } from "./org.ts";
-import { shapeEntry } from "./shape.ts";
+import { entryVisible, shapeEntry } from "./shape.ts";
 import { getUser } from "./users.ts";
 
 export const PushChange = z.object({
@@ -297,11 +298,7 @@ function pushFavorite(p: PushCtx, c: IncomingChange): PushResult {
   if (result.kind === "reject") throw new Reject(result.code, result.message);
   if (result.kind === "noop") return done(p, c, "noop");
   if (result.kind === "insert") {
-    const projectId = result.row.projectId;
-    if (typeof projectId !== "string" || !canTrackOnProject(p.actor, projectId, p.access)) {
-      throw new Reject("forbidden", "You can't track time on that project.");
-    }
-    const taskId = typeof result.row.taskId === "string" ? result.row.taskId : null;
+    const { projectId, taskId } = checkFavorite(p, result.row);
     insertRow(
       p.db,
       spec,
@@ -319,8 +316,53 @@ function pushFavorite(p: PushCtx, c: IncomingChange): PushResult {
     );
     return done(p, c, "accepted");
   }
+  // Updates get the same checks as creates (a favourite can't be repointed somewhere off-limits).
+  if (!("deletedAt" in result.patch)) {
+    const merged = { ...(before as unknown as Row), ...result.patch };
+    checkFavorite(p, merged);
+    if ("sortOrder" in result.patch && !Number.isFinite(result.patch.sortOrder)) {
+      throw new Reject("invalid", "Invalid favourite order.");
+    }
+  }
   updateRow(p.db, spec, c.id, result.patch, p.now, result.fieldClock);
   return done(p, c, result.ignoredFields.length ? "merged" : "accepted");
+}
+
+/** A favourite must point at a project the person can track on, and a task of that project. */
+function checkFavorite(p: PushCtx, row: Row): { projectId: string; taskId: string | null } {
+  const projectId = row.projectId;
+  if (typeof projectId !== "string" || !canTrackOnProject(p.actor, projectId, p.access)) {
+    throw new Reject("forbidden", "You can't track time on that project.");
+  }
+  const taskId = typeof row.taskId === "string" ? row.taskId : null;
+  if (row.taskId !== null && row.taskId !== undefined && taskId === null)
+    throw new Reject("invalid", "Invalid task.");
+  if (taskId) {
+    const task = getTask(p.db, taskId);
+    if (!task || task.deletedAt || task.projectId !== projectId) {
+      throw new Reject("invalid", "That task doesn't belong to this project.");
+    }
+  }
+  return { projectId, taskId };
+}
+
+/** Tag names are trimmed, at most 60 characters and unique (ignoring case); colours are #rrggbb. */
+function checkTagName(p: PushCtx, raw: unknown, selfId: string): string {
+  const name = typeof raw === "string" ? raw.trim().slice(0, 60) : "";
+  if (!name) throw new Reject("invalid", "A tag needs a name.");
+  const dup = p.db
+    .query<{ id: string }, [string, string]>(
+      "SELECT id FROM tags WHERE name = ? COLLATE NOCASE AND deleted_at IS NULL AND id <> ?",
+    )
+    .get(name, selfId);
+  if (dup) throw new Reject("duplicate", `A tag called “${name}” already exists.`);
+  return name;
+}
+
+function checkTagColor(raw: unknown): string {
+  if (typeof raw !== "string" || !/^#[0-9a-f]{6}$/i.test(raw))
+    throw new Reject("invalid", "Invalid tag colour.");
+  return raw;
 }
 
 function pushTag(p: PushCtx, c: IncomingChange): PushResult {
@@ -342,18 +384,8 @@ function pushTag(p: PushCtx, c: IncomingChange): PushResult {
   if (result.kind === "reject") throw new Reject(result.code, result.message);
   if (result.kind === "noop") return done(p, c, "noop");
   if (result.kind === "insert") {
-    const name = typeof result.row.name === "string" ? result.row.name.trim().slice(0, 60) : "";
-    if (!name) throw new Reject("invalid", "A tag needs a name.");
-    const dup = p.db
-      .query<{ id: string }, [string]>(
-        "SELECT id FROM tags WHERE name = ? COLLATE NOCASE AND deleted_at IS NULL",
-      )
-      .get(name);
-    if (dup) throw new Reject("duplicate", `A tag called “${name}” already exists.`);
-    const color =
-      typeof result.row.color === "string" && /^#[0-9a-f]{6}$/i.test(result.row.color)
-        ? result.row.color
-        : "#6b7280";
+    const name = checkTagName(p, result.row.name, c.id);
+    const color = result.row.color === undefined ? "#6b7280" : checkTagColor(result.row.color);
     insertRow(
       p.db,
       spec,
@@ -363,15 +395,26 @@ function pushTag(p: PushCtx, c: IncomingChange): PushResult {
     audit(p.db, p.now, { actorId: p.actor.id, action: "create", entity: "tag", entityId: c.id, ip: p.ip });
     return done(p, c, "accepted");
   }
-  updateRow(p.db, spec, c.id, result.patch, p.now, result.fieldClock);
+  const patch = { ...result.patch };
+  if ("name" in patch) patch.name = checkTagName(p, patch.name, c.id);
+  if ("color" in patch) patch.color = checkTagColor(patch.color);
+  updateRow(p.db, spec, c.id, patch, p.now, result.fieldClock);
   return done(p, c, result.ignoredFields.length ? "merged" : "accepted");
 }
 
+/**
+ * The server's copy of the row, so the device can correct itself. Only rows the actor could
+ * also get through pull are returned (a rejected change must not reveal someone else's data);
+ * otherwise null, which makes the device drop its local copy.
+ */
 function currentRow(p: PushCtx, table: WritableSyncTable, id: string): Row | null {
   const row = getRow(p.db, TABLES[table], id);
   if (!row) return null;
-  if (table === "timeEntries")
-    return shapeEntry(row as unknown as TimeEntry, p.actor, p.access) as unknown as Row;
+  if (table === "timeEntries") {
+    const e = row as unknown as TimeEntry;
+    return entryVisible(e, p.actor, p.access) ? (shapeEntry(e, p.actor, p.access) as unknown as Row) : null;
+  }
+  if (table === "favorites") return row.userId === p.actor.id ? row : null;
   return row;
 }
 
@@ -389,6 +432,7 @@ export function push(
   changes: IncomingChange[],
   now: number,
   ip: string,
+  log?: Pick<Logger, "error">,
 ): PushResult[] {
   const p: PushCtx = { db, actor, access: accessContext(db, actor), settings: getOrgSettings(db), now, ip };
   const results: PushResult[] = [];
@@ -407,15 +451,24 @@ export function push(
       })();
       results.push(r);
     } catch (e) {
-      if (!(e instanceof Reject)) throw e;
+      // An unexpected error (a bug, a database constraint) rejects only this change: the
+      // ones before it are already saved, and the device must not resend the batch forever.
+      const known = e instanceof Reject;
+      if (!known) log?.error("Sync change failed", { table: c.table, id: c.id, error: String(e) });
       results.push({
         changeId: c.changeId,
         table: c.table,
         id: c.id,
         status: "rejected",
-        code: e.code,
-        message: e.message,
-        row: currentRow(p, c.table, c.id),
+        code: known ? e.code : "error",
+        message: known ? e.message : "The server couldn't save this change.",
+        row: (() => {
+          try {
+            return currentRow(p, c.table, c.id);
+          } catch {
+            return null;
+          }
+        })(),
       });
     }
   }

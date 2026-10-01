@@ -298,9 +298,10 @@ through discovery, so nobody ever types it.
 * **UDP broadcast fallback** on port 47609. The client sends `STINT?`. The server replies with
   the same information as JSON. This works on networks where multicast is filtered but
   broadcast is not (common on cheap routers and some mesh WiFi).
-* **Pairing code** as a last resort. A 16-character code such as `K7QM-4XDA-9WFH-3CPN`, in
-  Crockford base32 with a checksum, packs the server's IPv4 address, its port, and 32 bits of
-  the CA fingerprint. The client connects straight to that address and checks the fingerprint
+* **Pairing code** as a last resort. A 24-character code such as `R2M0-255S-Y1YK-82FK-HRZT-A9AB`, in
+  Crockford base32, packs the server's IPv4 address, its port, and 72 bits of the CA
+  fingerprint. (The full fingerprint is public, so a shorter prefix could be forged by
+  generating keys until one matches; 32 bits, the first design, would take hours.) The client connects straight to that address and checks the fingerprint
   prefix before trusting it. It is also shown as a QR code for phones.
 * **Rediscovery.** The client remembers the server's `id` and pin. If the saved address stops
   answering (for example, DHCP handed out a new IP), it rediscovers the server by `id` and

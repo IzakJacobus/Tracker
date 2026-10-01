@@ -21,7 +21,7 @@ import { badRequest, forbidden, notFound } from "../lib/errors.ts";
 import { accessContext, invalidateAccessCache } from "../services/access.ts";
 import { allProjects, getClient, getProject, PROJECT_COLORS, projectTree } from "../services/catalog.ts";
 import { memberVisible, projectVisible, shapeMember, shapeProject } from "../services/shape.ts";
-import { bumpSyncEpoch, getUser } from "../services/users.ts";
+import { bumpGlobalSyncEpoch, bumpSyncEpoch, getUser } from "../services/users.ts";
 
 export function projectRoutes(ctx: AppContext) {
   const r = new Hono<HonoEnv>();
@@ -98,6 +98,8 @@ export function projectRoutes(ctx: AppContext) {
     const input = await body(c, UpdateProjectInput);
     const now = ctx.now();
     const after = updateRow(ctx.db, TABLES.projects, id, input, now);
+    // Sub-projects and tasks didn't change, so incremental sync wouldn't deliver (or retract) them.
+    if (input.visibility !== undefined && input.visibility !== before.visibility) bumpGlobalSyncEpoch(ctx.db);
     audit(ctx.db, now, {
       actorId: actor.id,
       action: "update",
@@ -156,6 +158,8 @@ export function projectRoutes(ctx: AppContext) {
           if (d !== id) updateRow(ctx.db, TABLES.projects, d, { clientId }, now);
         }
       }
+      // A new parent or client changes who inherits access to the subtree's older rows.
+      if (input.parentId !== before.parentId || clientId !== before.clientId) bumpGlobalSyncEpoch(ctx.db);
       audit(ctx.db, now, {
         actorId: actor.id,
         action: "update",

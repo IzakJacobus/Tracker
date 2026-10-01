@@ -15,8 +15,8 @@ servers or networks.
 4. Sign in with the email address and password your administrator gave you. The first time,
    you'll be asked to choose your own password.
 
-If your firm isn't listed, click **Use a pairing code** and type the 16-character code your
-administrator gives you, for example `R000-40NT-AG9D-AKMK`.
+If your firm isn't listed, click **Use a pairing code** and type the 24-character code your
+administrator gives you, for example `R2M0-255S-Y1YK-82FK-HRZT-A9AB`.
 
 Stint starts with Windows and sits in the system tray, by the clock. Closing the window keeps
 it running there. Right-click the tray icon to start or stop the timer, or to quit.

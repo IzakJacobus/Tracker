@@ -55,6 +55,28 @@ export function sessionMiddleware(ctx: AppContext) {
   });
 }
 
+/** What someone with an admin-set temporary password may do before choosing their own. */
+const ALLOWED_BEFORE_PASSWORD_CHANGE = new Set([
+  "/api/auth/me",
+  "/api/auth/password",
+  "/api/auth/logout",
+  "/api/auth/login",
+  "/api/info",
+  "/api/setup/status",
+]);
+
+/**
+ * People given a temporary password must choose their own before using anything else.
+ * Enforced here, not only by the app's screen, so the API (and sync) can't be used around it.
+ */
+export const requirePasswordChosen = createMiddleware<HonoEnv>(async (c, next) => {
+  const u = c.get("user");
+  if (u?.mustChangePassword && !ALLOWED_BEFORE_PASSWORD_CHANGE.has(c.req.path)) {
+    throw new ApiError(403, "password_change_required", "Choose your own password first.");
+  }
+  await next();
+});
+
 export const requireAuth = createMiddleware<HonoEnv>(async (c, next) => {
   if (!c.get("user")) throw unauthorized();
   await next();

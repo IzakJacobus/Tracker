@@ -6,7 +6,15 @@ import { migrate } from "../src/db/migrate.ts";
 import { migrations } from "../src/db/migrations/index.ts";
 import { openDatabase } from "../src/db/open.ts";
 import { getMeta } from "../src/lib/meta.ts";
-import { inspectDatabase, listBackups, prune, runBackup } from "../src/services/backup.ts";
+import {
+  backupDue,
+  inspectDatabase,
+  lastBackup,
+  lastSuccessfulBackup,
+  listBackups,
+  prune,
+  runBackup,
+} from "../src/services/backup.ts";
 import { createTestServer } from "./helpers.ts";
 
 const dirs: string[] = [];
@@ -87,6 +95,33 @@ describe("backups", () => {
     const empty = join(dir, "empty.db");
     openDatabase(empty).close();
     expect(inspectDatabase(empty).ok).toBe(false);
+  });
+});
+
+describe("backup schedule", () => {
+  test("safety copies and folder tests don't count as tonight's backup", async () => {
+    const { t, dataDir } = await fileServer();
+    // 30 Sept 10:00 SAST: a manual backup, so nothing is due until 02:00 tomorrow.
+    expect(runBackup(t.ctx, "manual").ok).toBe(true);
+    expect(backupDue(t.ctx)).toBe(false);
+    // 1 Oct 03:00 SAST: past the backup time, and only non-regular copies were made since.
+    t.clock.advance(17 * 3600_000);
+    runBackup(t.ctx, "pre-restore", join(dataDir, "restore-safety"));
+    runBackup(t.ctx, "pre-migration");
+    runBackup(t.ctx, "folder-test", join(dataDir, "elsewhere"));
+    expect(lastSuccessfulBackup(t.ctx.db)).toBe(Date.UTC(2026, 8, 30, 8, 0));
+    expect(backupDue(t.ctx)).toBe(true);
+    runBackup(t.ctx, "scheduled");
+    expect(backupDue(t.ctx)).toBe(false);
+  });
+
+  test("a failed folder test doesn't show up as a failed backup", async () => {
+    const { t, dataDir } = await fileServer();
+    expect(runBackup(t.ctx, "scheduled").ok).toBe(true);
+    const blocker = join(dataDir, "a-file");
+    writeFileSync(blocker, "x");
+    expect(runBackup(t.ctx, "folder-test", join(blocker, "inside")).ok).toBe(false);
+    expect(lastBackup(t.ctx.db)?.ok).toBe(true);
   });
 });
 

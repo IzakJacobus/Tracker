@@ -116,7 +116,14 @@ export function createTestServer(start = Date.UTC(2026, 8, 30, 8, 0)): TestServe
       const password = (input.password as string) ?? "member password 1";
       const r = await json<{ id: string }>("POST", "/api/users", { as: admin, body: { password, ...input } });
       if (r.status !== 201) throw new Error(`create user failed: ${JSON.stringify(r.body)}`);
-      return { id: r.body.id, agent: await server.login(String(input.email), password) };
+      // New people must replace the admin's temporary password before using anything else.
+      const agent = await server.login(String(input.email), password);
+      const changed = await json("POST", "/api/auth/password", {
+        as: agent,
+        body: { currentPassword: password, newPassword: password },
+      });
+      if (changed.status !== 200) throw new Error(`password change failed: ${JSON.stringify(changed.body)}`);
+      return { id: r.body.id, agent };
     },
   };
   return server;

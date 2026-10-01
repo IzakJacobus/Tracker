@@ -19,7 +19,7 @@ import { audit } from "../lib/audit.ts";
 import { badRequest, conflict, forbidden, notFound } from "../lib/errors.ts";
 import { accessContext } from "../services/access.ts";
 import { getOrgSettings } from "../services/org.ts";
-import { getUser } from "../services/users.ts";
+import { activeAdminCount, getUser } from "../services/users.ts";
 
 const SubmitInput = z.object({ date: IsoDate, userId: z.string().optional() });
 const DecideInput = z.object({ comment: z.string().trim().max(2000).default("") });
@@ -77,6 +77,20 @@ export function timesheetRoutes(ctx: AppContext) {
       )
       .get(userId, period.start);
     const before = existing ? get(existing.id) : null;
+    // If the approval period was switched (month ↔ week), a new period can overlap one that is
+    // already submitted or approved. Those days are locked; don't create a second timesheet for them.
+    const overlapping = ctx.db
+      .query<{ period_start: string; period_end: string; status: string }, [string, string, string, string]>(
+        `SELECT period_start, period_end, status FROM timesheets
+          WHERE user_id = ? AND deleted_at IS NULL AND status IN ('submitted', 'approved')
+            AND period_start <= ? AND period_end >= ? AND period_start <> ?`,
+      )
+      .get(userId, period.end, period.start, period.start);
+    if (overlapping) {
+      throw conflict(
+        `This overlaps the timesheet for ${overlapping.period_start} to ${overlapping.period_end}, which is already ${overlapping.status}. Ask an admin to unlock it first.`,
+      );
+    }
     if (before && (before.status === "submitted" || before.status === "approved")) {
       throw conflict(
         before.status === "approved"
@@ -144,7 +158,10 @@ export function timesheetRoutes(ctx: AppContext) {
     r.post(`/:id/${kind}`, async (c) => {
       const actor = actorOf(c);
       const t = get(c.req.param("id"));
-      if (!canApproveTimesheet(actor, t.userId, accessContext(ctx.db, actor))) {
+      // Admins may approve their own timesheet only when nobody else could: the only admin.
+      const selfApprovalByAdmin =
+        actor.role === "admin" && actor.id === t.userId && activeAdminCount(ctx.db) > 1;
+      if (selfApprovalByAdmin || !canApproveTimesheet(actor, t.userId, accessContext(ctx.db, actor))) {
         throw forbidden(
           actor.id === t.userId
             ? "Someone else must approve your timesheet."

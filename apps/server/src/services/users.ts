@@ -1,6 +1,7 @@
 import type { Database } from "bun:sqlite";
 import { type AccessContext, type Actor, canSeeRates, type User } from "@stint/shared";
 import { getRow, listRows, TABLES } from "../db/tables.ts";
+import { getMeta, setMeta } from "../lib/meta.ts";
 
 export function getUser(db: Database, id: string): User | null {
   return getRow(db, TABLES.users, id) as User | null;
@@ -38,6 +39,14 @@ export function bumpSyncEpoch(db: Database, userId: string, opts: { withManager?
       "UPDATE users SET sync_epoch = sync_epoch + 1 WHERE id = (SELECT manager_id FROM users WHERE id = ?)",
     ).run(userId);
   }
+}
+
+/**
+ * Makes every app throw away its local copy and pull again. For rare admin changes that
+ * alter who can see which older rows (project visibility, moving a project in the tree).
+ */
+export function bumpGlobalSyncEpoch(db: Database): void {
+  setMeta(db, "sync_epoch", String(Number(getMeta(db, "sync_epoch") ?? "0") + 1));
 }
 
 export function activeAdminCount(db: Database): number {

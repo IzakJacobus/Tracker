@@ -12,7 +12,7 @@ import { migrations } from "./db/migrations/index.ts";
 import { openDatabase } from "./db/open.ts";
 import { createLogger, type Logger } from "./lib/log.ts";
 import { getMeta, setMeta } from "./lib/meta.ts";
-import { isLoopback, lanAddresses, machineName } from "./net/addresses.ts";
+import { isLocalRequest, lanAddresses, machineName } from "./net/addresses.ts";
 import { startDiscovery } from "./net/discovery.ts";
 import { listenWithFallback } from "./net/listen.ts";
 import { ensureTls } from "./net/tls.ts";
@@ -112,8 +112,8 @@ export async function startServer(config: ServerConfig, opts: StartOptions): Pro
     transport: "https" | "http",
   ): Response | Promise<Response> => {
     const ip = server.requestIP(req)?.address;
-    const loopback = isLoopback(ip);
     const url = new URL(req.url);
+    const loopback = isLocalRequest(ip, url.hostname);
     if (transport === "http" && !loopback) {
       // Plain HTTP on the LAN only helps people reach HTTPS and trust the certificate.
       if (url.pathname === "/stint-ca.crt") {

@@ -311,7 +311,8 @@ export function BackupsPage() {
         message={
           <>
             Stint goes back to how it was at <strong>{restoring ? describe(restoring.name) : ""}</strong>.
-            Anything recorded after that is lost, and everyone's app reloads its data. A safety copy of the
+            Anything recorded after that is lost, and everyone's app reloads its data. People who signed in
+            after that backup was made (you too, perhaps) will have to sign in again. A safety copy of the
             current data is made first, so you can undo this.
           </>
         }

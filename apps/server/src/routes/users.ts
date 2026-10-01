@@ -18,6 +18,32 @@ import {
   visibleUsers,
 } from "../services/users.ts";
 
+/**
+ * "Reports to" must be an existing manager or admin (someone who can approve timesheets),
+ * and must not create a loop (A reports to B, B reports to A).
+ */
+function checkManager(ctx: AppContext, userId: string | null, managerId: string | null | undefined): void {
+  if (!managerId) return;
+  if (managerId === userId) throw badRequest("People cannot be their own manager.");
+  const manager = getUser(ctx.db, managerId);
+  if (!manager || manager.deletedAt) throw badRequest("That manager doesn't exist.");
+  if (manager.role === "member") {
+    throw badRequest(`${manager.name} can't approve timesheets. Make them a manager first.`);
+  }
+  if (!userId) return;
+  const seen = new Set<string>();
+  for (let cur: string | null = managerId; cur && !seen.has(cur); ) {
+    seen.add(cur);
+    const next: string | null = getUser(ctx.db, cur)?.managerId ?? null;
+    if (next === userId) {
+      throw badRequest(
+        `That would make a loop: ${manager.name} already reports to this person, directly or indirectly.`,
+      );
+    }
+    cur = next;
+  }
+}
+
 export function userRoutes(ctx: AppContext) {
   const r = new Hono<HonoEnv>();
 
@@ -31,7 +57,7 @@ export function userRoutes(ctx: AppContext) {
     const input = await body(c, CreateUserInput);
     if (findUserByEmail(ctx.db, input.email))
       throw conflict("Someone with that email address already exists.");
-    if (input.managerId && !getUser(ctx.db, input.managerId)) throw badRequest("Manager not found.");
+    checkManager(ctx, null, input.managerId);
     const now = ctx.now();
     const id = input.id ?? uuidv7(now);
     const hash = await hashPassword(input.password);
@@ -83,7 +109,7 @@ export function userRoutes(ctx: AppContext) {
     if (losingAdmin && activeAdminCount(ctx.db) <= 1) {
       throw badRequest("Stint needs at least one active admin. Make someone else an admin first.");
     }
-    if (input.managerId === id) throw badRequest("People cannot be their own manager.");
+    checkManager(ctx, id, input.managerId);
     const now = ctx.now();
     const after = ctx.db.transaction(() => {
       const u = updateRow(ctx.db, TABLES.users, id, input, now);

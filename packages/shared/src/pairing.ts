@@ -1,20 +1,27 @@
 /**
  * Pairing codes: the fallback when automatic discovery can't find the server.
  *
- * 10 bytes = IPv4 address (4) + HTTPS port (2) + first 4 bytes of the CA
- * fingerprint (SHA-256 of the CA public key). Encoded as 16 Crockford base32
- * characters shown as XXXX-XXXX-XXXX-XXXX. The fingerprint prefix doubles as an
- * integrity check: a mistyped code either fails to connect or fails the
- * certificate check, so it can never silently pair with the wrong machine.
+ * 15 bytes = IPv4 address (4) + HTTPS port (2) + first 9 bytes (72 bits) of the CA
+ * fingerprint (SHA-256 of the CA public key). Encoded as 24 Crockford base32
+ * characters shown as XXXX-XXXX-XXXX-XXXX-XXXX-XXXX.
+ *
+ * The app only trusts a server whose CA matches the fingerprint prefix. The full
+ * fingerprint is public, so the prefix must be too long to forge by generating keys
+ * until one matches: 72 bits is far out of reach (32 bits, as first designed, was not).
+ * The prefix also catches typos: a mistyped code fails to connect or fails the check.
  */
 const ALPHABET = "0123456789ABCDEFGHJKMNPQRSTVWXYZ";
 
 export interface PairingInfo {
   ip: string;
   port: number;
-  /** first 4 bytes of the CA SPKI SHA-256, hex */
+  /** first FINGERPRINT_PREFIX_BYTES bytes of the CA SPKI SHA-256, hex */
   fingerprintPrefix: string;
 }
+
+export const FINGERPRINT_PREFIX_BYTES = 9;
+const CODE_BYTES = 6 + FINGERPRINT_PREFIX_BYTES;
+const CODE_CHARS = (CODE_BYTES * 8) / 5;
 
 function toBase32(bytes: Uint8Array): string {
   let bits = 0;
@@ -62,7 +69,9 @@ export function normalizePairingCode(input: string): string {
 export function fingerprintPrefixHex(fingerprintBase64Url: string): string {
   const b64 = fingerprintBase64Url.replace(/-/g, "+").replace(/_/g, "/");
   const bin = atob(b64 + "=".repeat((4 - (b64.length % 4)) % 4));
-  return Array.from(bin.slice(0, 4), (c) => c.charCodeAt(0).toString(16).padStart(2, "0")).join("");
+  return Array.from(bin.slice(0, FINGERPRINT_PREFIX_BYTES), (c) =>
+    c.charCodeAt(0).toString(16).padStart(2, "0"),
+  ).join("");
 }
 
 export function encodePairingCode(info: PairingInfo): string {
@@ -70,13 +79,13 @@ export function encodePairingCode(info: PairingInfo): string {
   if (parts.length !== 4 || parts.some((p) => !Number.isInteger(p) || p < 0 || p > 255)) {
     throw new Error(`Not an IPv4 address: ${info.ip}`);
   }
-  if (!/^[0-9a-f]{8}$/i.test(info.fingerprintPrefix))
-    throw new Error("Fingerprint prefix must be 8 hex chars");
-  const bytes = new Uint8Array(10);
+  if (!new RegExp(`^[0-9a-f]{${FINGERPRINT_PREFIX_BYTES * 2}}$`, "i").test(info.fingerprintPrefix))
+    throw new Error(`Fingerprint prefix must be ${FINGERPRINT_PREFIX_BYTES * 2} hex chars`);
+  const bytes = new Uint8Array(CODE_BYTES);
   bytes.set(parts, 0);
   bytes[4] = (info.port >> 8) & 0xff;
   bytes[5] = info.port & 0xff;
-  for (let i = 0; i < 4; i++)
+  for (let i = 0; i < FINGERPRINT_PREFIX_BYTES; i++)
     bytes[6 + i] = Number.parseInt(info.fingerprintPrefix.slice(i * 2, i * 2 + 2), 16);
   const s = toBase32(bytes);
   return s.match(/.{1,4}/g)!.join("-");
@@ -84,14 +93,16 @@ export function encodePairingCode(info: PairingInfo): string {
 
 export function decodePairingCode(input: string): PairingInfo | null {
   const s = normalizePairingCode(input);
-  if (s.length !== 16) return null;
+  if (s.length !== CODE_CHARS) return null;
   const bytes = fromBase32(s);
-  if (bytes?.length !== 10) return null;
+  if (bytes?.length !== CODE_BYTES) return null;
   const port = (bytes[4]! << 8) | bytes[5]!;
   if (port === 0) return null;
   return {
     ip: Array.from(bytes.slice(0, 4)).join("."),
     port,
-    fingerprintPrefix: Array.from(bytes.slice(6, 10), (b) => b.toString(16).padStart(2, "0")).join(""),
+    fingerprintPrefix: Array.from(bytes.slice(6, CODE_BYTES), (b) => b.toString(16).padStart(2, "0")).join(
+      "",
+    ),
   };
 }

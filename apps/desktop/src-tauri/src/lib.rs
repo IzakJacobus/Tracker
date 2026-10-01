@@ -94,7 +94,7 @@ async fn pair_discovered(state: State<'_, AppState>, found: discovery::Found) ->
 /// Pair with a code typed from the server's screen.
 #[tauri::command]
 async fn pair_with_code(state: State<'_, AppState>, code: String) -> Result<PairingStatus, String> {
-    let c = pairing::decode(&code).ok_or("That code doesn't look right. It has 16 letters and numbers, like K7QM-4XDA-9WFH-3CPN.")?;
+    let c = pairing::decode(&code).ok_or("That code doesn't look right. It has 24 letters and numbers, like R2M0-25XS-Y2GV-5GYM-WQV0-E659.")?;
     let addr = format!("{}:{}", c.ip, c.port);
     let prefix = c.fingerprint_prefix;
     let server = net::pair(&[addr], |fp| pairing::fingerprint_matches_prefix(fp, &prefix)).await?;

@@ -1,5 +1,5 @@
 import { Hono } from "hono";
-import { requireCsrfHeader, sessionMiddleware } from "./auth/middleware.ts";
+import { requireCsrfHeader, requirePasswordChosen, sessionMiddleware } from "./auth/middleware.ts";
 import type { AppContext } from "./context.ts";
 import type { HonoEnv } from "./http.ts";
 import { ApiError } from "./lib/errors.ts";
@@ -29,6 +29,7 @@ export function createApp(ctx: AppContext) {
   const api = new Hono<HonoEnv>();
   api.use("*", requireCsrfHeader);
   api.use("*", sessionMiddleware(ctx));
+  api.use("*", requirePasswordChosen);
   api.route("/", systemRoutes(ctx));
   api.route("/auth", authRoutes(ctx));
   api.route("/org", orgRoutes(ctx));

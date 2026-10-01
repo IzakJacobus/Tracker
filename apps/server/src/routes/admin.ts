@@ -212,7 +212,8 @@ export function adminRoutes(ctx: AppContext) {
   r.post("/backups/run", async (c) => {
     const actor = actorOf(c);
     const input = await body(c, RunBackupInput);
-    const result = runBackup(ctx, "manual", input.folder);
+    // With a folder it's a test write to a folder the admin is about to choose.
+    const result = runBackup(ctx, input.folder ? "folder-test" : "manual", input.folder);
     audit(ctx.db, ctx.now(), {
       actorId: actor.id,
       action: "backup",

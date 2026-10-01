@@ -140,14 +140,27 @@ describe("sync push: time entries", () => {
     const w = await world();
     const id = uuidv7();
     await w.pushAs(w.bob.agent, [
-      w.entry(id, { projectId: w.project.id, startedAt: w.startedAt, durationS: 60 }, w.now),
+      w.entry(
+        id,
+        {
+          projectId: w.project.id,
+          startedAt: w.startedAt,
+          durationS: 60,
+          description: "confidential client call",
+        },
+        w.now,
+      ),
     ]);
     const r = await w.pushAs(w.alice.agent, [
       w.entry(id, { description: "mine now" }, w.now + 1, "update"),
       w.entry(id, {}, w.now + 2, "delete"),
+      w.entry(id, {}, w.now + 3, "update"),
     ]);
-    expect(r.results.map((x) => x.code)).toEqual(["forbidden", "forbidden"]);
+    expect(r.results.map((x) => x.code)).toEqual(["forbidden", "forbidden", "forbidden"]);
     expect(dbEntry(w.s, id)!.deleted_at).toBeNull();
+    // A rejection must not hand back the other person's entry.
+    expect(r.results.map((x) => x.row)).toEqual([null, null, null]);
+    expect(JSON.stringify(r)).not.toContain("confidential");
   });
 
   test("server-owned fields can't be set by the client", async () => {
@@ -389,6 +402,7 @@ describe("sync push: favourites and tags", () => {
       { changeId: "f2", table: "favorites", id: fav, op: "delete", patch: {}, hlc: hlc(w.now + 1) },
     ]);
     expect(steal.results[0]!.code).toBe("forbidden");
+    expect(steal.results[0]!.row).toBeNull();
   });
 
   test("anyone can create a tag offline; duplicates are rejected", async () => {
@@ -412,6 +426,99 @@ describe("sync push: favourites and tags", () => {
       },
     ]);
     expect(r.results.map((x) => x.status)).toEqual(["accepted", "rejected"]);
+  });
+
+  test("a favourite can't be repointed at an off-limits project or a task from elsewhere", async () => {
+    const w = await world();
+    const fav = uuidv7();
+    const f = (id: string, op: string, patch: Record<string, unknown>, at: number) => ({
+      changeId: `f${++seq}`,
+      table: "favorites",
+      id,
+      op,
+      patch,
+      hlc: hlc(at),
+    });
+    expect(
+      (await w.pushAs(w.alice.agent, [f(fav, "create", { projectId: w.project.id }, w.now)])).results[0]!
+        .status,
+    ).toBe("accepted");
+    const r = await w.pushAs(w.alice.agent, [
+      f(fav, "update", { projectId: w.other.id }, w.now + 1),
+      f(fav, "update", { taskId: uuidv7() }, w.now + 2),
+      f(fav, "update", { sortOrder: 3 }, w.now + 3),
+    ]);
+    expect(r.results.map((x) => x.code ?? x.status)).toEqual(["forbidden", "invalid", "accepted"]);
+    const row = w.s.ctx.db
+      .query<{ project_id: string; task_id: string | null; sort_order: number }, [string]>(
+        "SELECT project_id, task_id, sort_order FROM favorites WHERE id = ?",
+      )
+      .get(fav);
+    expect(row).toEqual({ project_id: w.project.id, task_id: null, sort_order: 3 });
+  });
+
+  test("one broken change in a batch is rejected on its own instead of failing the whole push", async () => {
+    const w = await world();
+    const id = uuidv7();
+    const res = await w.s.json<{ results: PushResult[] }>("POST", "/api/sync/push", {
+      as: w.alice.agent,
+      body: {
+        changes: [
+          w.entry(id, { projectId: w.project.id, startedAt: w.startedAt, durationS: 600 }, w.now),
+          {
+            changeId: "bad-fav",
+            table: "favorites",
+            id: uuidv7(),
+            op: "create",
+            patch: { projectId: w.project.id, taskId: uuidv7() },
+            hlc: hlc(w.now),
+          },
+        ],
+      },
+    });
+    expect(res.status).toBe(200);
+    expect(res.body.results.map((x) => x.status)).toEqual(["accepted", "rejected"]);
+    expect(dbEntry(w.s, id)).not.toBeNull();
+  });
+
+  test("renaming a tag gets the same checks as creating one", async () => {
+    const w = await world();
+    const a = uuidv7();
+    const b = uuidv7();
+    const t = (id: string, op: string, patch: Record<string, unknown>, at: number) => ({
+      changeId: `t${++seq}`,
+      table: "tags",
+      id,
+      op,
+      patch,
+      hlc: hlc(at),
+    });
+    await w.pushAs(w.admin, [
+      t(a, "create", { name: "Site" }, w.now),
+      t(b, "create", { name: "Travel" }, w.now),
+    ]);
+    const r = await w.pushAs(w.admin, [
+      t(b, "update", { name: "site" }, w.now + 1),
+      t(b, "update", { color: "javascript:x" }, w.now + 2),
+      t(b, "update", { name: "   " }, w.now + 3),
+      t(b, "update", { name: `  ${"x".repeat(80)}  `, color: "#112233" }, w.now + 4),
+      t(a, "update", { name: "SITE" }, w.now + 5),
+    ]);
+    expect(r.results.map((x) => x.code ?? x.status)).toEqual([
+      "duplicate",
+      "invalid",
+      "invalid",
+      "accepted",
+      "accepted",
+    ]);
+    const rows = w.s.ctx.db
+      .query<{ id: string; name: string; color: string }, []>(
+        "SELECT id, name, color FROM tags ORDER BY name",
+      )
+      .all();
+    expect(rows.find((x) => x.id === b)).toEqual({ id: b, name: "x".repeat(60), color: "#112233" });
+    // Renaming a tag to a different case of its own name is fine.
+    expect(rows.find((x) => x.id === a)?.name).toBe("SITE");
   });
 
   test("the push body is validated", async () => {

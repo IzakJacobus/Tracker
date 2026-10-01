@@ -43,7 +43,7 @@ describe("health", () => {
     expect(h.body.checks.find((c) => c.id === "backup_location")?.status).toBe("warning");
     expect(h.body.status).toBe("warning");
     expect(h.body.connected.map((c) => c.name).sort()).toEqual(["Aisha", "Thandi Admin"]);
-    expect(h.body.pairing.code).toMatch(/^[0-9A-Z]{4}-[0-9A-Z]{4}-[0-9A-Z]{4}-[0-9A-Z]{4}$/);
+    expect(h.body.pairing.code).toMatch(/^([0-9A-Z]{4}-){5}[0-9A-Z]{4}$/);
   });
 
   test("a recent successful backup turns the backup check green", async () => {

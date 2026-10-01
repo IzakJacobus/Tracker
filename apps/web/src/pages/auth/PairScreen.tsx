@@ -128,7 +128,7 @@ export function PairScreen({ onPaired }: { onPaired: (s: PairingStatus) => void 
             <Input
               value={code}
               onChange={(e) => setCode(e.target.value)}
-              placeholder="XXXX-XXXX-XXXX-XXXX"
+              placeholder="XXXX-XXXX-XXXX-XXXX-XXXX-XXXX"
               className="mono"
               autoFocus
               autoCapitalize="characters"

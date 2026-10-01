@@ -24,7 +24,7 @@ export function syncRoutes(ctx: AppContext) {
   r.post("/push", async (c) => {
     const input = await body(c, PushBody);
     const now = ctx.now();
-    const results = push(ctx.db, actorOf(c), input.changes, now, clientIp(c));
+    const results = push(ctx.db, actorOf(c), input.changes, now, clientIp(c), ctx.log);
     return c.json({ results, serverHlc: formatHlc({ ms: now, counter: 0, node: "server" }) });
   });
 

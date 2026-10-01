@@ -43,15 +43,21 @@ describe("organisation settings", () => {
 });
 
 describe("users", () => {
-  test("admins create users, who must change their password", async () => {
+  test("admins create users, who must change their password before using anything", async () => {
     const s = createTestServer();
     const admin = await s.setup();
-    const { agent } = await s.createUser(admin, {
-      email: "lerato@example.co.za",
-      name: "Lerato",
-      role: "manager",
-      rate: 95000,
+    const created = await s.json("POST", "/api/users", {
+      as: admin,
+      body: {
+        email: "lerato@example.co.za",
+        name: "Lerato",
+        role: "manager",
+        rate: 95000,
+        password: "temporary pw 1",
+      },
     });
+    expect(created.status).toBe(201);
+    const agent = await s.login("lerato@example.co.za", "temporary pw 1");
     const me = await s.json<{ user: { mustChangePassword: boolean; role: string; rate: number } }>(
       "GET",
       "/api/auth/me",
@@ -60,6 +66,26 @@ describe("users", () => {
     expect(me.body.user.mustChangePassword).toBe(true);
     expect(me.body.user.role).toBe("manager");
     expect(me.body.user.rate).toBe(95000);
+
+    // The server, not just the app's screen, blocks everything else until they choose a password.
+    for (const [method, path] of [
+      ["GET", "/api/sync/pull?since=0"],
+      ["GET", "/api/users"],
+      ["POST", "/api/sync/push"],
+    ] as const) {
+      const r = await s.json<{ error: { code: string } }>(method, path, {
+        as: agent,
+        body: method === "POST" ? { changes: [] } : undefined,
+      });
+      expect(r.status).toBe(403);
+      expect(r.body.error.code).toBe("password_change_required");
+    }
+    const changed = await s.json("POST", "/api/auth/password", {
+      as: agent,
+      body: { currentPassword: "temporary pw 1", newPassword: "my own password" },
+    });
+    expect(changed.status).toBe(200);
+    expect((await s.json("GET", "/api/sync/pull?since=0", { as: agent })).status).toBe(200);
   });
 
   test("duplicate emails are rejected", async () => {
@@ -133,6 +159,47 @@ describe("users", () => {
     await s.login("forgot@example.com", "temporary password");
   });
 
+  test("'reports to' must be a real manager, and loops are refused", async () => {
+    const s = createTestServer();
+    const admin = await s.setup();
+    const a = await s.createUser(admin, { email: "a@example.com", name: "Anele", role: "manager" });
+    const b = await s.createUser(admin, {
+      email: "b@example.com",
+      name: "Busi",
+      role: "manager",
+      managerId: a.id,
+    });
+    const c = await s.createUser(admin, {
+      email: "c@example.com",
+      name: "Chris",
+      role: "manager",
+      managerId: b.id,
+    });
+    const m = await s.createUser(admin, { email: "m@example.com", name: "Member" });
+    const patch = (id: string, managerId: string) =>
+      s.json<{ error: { message: string } }>("PATCH", `/api/users/${id}`, { as: admin, body: { managerId } });
+
+    const unknown = await patch(m.id, "01900000-0000-7000-8000-000000000000");
+    expect(unknown.status).toBe(400);
+    expect(unknown.body.error.message).toContain("doesn't exist");
+    expect((await patch(c.id, m.id)).status).toBe(400); // a member can't approve timesheets
+    expect((await patch(a.id, a.id)).status).toBe(400);
+    const loop = await patch(a.id, c.id); // C → B → A, so A can't report to C
+    expect(loop.status).toBe(400);
+    expect(loop.body.error.message).toContain("loop");
+    expect((await patch(m.id, c.id)).status).toBe(200);
+    const created = await s.json("POST", "/api/users", {
+      as: admin,
+      body: {
+        email: "x@example.com",
+        name: "X",
+        password: "long enough pw",
+        managerId: "01900000-0000-7000-8000-000000000000",
+      },
+    });
+    expect(created.status).toBe(400);
+  });
+
   test("user changes are audited", async () => {
     const s = createTestServer();
     const admin = await s.setup();
@@ -143,7 +210,7 @@ describe("users", () => {
         "SELECT action FROM audit_log WHERE entity = 'user' AND entity_id = ? ORDER BY id",
       )
       .all(id);
-    expect(rows.map((r) => r.action)).toEqual(["create", "update"]);
+    expect(rows.map((r) => r.action)).toEqual(["create", "password_change", "update"]);
   });
 });
 
@@ -152,14 +219,15 @@ describe("pairing", () => {
     const { decodePairingCode } = await import("@stint/shared");
     const s = createTestServer();
     s.ctx.runtime.addresses = ["192.168.1.23"];
-    s.ctx.runtime.caFingerprint = "obLD1AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA";
+    // base64url of a1 b2 c3 d4 e5 f6 07 18 a9 00…
+    s.ctx.runtime.caFingerprint = "obLD1OX2BxipAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA";
     const admin = await s.setup();
     const r = await s.json<{ code: string; qrSvg: string }>("GET", "/api/pairing", { as: admin });
     expect(r.status).toBe(200);
     expect(decodePairingCode(r.body.code)).toEqual({
       ip: "192.168.1.23",
       port: 47600,
-      fingerprintPrefix: "a1b2c3d4",
+      fingerprintPrefix: "a1b2c3d4e5f60718a9",
     });
     expect(r.body.qrSvg).toContain("<svg");
     expect((await s.json("GET", "/api/pairing")).status).toBe(401);

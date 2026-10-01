@@ -40,6 +40,24 @@ export function isLoopback(ip: string | undefined): boolean {
   return ip === "127.0.0.1" || ip === "::1" || ip === "::ffff:127.0.0.1" || ip.startsWith("127.");
 }
 
+/** Host names that can only mean "this computer": localhost, 127.x.x.x, [::1]. */
+export function isLoopbackHostname(hostname: string): boolean {
+  const h = hostname.toLowerCase().replace(/^\[|\]$/g, "");
+  return h === "localhost" || h === "::1" || /^127\.\d{1,3}\.\d{1,3}\.\d{1,3}$/.test(h);
+}
+
+/**
+ * Is this request really from someone sitting at the server PC? Both the connection and the
+ * address typed in the browser must be local. Checking the IP alone isn't enough:
+ *  - DNS rebinding: a web page opened on the server PC can point its own domain at 127.0.0.1
+ *    and then talk to Stint as a "same-origin" local page;
+ *  - tunnels (Cloudflare Tunnel) connect from 127.0.0.1 on behalf of internet visitors.
+ * In both cases the Host header carries the outside name, so the request is not trusted.
+ */
+export function isLocalRequest(ip: string | undefined, hostname: string): boolean {
+  return isLoopback(ip) && isLoopbackHostname(hostname);
+}
+
 /** Tailscale's CGNAT range 100.64.0.0/10 */
 export function isTailscaleAddress(ip: string): boolean {
   const [a, b] = ip.split(".").map(Number);

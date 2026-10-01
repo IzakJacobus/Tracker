@@ -11,7 +11,10 @@ import { getMeta, setMeta } from "../lib/meta.ts";
 import { invalidateAccessCache } from "./access.ts";
 import { getOrgSettings } from "./org.ts";
 
-export type BackupKind = "scheduled" | "manual" | "pre-migration" | "pre-restore";
+export type BackupKind = "scheduled" | "manual" | "pre-migration" | "pre-restore" | "folder-test";
+
+/** Backups that count as "the backup": safety copies and folder tests don't. */
+const REGULAR = "kind IN ('scheduled', 'manual')";
 
 export interface BackupResult {
   ok: boolean;
@@ -147,14 +150,17 @@ export function lastBackup(
 ): { at: number; ok: boolean; path: string; error: string; sizeBytes: number } | null {
   const r = db
     .query<{ at: number; ok: number; path: string; error: string; size_bytes: number }, []>(
-      "SELECT at, ok, path, error, size_bytes FROM backup_log ORDER BY id DESC LIMIT 1",
+      `SELECT at, ok, path, error, size_bytes FROM backup_log WHERE ${REGULAR} ORDER BY id DESC LIMIT 1`,
     )
     .get();
   return r ? { at: r.at, ok: r.ok === 1, path: r.path, error: r.error, sizeBytes: r.size_bytes } : null;
 }
 
 export function lastSuccessfulBackup(db: Database): number | null {
-  return db.query<{ at: number }, []>("SELECT MAX(at) AS at FROM backup_log WHERE ok = 1").get()?.at ?? null;
+  return (
+    db.query<{ at: number }, []>(`SELECT MAX(at) AS at FROM backup_log WHERE ok = 1 AND ${REGULAR}`).get()
+      ?.at ?? null
+  );
 }
 
 export interface RestoreResult {
@@ -213,22 +219,27 @@ export function restoreBackup(ctx: AppContext, file: string): RestoreResult {
   }
 }
 
+/**
+ * Is the nightly backup due? Yes once today's backup time has passed without a regular
+ * backup since then, or if the last one is more than 26 hours old (the PC was off).
+ */
+export function backupDue(ctx: Pick<AppContext, "db" | "now">): boolean {
+  const s = getOrgSettings(ctx.db);
+  const now = ctx.now();
+  const last = lastSuccessfulBackup(ctx.db);
+  if (last === null || now - last > 26 * 3600_000) return true;
+  const today = localDate(now, s.timezone);
+  const pastTime = localTime(now, s.timezone) >= s.backup.time;
+  const doneToday = localDate(last, s.timezone) === today && localTime(last, s.timezone) >= s.backup.time;
+  return pastTime && !doneToday;
+}
+
 /** Runs the nightly backup at the configured local time, and catches up after downtime. */
 export function startBackupScheduler(ctx: AppContext): () => void {
   const tick = () => {
     try {
       if (!ctx.db.query("SELECT 1 FROM organization").get()) return;
-      const s = getOrgSettings(ctx.db);
-      const now = ctx.now();
-      const last = lastSuccessfulBackup(ctx.db);
-      const today = localDate(now, s.timezone);
-      const due = localTime(now, s.timezone) >= s.backup.time;
-      const doneToday =
-        last !== null &&
-        localDate(last, s.timezone) === today &&
-        localTime(last, s.timezone) >= s.backup.time;
-      const overdue = last === null || now - last > 26 * 3600_000;
-      if ((due && !doneToday) || overdue) runBackup(ctx, "scheduled");
+      if (backupDue(ctx)) runBackup(ctx, "scheduled");
     } catch (e) {
       ctx.log.error("Backup scheduler error", e);
     }

@@ -161,6 +161,66 @@ describe("timesheet workflow", () => {
     expect(self.body.error.message).toContain("Someone else");
   });
 
+  test("an admin approves their own timesheet only when there's no other admin", async () => {
+    const w = await world();
+    const own = (
+      await w.s.json<Timesheet>("POST", "/api/timesheets/submit", {
+        as: w.admin,
+        body: { date: "2026-08-10" },
+      })
+    ).body;
+    // The only admin: nobody else could approve it.
+    expect(
+      (await w.s.json("POST", `/api/timesheets/${own.id}/approve`, { as: w.admin, body: {} })).status,
+    ).toBe(200);
+    const second = await w.s.createUser(w.admin, {
+      email: "admin2@example.com",
+      name: "Second Admin",
+      role: "admin",
+    });
+    const next = (
+      await w.s.json<Timesheet>("POST", "/api/timesheets/submit", {
+        as: w.admin,
+        body: { date: "2026-09-10" },
+      })
+    ).body;
+    const self = await w.s.json<{ error: { message: string } }>(
+      "POST",
+      `/api/timesheets/${next.id}/approve`,
+      {
+        as: w.admin,
+        body: {},
+      },
+    );
+    expect(self.status).toBe(403);
+    expect(self.body.error.message).toContain("Someone else");
+    expect(
+      (await w.s.json("POST", `/api/timesheets/${next.id}/approve`, { as: second.agent, body: {} })).status,
+    ).toBe(200);
+  });
+
+  test("switching from monthly to weekly can't create a timesheet overlapping a locked month", async () => {
+    const w = await world();
+    await w.addEntry(w.alice.agent, "2026-09-29");
+    const month = await w.s.json<Timesheet>("POST", "/api/timesheets/submit", {
+      as: w.alice.agent,
+      body: { date: "2026-09-10" },
+    });
+    expect(month.status).toBe(200);
+    await w.s.json("PATCH", "/api/org", { as: w.admin, body: { settings: { approvalPeriod: "week" } } });
+    // Week of Mon 28 Sept – Sun 4 Oct overlaps the submitted September.
+    const week = await w.s.json<{ error: { message: string } }>("POST", "/api/timesheets/submit", {
+      as: w.alice.agent,
+      body: { date: "2026-09-30" },
+    });
+    expect(week.status).toBe(409);
+    expect(week.body.error.message).toContain("2026-09-01 to 2026-09-30");
+    const sheets = w.s.ctx.db
+      .query<{ n: number }, [string]>("SELECT COUNT(*) AS n FROM timesheets WHERE user_id = ?")
+      .get(w.alice.id)!.n;
+    expect(sheets).toBe(1);
+  });
+
   test("members can't submit for others; admins can", async () => {
     const w = await world();
     expect(

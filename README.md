@@ -88,7 +88,7 @@ You can get back to it any time from the Start menu: **Stint Server**.
 2. Open Stint. It **finds the office server by itself** and shows your firm's name. Click it and
    sign in.
 3. If it can't find the server (some office networks block discovery), type the **pairing code**
-   shown on the server's Health page, for example `R000-40NT-AG9D-AKMK`.
+   shown on the server's Health page, for example `R2M0-255S-Y1YK-82FK-HRZT-A9AB`.
 
 **Linux desktops:** install the `.deb` (Debian, Ubuntu, Mint) or run the `.AppImage` from the
 release. It works the same way. Idle detection works on GNOME and on any X11 desktop; on other
