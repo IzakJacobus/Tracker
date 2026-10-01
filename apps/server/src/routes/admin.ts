@@ -19,6 +19,7 @@ import {
 } from "../services/backup.ts";
 import { projectTree } from "../services/catalog.ts";
 import { healthReport } from "../services/health.ts";
+import { importEntries } from "../services/importer.ts";
 import { getOrgSettings } from "../services/org.ts";
 import { isPeriodLocked, snapshotRate } from "../services/syncPush.ts";
 import { checkForUpdate, storedUpdateInfo } from "../services/updates.ts";
@@ -45,6 +46,12 @@ const RerateInput = z.object({
 const BackupName = z.object({ name: z.string().regex(/^stint-[\w-]+\.db$/, "Pick a backup from the list.") });
 const RunBackupInput = z.object({ folder: z.string().trim().min(1).max(1000).optional() });
 const FsQuery = z.object({ path: z.string().max(1000).optional() });
+const ImportInput = z.object({
+  csv: z.string().min(1, "Choose a CSV file.").max(20_000_000, "The file is too big (20 MB at most)."),
+  dryRun: z.boolean().default(true),
+  createMissing: z.boolean().default(true),
+  people: z.record(z.string().max(200), Id).default({}),
+});
 const MakePrivateInput = z.object({ interfaceAlias: z.string().trim().min(1).max(256) });
 
 export function adminRoutes(ctx: AppContext) {
@@ -174,6 +181,13 @@ export function adminRoutes(ctx: AppContext) {
       })();
     }
     return c.json(summary);
+  });
+
+  /** CSV import (Toggl Track detailed export, Stint export, or simple columns). Dry run by default. */
+  r.post("/import", async (c) => {
+    const actor = actorOf(c);
+    const input = await body(c, ImportInput);
+    return c.json(importEntries(ctx.db, { ...input, actorId: actor.id, ip: clientIp(c), now: ctx.now() }));
   });
 
   /* ---------------------------- Backups ---------------------------- */
