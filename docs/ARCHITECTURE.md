@@ -288,7 +288,7 @@ entries, timers, favourites and your own monthly timesheet PDF work offline.
 
 The default is TCP 47600 for HTTPS (LAN) and 47601 for HTTP (loopback, plus a small
 "trust/pair" page on the LAN that only redirects). If a port is taken, the server tries the
-next ones (47602, 47604, …). The chosen port is saved in `data/runtime.json` and advertised
+next ones (47602, 47604, …). The chosen port is saved in `<data folder>/run/runtime.json` and advertised
 through discovery, so nobody ever types it.
 
 ### 6.2 Discovery

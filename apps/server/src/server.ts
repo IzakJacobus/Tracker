@@ -50,7 +50,8 @@ export interface RuntimeFile {
   adminUrl: string;
 }
 
-export const runtimeFilePath = (dataDir: string) => join(dataDir, "runtime.json");
+/** In its own folder so the installer can let ordinary users read it (the rest of the data folder is admin-only). */
+export const runtimeFilePath = (dataDir: string) => join(dataDir, "run", "runtime.json");
 
 export async function startServer(config: ServerConfig, opts: StartOptions): Promise<RunningServer> {
   if (!existsSync(config.dataDir)) mkdirSync(config.dataDir, { recursive: true });
@@ -169,6 +170,7 @@ export async function startServer(config: ServerConfig, opts: StartOptions): Pro
     startedAt: ctx.runtime.startedAt,
     adminUrl,
   };
+  mkdirSync(join(config.dataDir, "run"), { recursive: true });
   writeFileSync(runtimeFilePath(config.dataDir), JSON.stringify(runtime, null, 2));
   log.info(`Stint Server ${opts.version} running`, {
     https: `https://${hostname}:${https.port}`,

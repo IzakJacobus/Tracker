@@ -32,14 +32,25 @@ export async function cli(argv: string[], web?: StaticSource): Promise<void> {
       console.log(HELP);
       return;
     case "open": {
+      // Right after install the service may still be starting: wait for it (up to 30 s).
       const file = runtimeFilePath(config.dataDir);
-      if (!existsSync(file)) {
-        console.error("Stint Server is not running yet. Start it first (it normally starts automatically).");
-        process.exitCode = 1;
-        return;
+      const deadline = Date.now() + 30_000;
+      while (Date.now() < deadline) {
+        if (existsSync(file)) {
+          const rt = JSON.parse(readFileSync(file, "utf8")) as RuntimeFile;
+          try {
+            const res = await fetch(`${rt.adminUrl}api/setup/status`, { signal: AbortSignal.timeout(2000) });
+            const status = (await res.json()) as { setupComplete: boolean };
+            openInBrowser(status.setupComplete ? rt.adminUrl : `${rt.adminUrl}setup`);
+            return;
+          } catch {
+            // not answering yet
+          }
+        }
+        await Bun.sleep(500);
       }
-      const rt = JSON.parse(readFileSync(file, "utf8")) as RuntimeFile;
-      openInBrowser(rt.adminUrl);
+      console.error('Stint Server isn\'t running. Start the "Stint Server" service, or restart the PC.');
+      process.exitCode = 1;
       return;
     }
     case "run":

@@ -1,0 +1,25 @@
+<!--
+  WinSW service definition for Stint Server.
+  The installer places this next to stint-server-service.exe (WinSW 2.x, renamed).
+-->
+<service>
+  <id>StintServer</id>
+  <name>Stint Server</name>
+  <description>Stint time tracking server for your office network.</description>
+  <executable>%BASE%\stint-server.exe</executable>
+  <arguments>--service</arguments>
+  <startmode>Automatic</startmode>
+  <delayedAutoStart>true</delayedAutoStart>
+  <!-- Restart after a crash, or after Stint asks for a restart (e.g. after restoring a backup). -->
+  <onfailure action="restart" delay="5 sec"/>
+  <onfailure action="restart" delay="30 sec"/>
+  <onfailure action="restart" delay="2 min"/>
+  <resetfailure>1 hour</resetfailure>
+  <stoptimeout>20 sec</stoptimeout>
+  <env name="STINT_DATA_DIR" value="%ProgramData%\Stint"/>
+  <logpath>%ProgramData%\Stint\logs\service</logpath>
+  <log mode="roll-by-size">
+    <sizeThreshold>10240</sizeThreshold>
+    <keepFiles>5</keepFiles>
+  </log>
+</service>
