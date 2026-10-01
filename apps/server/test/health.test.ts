@@ -96,6 +96,33 @@ describe("health", () => {
   });
 });
 
+describe("server info", () => {
+  test("lists the addresses the server answers on, plus Tailscale when remote access is on", async () => {
+    const t = server();
+    const admin = await t.setup();
+    const info = async () => (await t.json<{ reachableAt: string[] }>("GET", "/api/info")).body.reachableAt;
+    expect(await info()).toEqual(["192.168.1.20:47600"]);
+    t.ctx.runtime.platform = {
+      checkedAt: t.clock.now,
+      sleepGuard: { active: true, method: null },
+      networks: [],
+      firewall: { checked: false, rules: [] },
+      tailscale: {
+        installed: true,
+        running: true,
+        dnsName: "office-pc.tail1234.ts.net",
+        ips: ["100.101.102.103"],
+      },
+    };
+    expect(await info()).toEqual(["192.168.1.20:47600"]);
+    await t.json("PATCH", "/api/org", {
+      as: admin,
+      body: { settings: { remoteAccess: { enabled: true, provider: "tailscale" } } },
+    });
+    expect(await info()).toEqual(["192.168.1.20:47600", "office-pc.tail1234.ts.net:47600"]);
+  });
+});
+
 describe("update check", () => {
   test("compares versions like people expect", () => {
     expect(compareVersions("1.2.10", "1.2.9")).toBe(1);

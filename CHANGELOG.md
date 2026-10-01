@@ -95,8 +95,24 @@ All notable changes to Stint are documented here. The format follows
   Duration files: exact dry-run preview, person mapping, creates missing clients/projects/tasks/
   tags, skips duplicates and locked periods.
 
+- Single-file server executable with the web client embedded (Windows, Linux, macOS), a Windows
+  service (WinSW) and an NSIS installer: admin-only data folder, firewall rules for Private and
+  Domain networks only (removed on uninstall), Start-menu shortcut, upgrade in place.
+- Release workflow on version tags: a draft GitHub Release with the server installer, portable
+  and Unix server builds, desktop bundles and checksums. A CI job builds and smoke-tests the
+  server binary and compiles the installer on every push.
+- Admins see "Stint x.y is available" in the sidebar.
+- The desktop app learns every address the server answers on, including its Tailscale name,
+  and fails over to them away from the office.
+- Documentation: README with screenshots and a plain-language quick start, user guide, admin
+  guide, remote access guide, install test checklist and release process.
+
 ### Fixed
 - Submitting a timesheet right after an edit could lock the period before the edit reached the
   server, silently rolling it back. Submitting now sends pending changes first.
 - `.gitignore` hid `apps/web/src/data` and `apps/web/build` from the repository.
 - Demo seed attached parent-project tasks to sub-project entries; now tested for consistency.
+- A manager's reports showed "(deleted project)" for time their team logged on projects the
+  manager isn't a member of. Managers can now see (not track on) their team's projects.
+- Changing someone's line manager, or a team member's project access, didn't send the manager
+  the older rows they could now see. Their local copy is now rebuilt.

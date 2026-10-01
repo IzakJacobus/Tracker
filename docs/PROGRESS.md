@@ -3,7 +3,7 @@
 > Single source of truth for where the work stands. Update after every meaningful step.
 
 ## Current phase
-**Phase 9 — Ship it: installers, service, backups, health, updates, docs** (in progress)
+**Phase 9 — Ship it** — complete, except the hands-on Windows install test (needs a Windows VM)
 
 ## Done
 - Architecture (`docs/ARCHITECTURE.md`) and roadmap (`docs/ROADMAP.md`)
@@ -48,21 +48,28 @@
   sign in → synced Track screen (screenshots in docs/screenshots). Windows build: CI (Phase 9).
 - **Phase 8 complete.** Not verifiable here: Windows tray/idle APIs (compile-checked only in CI).
 
+- Phase 9: backups + restore + folder browser (`services/backup.ts`); health report, sleep
+  guard, Windows network/firewall checks, Tailscale status, update check (`services/health.ts`,
+  `platform/*`, `services/updates.ts`); CSV import incl. Toggl (`csvImport.ts`,
+  `services/importer.ts`); Settings → Health / Backups / Remote access / Import; admin update
+  notice; single-file server build (`apps/server/scripts/build.ts`), WinSW service + NSIS
+  installer (`installer/windows/`), systemd unit, release workflow (`.github/workflows/release.yml`),
+  CI packaging job with `installer/smoke-test.sh`; desktop address failover incl. Tailscale
+  (`remember_addresses`); docs: README, USER_GUIDE, ADMIN_GUIDE, REMOTE_ACCESS, INSTALL_TEST,
+  RELEASING; screenshots via `scripts/screenshots.ts`.
+  Bugs found and fixed: managers saw "(deleted project)" for their team's projects; manager
+  changes didn't resync the manager.
+- **Phase 9 complete** apart from running INSTALL_TEST.md on real Windows.
+
 ## In progress
-- Phase 9. Done so far: backups + restore + folder browser (`services/backup.ts`, +8 tests);
-  health report, sleep guard, Windows network/firewall checks, Tailscale status, update check
-  (`services/health.ts`, `platform/*`, `services/updates.ts`, +6 tests); CSV import
-  (`packages/shared/src/csvImport.ts` +8 tests, `services/importer.ts` +4 tests); web Settings →
-  Health / Backups / Remote access / Import (checked in Chromium, light + dark). 12/12 e2e green.
+- nothing
 
 ## Next step (exact)
-1. Packaging: `apps/server/scripts/build.ts` (embed web dist, `bun build --compile` for
-   windows-x64 / linux-x64 / darwin-arm64), WinSW service XML, NSIS installer script
-   (installer/server.nsi: service, firewall rules private/domain, Start-menu "Stint Server — Open",
-   uninstall removes rules), release workflow on tags (server installers + Tauri bundles).
-2. Docs: README (screenshots, quick start, backup/restore, upgrading, remote access,
-   troubleshooting), docs/USER_GUIDE.md, docs/ADMIN_GUIDE.md, docs/REMOTE_ACCESS.md,
-   docs/INSTALL_TEST.md (clean-Windows test procedure + what could not be tested here).
+1. Run docs/INSTALL_TEST.md on a clean Windows 10/11 VM with artifacts from the release
+   workflow (push a `v0.1.0` tag, or run the workflow by hand) and record the results.
+2. Fix whatever that turns up (most likely spots: WinSW env expansion of `%ProgramData%`,
+   icacls on the data folder, `open` from the Finish page, PowerShell JSON shapes).
+3. Then: code signing (see docs/RELEASING.md), and the "Later / ideas" list in the roadmap.
 
 ## Open decisions (for the owner)
 - Repository: the brief asked for a new public repo via `gh repo create`; this environment has no
@@ -89,4 +96,5 @@ bun run test:e2e               # builds the web client, starts a throwaway serve
 - Toolchain verified: Bun 1.3.14 (cross-compiles Windows exe), Node 22, Rust 1.97, Chromium for
   Playwright at /opt/pw-browsers (Playwright 1.56.x).
 - Remote-access research (Sept 2026): tailscale.com and cloudflare docs were blocked by the sandbox
-  proxy; tier details came from third-party summaries — re-verify before publishing the guide.
+  proxy; tier details came from third-party summaries — re-verify (docs/REMOTE_ACCESS.md says so).
+- NSIS (`apt-get install nsis`) compiles the Windows installer on Linux.

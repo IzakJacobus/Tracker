@@ -27,6 +27,7 @@ export const desktop = {
   pairWithCode: (code: string) => invoke<PairingStatus>("pair_with_code", { code }),
   unpair: () => invoke<void>("unpair"),
   idleSeconds: () => invoke<number>("idle_seconds"),
+  rememberAddresses: (addresses: string[]) => invoke<void>("remember_addresses", { addresses }),
   trayUpdate: (running: boolean, tooltip: string) => invoke<void>("tray_update", { running, tooltip }),
   notify: (title: string, body: string) => invoke<void>("notify", { title, body }),
   autostartEnabled: () => invoke<boolean>("plugin:autostart|is_enabled"),

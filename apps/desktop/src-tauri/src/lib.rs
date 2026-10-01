@@ -108,6 +108,33 @@ fn unpair(state: State<'_, AppState>) {
     state.save();
 }
 
+/// Adds addresses the server says it can be reached on (e.g. its Tailscale name) to the ones
+/// tried when the usual address doesn't answer. Existing addresses keep their order.
+#[tauri::command]
+fn remember_addresses(state: State<'_, AppState>, addresses: Vec<String>) {
+    {
+        let mut d = state.data.lock().unwrap();
+        let Some(s) = d.server.as_mut() else { return };
+        merge_addresses(&mut s.addresses, &addresses);
+    }
+    state.save();
+}
+
+/// `host:port` entries only, at most 16 in total; new ones go to the end.
+fn merge_addresses(current: &mut Vec<String>, new: &[String]) {
+    for a in new {
+        let valid = a.len() <= 270
+            && a.rsplit_once(':').is_some_and(|(host, port)| {
+                !host.is_empty()
+                    && port.parse::<u16>().is_ok()
+                    && host.chars().all(|c| c.is_ascii_alphanumeric() || c == '.' || c == '-')
+            });
+        if valid && !current.contains(a) && current.len() < 16 {
+            current.push(a.clone());
+        }
+    }
+}
+
 /// Every API call from the web UI goes through here.
 #[tauri::command]
 async fn api_request(state: State<'_, AppState>, method: String, path: String, body: Option<Value>) -> Result<net::ApiResponse, String> {
@@ -259,6 +286,7 @@ pub fn run() {
             pair_with_code,
             unpair,
             api_request,
+            remember_addresses,
             idle_seconds,
             tray_update,
             save_file,
@@ -292,4 +320,26 @@ pub async fn debug_probe(addr: &str, code: Option<&str>) -> Result<String, Strin
     let wrong = net::pair(&[addr.to_string()], |_| false).await;
     out += &format!("wrong fingerprint refused: {}", wrong.is_err());
     Ok(out)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::merge_addresses;
+
+    #[test]
+    fn merges_new_addresses_after_the_known_ones() {
+        let mut a = vec!["192.168.1.20:47600".to_string()];
+        merge_addresses(
+            &mut a,
+            &[
+                "192.168.1.20:47600".into(),
+                "100.101.102.103:47600".into(),
+                "office-pc.tail1234.ts.net:47600".into(),
+                "not an address".into(),
+                "evil.example:99999".into(),
+                "x/y:47600".into(),
+            ],
+        );
+        assert_eq!(a, vec!["192.168.1.20:47600", "100.101.102.103:47600", "office-pc.tail1234.ts.net:47600"]);
+    }
 }

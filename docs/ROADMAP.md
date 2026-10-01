@@ -70,6 +70,8 @@ Live status lives in [PROGRESS.md](PROGRESS.md).
 - Release workflow on tags (Windows; macOS/Linux where cheap)
 - Seed script (demo company), CSV import (incl. Toggl exports), polish, screenshots, user docs
 - Install-flow test on a clean Windows machine (documented)
+- Status: all built. The Windows install test is written up in INSTALL_TEST.md but has not been
+  run yet, because no Windows machine was available.
 
 ## Later / ideas
 - Invoice export to accounting packages (Sage, Xero CSV formats)

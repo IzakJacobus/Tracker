@@ -327,34 +327,51 @@ runs with enough rights to make that change.
 
 ## 7. Running the server on Windows
 
-* The installer copies `stint-server.exe`, `stint-service.exe` (WinSW, MIT) and
-  `stint-service.xml` to `C:\Program Files\Stint Server`. Data goes to
-  `C:\ProgramData\Stint`.
-* The service starts automatically at boot and restarts if it crashes. Logs rotate in
-  `C:\ProgramData\Stint\logs`.
+* `apps/server/scripts/build.ts` produces one self-contained executable with `bun build
+  --compile`. The web client is embedded through generated `import … with { type: "file" }`
+  statements, so no other files are needed at runtime.
+* The NSIS installer (`installer/windows/server.nsi`) copies `stint-server.exe`,
+  `stint-server-service.exe` (WinSW 2.12, MIT, checksum pinned) and
+  `stint-server-service.xml` to `C:\Program Files\Stint Server`. Data goes to
+  `C:\ProgramData\Stint`, which only SYSTEM and Administrators can read (it holds password
+  hashes and the CA key). The `run\` subfolder, which only holds `runtime.json` with the
+  ports, is also readable by Users.
+* The service starts automatically (delayed start) and WinSW restarts it when it exits with an
+  error. That is also how a restore that brings in a different certificate restarts it: the
+  server exits with code 75. Logs rotate in `C:\ProgramData\Stint\logs`.
+* Firewall: two inbound program rules (TCP for HTTPS, UDP for discovery), profile
+  `private,domain`. They are deleted and re-added on upgrade, and removed on uninstall.
 * **Sleep guard.** While running, the server calls `SetThreadExecutionState(ES_CONTINUOUS |
   ES_SYSTEM_REQUIRED)` through `bun:ffi`, so the PC does not go to sleep. The display may
-  still switch off. Admins can turn this off in settings.
-* A Start-menu shortcut, **"Stint Server — Open"**, runs `stint-server.exe open`. That reads
-  `runtime.json` and opens the admin page in the default browser. The installer's Finish page
-  runs it, which launches the setup wizard.
-* macOS and Linux get the same binary with a launchd plist or a systemd unit. These are for
-  technical users.
+  still switch off. Admins can turn this off in settings. macOS uses `caffeinate -w`, and Linux
+  uses `systemd-inhibit`.
+* The platform monitor (every 5 minutes, and on demand from Health) refreshes the LAN
+  addresses (after DHCP changes), the Windows network category (`Get-NetConnectionProfile`),
+  the firewall rules (`Get-NetFirewallRule`) and Tailscale's status (`tailscale status --json`).
+* The Start-menu shortcut **"Stint Server"** runs `stint-server.exe open`. That waits up to
+  30 s for `run\runtime.json` and a response from the server, then opens the setup wizard or
+  the admin page in the default browser. The installer's Finish page runs it.
+* Linux gets the same binary with a systemd unit (`installer/linux/stint-server.service`), and
+  macOS gets a plain binary. These are for technical users.
 
 ## 8. Backups, restore and updates
 
-* **Nightly backup** at 02:00 (configurable), plus on startup if the last backup is older than
-  24 h. `VACUUM INTO` writes `stint-YYYY-MM-DD-HHmm.db` to the folder the admin chose. That
-  folder is picked with a folder browser that runs on the server and suggests USB drives and
-  OneDrive folders. The newest 30 backups are kept. Each backup is checked with
-  `PRAGMA integrity_check`.
-* **Restore** (admin only, one click). The server checks the chosen file, first makes a safety
-  backup of the current database, swaps the files, runs migrations, and asks every client to
-  do a full resync (the server epoch changes).
-* **Updates.** The server checks the GitHub Releases API once a day, and an admin can check on
-  demand. The admin UI and the desktop app show "Version X is available" with a download
-  link. Updating means downloading and running the new installer, which keeps the data folder.
-  Migrations run automatically on the next start, after an automatic pre-migration backup.
+* **Nightly backup** at 02:00 (configurable). If the last successful backup is more than 26 h
+  old, for example because the PC was off, it runs on the next scheduler tick. `VACUUM INTO`
+  writes `stint-YYYY-MM-DD-HHmm[-kind].db` to the folder the admin chose. That folder is picked
+  with a folder browser that runs on the server and suggests USB drives and OneDrive folders.
+  The newest N (default 30) regular backups and the newest 10 safety copies are kept. Each
+  backup is checked with `PRAGMA integrity_check`, and the result is logged in `backup_log`.
+* **Restore** (admin only, one click). The server checks the file (integrity, and a schema
+  that isn't newer than this build), makes a safety copy in `restore-safety/`, closes and
+  swaps the database, runs migrations, and bumps the global sync epoch so every client does a
+  full resync. If anything fails after the swap, the safety copy is put back.
+* **Updates.** The server checks the GitHub Releases API (`releases/latest`, so drafts and
+  pre-releases are ignored) once a day, and an admin can check on demand. Only the request
+  itself leaves the network. Admins see "Stint X is available" in the sidebar and on Health.
+  Updating means running the new installer, which keeps the data folder. Migrations run
+  automatically on the next start, after an automatic pre-migration backup.
+* **Release builds:** see [RELEASING.md](RELEASING.md).
 
 ## 9. Migrations
 

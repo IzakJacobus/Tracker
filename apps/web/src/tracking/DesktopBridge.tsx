@@ -2,6 +2,7 @@ import { formatDuration, localTime, type TimeEntry } from "@stint/shared";
 import { Coffee } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { useData } from "../data/DataProvider.tsx";
+import { api } from "../lib/api.ts";
 import { desktop, isDesktop } from "../lib/desktop.ts";
 import { Button } from "../ui/Button.tsx";
 import { Dialog } from "../ui/Dialog.tsx";
@@ -35,6 +36,19 @@ function Bridge() {
     return () => {
       void p.then((un) => un());
     };
+  }, []);
+
+  // Learn every address the server answers on (LAN, Tailscale…) so the app can fail over to
+  // them away from the office. Refreshed every few hours; failures are fine (offline).
+  useEffect(() => {
+    const refresh = () =>
+      api
+        .get<{ reachableAt?: string[] }>("/info")
+        .then((i) => (i.reachableAt?.length ? desktop.rememberAddresses(i.reachableAt) : undefined))
+        .catch(() => {});
+    void refresh();
+    const t = setInterval(refresh, 4 * 3600_000);
+    return () => clearInterval(t);
   }, []);
 
   // Keep the tray tooltip current.

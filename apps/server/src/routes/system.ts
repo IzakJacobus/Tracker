@@ -7,7 +7,16 @@ import { body, clientIp, type HonoEnv } from "../http.ts";
 import { ApiError, conflict } from "../lib/errors.ts";
 import { getMeta } from "../lib/meta.ts";
 import { runSetup } from "../services/bootstrap.ts";
-import { getOrgRow, isSetupComplete } from "../services/org.ts";
+import { getOrgRow, getOrgSettings, isSetupComplete } from "../services/org.ts";
+
+function reachableAt(ctx: AppContext): string[] {
+  const port = ctx.runtime.httpsPort;
+  if (!port) return [];
+  const ts = ctx.runtime.platform?.tailscale;
+  const remote = getOrgSettings(ctx.db).remoteAccess.enabled && ts?.running;
+  const hosts = [...ctx.runtime.addresses, ...(remote && ts.dnsName ? [ts.dnsName] : [])];
+  return [...new Set(hosts)].map((h) => `${h}:${port}`);
+}
 
 export function systemRoutes(ctx: AppContext) {
   const r = new Hono<HonoEnv>();
@@ -23,6 +32,8 @@ export function systemRoutes(ctx: AppContext) {
       setupComplete: org !== null,
       caFingerprint: ctx.runtime.caFingerprint,
       time: ctx.now(),
+      /** host:port addresses this server answers on; the desktop app remembers them for failover. */
+      reachableAt: reachableAt(ctx),
     });
   });
 
