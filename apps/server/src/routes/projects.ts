@@ -245,7 +245,7 @@ export function projectRoutes(ctx: AppContext) {
             updatedAt: now,
             deletedAt: null,
           });
-      bumpSyncEpoch(ctx.db, userId);
+      bumpSyncEpoch(ctx.db, userId, { withManager: true });
       audit(ctx.db, now, {
         actorId: actor.id,
         action: existing ? "update" : "create",
@@ -274,7 +274,7 @@ export function projectRoutes(ctx: AppContext) {
     const now = ctx.now();
     ctx.db.transaction(() => {
       updateRow(ctx.db, TABLES.projectMembers, existing.id, { deletedAt: now }, now);
-      bumpSyncEpoch(ctx.db, userId);
+      bumpSyncEpoch(ctx.db, userId, { withManager: true });
       audit(ctx.db, now, {
         actorId: actor.id,
         action: "delete",

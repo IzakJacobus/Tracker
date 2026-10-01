@@ -11,6 +11,7 @@ import {
   canTrackOnProject,
   canUnlockTimesheet,
   canViewEntry,
+  canViewProject,
   canViewUserTime,
   projectLineage,
   projectRoleFor,
@@ -89,6 +90,23 @@ describe("tracking permissions", () => {
   test("admins can track anywhere, but not on unknown projects", () => {
     expect(canTrackOnProject(admin, "other", ctxFor(admin))).toBe(true);
     expect(canTrackOnProject(admin, "nope", ctxFor(admin))).toBe(false);
+  });
+});
+
+describe("project visibility for managers", () => {
+  const other: Actor = { id: "mgr2", role: "manager" };
+  test("a manager sees the projects their team works on (and sub-projects), without tracking on them", () => {
+    const ctx = ctxFor(other, { teamProjects: new Set(["acme-bridge"]) });
+    expect(canViewProject(other, "acme-bridge", ctx)).toBe(true);
+    expect(canViewProject(other, "acme-bridge-design", ctx)).toBe(true);
+    expect(canViewProject(other, "acme", ctx)).toBe(false);
+    expect(canViewProject(other, "other", ctx)).toBe(false);
+    expect(canTrackOnProject(other, "acme-bridge", ctx)).toBe(false);
+  });
+  test("team projects never widen what a member sees", () => {
+    expect(canViewProject(bob, "acme-bridge", ctxFor(bob, { teamProjects: new Set(["acme-bridge"]) }))).toBe(
+      false,
+    );
   });
 });
 

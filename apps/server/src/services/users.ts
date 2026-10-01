@@ -26,8 +26,18 @@ export function visibleUsers(db: Database, viewer: Actor, ctx: AccessContext): U
   return list.map((u) => shapeUser(u, viewer, ctx));
 }
 
-export function bumpSyncEpoch(db: Database, userId: string): void {
+/**
+ * Makes this person's apps throw away their local copy and pull everything again. Needed when
+ * what they may see changes in a way older rows don't reveal (role, project access, team).
+ * Their line manager is reset too, because a manager sees their team's projects.
+ */
+export function bumpSyncEpoch(db: Database, userId: string, opts: { withManager?: boolean } = {}): void {
   db.query("UPDATE users SET sync_epoch = sync_epoch + 1 WHERE id = ?").run(userId);
+  if (opts.withManager) {
+    db.query(
+      "UPDATE users SET sync_epoch = sync_epoch + 1 WHERE id = (SELECT manager_id FROM users WHERE id = ?)",
+    ).run(userId);
+  }
 }
 
 export function activeAdminCount(db: Database): number {

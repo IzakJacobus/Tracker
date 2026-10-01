@@ -238,7 +238,7 @@ export function importEntries(db: Database, opts: ImportOptions): ImportSummary 
         });
       memberships.add(`${root.id}|${userId}`);
       // Their copy lacks the project's older rows, so their next sync starts afresh.
-      bumpSyncEpoch(db, userId);
+      bumpSyncEpoch(db, userId, { withManager: true });
     };
 
     const unmatched = new Set<string>();

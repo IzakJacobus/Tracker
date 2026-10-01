@@ -62,7 +62,16 @@ function load(db: Database): Snapshot {
 /** Builds the permission context for `actor`. Cached until any synced row changes. */
 export function accessContext(db: Database, actor: Actor): AccessContext {
   const s = load(db);
+  let teamProjects: Set<string> | undefined;
+  if (actor.role === "manager") {
+    teamProjects = new Set();
+    for (const [userId, managerId] of s.userManager) {
+      if (managerId !== actor.id) continue;
+      for (const projectId of s.memberships.get(userId)?.keys() ?? []) teamProjects.add(projectId);
+    }
+  }
   return {
+    teamProjects,
     projectParent: s.projectParent,
     projectVisibility: s.projectVisibility,
     memberships: s.memberships.get(actor.id) ?? new Map(),

@@ -21,6 +21,11 @@ export interface AccessContext {
   /** user id → their line manager's user id */
   userManager: ReadonlyMap<string, string | null>;
   membersSeeOwnRates: boolean;
+  /**
+   * Managers only: projects that people they line-manage are members of. Lets a manager see
+   * the projects their team's time is on (to read it, not to track on them).
+   */
+  teamProjects?: ReadonlySet<string>;
 }
 
 export const isAdmin = (a: Actor) => a.role === "admin";
@@ -66,7 +71,9 @@ export function canTrackOnProject(actor: Actor, projectId: string, ctx: AccessCo
 }
 
 export function canViewProject(actor: Actor, projectId: string, ctx: AccessContext): boolean {
-  return canTrackOnProject(actor, projectId, ctx);
+  if (canTrackOnProject(actor, projectId, ctx)) return true;
+  if (actor.role !== "manager" || !ctx.teamProjects?.size || !ctx.projectParent.has(projectId)) return false;
+  return projectLineage(projectId, ctx).some((id) => ctx.teamProjects!.has(id));
 }
 
 export function canManageProject(actor: Actor, projectId: string, ctx: AccessContext): boolean {

@@ -1739,3 +1739,26 @@
     margin-bottom: var(--space-2);
   }
 }
+.update-notice {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-2) var(--space-3);
+  border-radius: var(--radius-md);
+  background: var(--info-soft);
+  color: var(--text);
+  font-size: var(--text-sm);
+  text-decoration: none;
+}
+.update-notice:hover {
+  text-decoration: underline;
+}
+.update-notice svg {
+  flex: none;
+  width: 16px;
+  height: 16px;
+  color: var(--info);
+}
+.shell[data-collapsed="true"] .update-notice span {
+  display: none;
+}

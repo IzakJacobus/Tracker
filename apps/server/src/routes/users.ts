@@ -88,6 +88,10 @@ export function userRoutes(ctx: AppContext) {
     const after = ctx.db.transaction(() => {
       const u = updateRow(ctx.db, TABLES.users, id, input, now);
       if (input.role && input.role !== before.role) bumpSyncEpoch(ctx.db, id);
+      // A new manager needs this person's older entries and projects; the old one must lose them.
+      if (input.managerId !== undefined && input.managerId !== before.managerId) {
+        for (const m of [before.managerId, input.managerId]) if (m) bumpSyncEpoch(ctx.db, m);
+      }
       if (input.active === false) destroyUserSessions(ctx.db, id);
       audit(ctx.db, now, {
         actorId: actor.id,

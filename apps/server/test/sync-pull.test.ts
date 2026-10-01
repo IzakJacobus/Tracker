@@ -100,6 +100,37 @@ describe("sync pull", () => {
     expect(after).not.toBe(before);
   });
 
+  test("managers receive the projects their team works on, and reset when their team changes", async () => {
+    const s = createTestServer();
+    const admin = await s.setup();
+    const mgr = await s.createUser(admin, { email: "mgr@example.com", name: "Mandla", role: "manager" });
+    const alice = await s.createUser(admin, { email: "alice@example.com", name: "Alice", managerId: mgr.id });
+    const bob = await s.createUser(admin, { email: "bob@example.com", name: "Bob" });
+    const client = (await s.json<Client>("POST", "/api/clients", { as: admin, body: { name: "Acme" } })).body;
+    const mk = async (name: string) =>
+      (await s.json<Project>("POST", "/api/projects", { as: admin, body: { clientId: client.id, name } }))
+        .body;
+    const alicesProject = await mk("Alice's project");
+    const bobsProject = await mk("Bob's project");
+    await s.json("PUT", `/api/projects/${bobsProject.id}/members/${bob.id}`, { as: admin, body: {} });
+
+    const epoch0 = (await s.json<Pull>("GET", "/api/sync/pull?since=0", { as: mgr.agent })).body.epoch;
+    await s.json("PUT", `/api/projects/${alicesProject.id}/members/${alice.id}`, { as: admin, body: {} });
+    const r = await s.json<Pull>("GET", "/api/sync/pull?since=0", { as: mgr.agent });
+    expect(r.body.epoch).not.toBe(epoch0);
+    const names = (r.body.changes.projects ?? []).map((p) => p.name);
+    expect(names).toContain("Alice's project");
+    expect(names).not.toContain("Bob's project");
+    expect(r.body.changes.clients?.map((c) => c.name)).toContain("Acme");
+
+    // Bob joins Mandla's team: Mandla's copy must be rebuilt to include Bob's older work.
+    const epoch1 = r.body.epoch;
+    await s.json("PATCH", `/api/users/${bob.id}`, { as: admin, body: { managerId: mgr.id } });
+    const r2 = await s.json<Pull>("GET", "/api/sync/pull?since=0", { as: mgr.agent });
+    expect(r2.body.epoch).not.toBe(epoch1);
+    expect((r2.body.changes.projects ?? []).map((p) => p.name)).toContain("Bob's project");
+  });
+
   test("requires sign-in", async () => {
     const s = createTestServer();
     await s.setup();

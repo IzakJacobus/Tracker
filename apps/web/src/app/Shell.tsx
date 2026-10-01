@@ -25,6 +25,7 @@ import { ConfirmDialog } from "../ui/Dialog.tsx";
 import { Avatar, Logo } from "../ui/misc.tsx";
 import { Menu, Popover } from "../ui/Popover.tsx";
 import { useMe, useSession } from "./session.tsx";
+import { UpdateNotice } from "./UpdateNotice.tsx";
 
 interface NavItem {
   to: string;
@@ -131,6 +132,7 @@ export function Shell({ dock, statusSlot }: { dock?: ReactNode; statusSlot?: Rea
         </div>
         <div className="sidebar__spacer" />
         <div className="sidebar__footer">
+          <UpdateNotice />
           {statusSlot}
           <UserMenu />
         </div>
