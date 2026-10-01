@@ -77,16 +77,7 @@ function writeEntry(): string {
 async function build(target: Target, entry: string) {
   const t = TARGETS[target];
   const outfile = join(OUT_DIR, `stint-server-${target}${t.ext}`);
-  const args = [
-    "build",
-    entry,
-    "--compile",
-    `--target=${t.bun}`,
-    "--minify",
-    "--sourcemap",
-    "--outfile",
-    outfile,
-  ];
+  const args = ["build", entry, "--compile", `--target=${t.bun}`, "--minify", "--outfile", outfile];
   // Icons and version info can only be stamped when building on Windows itself.
   if (target === "windows-x64" && process.platform === "win32" && existsSync(ICON)) {
     args.push(
