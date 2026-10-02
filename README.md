@@ -64,6 +64,8 @@ Monday. All of these can be changed in Settings.
 
 ## Quick start (no technical knowledge needed)
 
+The one-page version is **[docs/INSTALL.md](docs/INSTALL.md)**.
+
 ### 1. Install the server on one office PC
 
 Pick a PC that stays on during working hours (Windows 10 or 11, 64-bit).
@@ -101,13 +103,15 @@ from the browser menu.
 
 ### Running the server on Linux instead
 
-Any 64-bit Linux with systemd works (x64 or arm64, so a Raspberry Pi 4/5 is fine). Download
-`stint-server-x.y.z-linux-x64.tar.gz` (or `-linux-arm64`) from the release, then:
+Any 64-bit Linux with systemd works (x64 or arm64, so a Raspberry Pi 4/5 is fine). One command
+downloads the latest release, checks it against the release's checksums and installs it:
 
 ```bash
-tar xzf stint-server-*-linux-*.tar.gz && cd stint-server-*/
-sudo ./install.sh
+curl -fsSL https://github.com/IzakJacobus/Tracker/releases/latest/download/get-stint.sh | sudo bash
 ```
+
+Or do the same by hand: download `stint-server-x.y.z-linux-x64.tar.gz` (or `-linux-arm64`) from
+the release, then run `tar xzf stint-server-*-linux-*.tar.gz && cd stint-server-*/ && sudo ./install.sh`.
 
 The script creates a `stint` service account, installs the `stint-server` service (it starts
 at boot), keeps the computer from sleeping, and, if ufw or firewalld is on, opens Stint's ports
@@ -115,7 +119,7 @@ to private networks only. It then prints the setup address. Setup only opens on 
 itself, so on a server without a screen it also prints the `ssh -L …` command that lets you
 finish setup from your own computer's browser.
 
-Re-run `sudo ./install.sh` from a newer release to upgrade.
+Run the same command again to upgrade.
 `sudo ./install.sh --uninstall` removes Stint but keeps the data in `/var/lib/stint`; add
 `--purge` to delete that too. Logs: `journalctl -u stint-server`.
 
@@ -169,6 +173,7 @@ with nothing exposed to the internet. Its free plan covers up to 6 users. Step-b
 
 ## Documentation
 
+- [Install guide](docs/INSTALL.md): the short version, for whoever sets Stint up
 - [How to open Stint](docs/OPENING_STINT.md): the app or a browser, and working offline (for staff)
 - [User guide](docs/USER_GUIDE.md): for everyone who tracks time
 - [Admin guide](docs/ADMIN_GUIDE.md): setting up the firm, people, rates, approvals, backups

@@ -69,6 +69,10 @@
 - Code review follow-up: fixed 8 findings plus 4 smaller ones (see CHANGELOG "Security"/"Fixed"),
   each with a regression test that fails without the fix. Pairing codes are now 24 characters.
 
+- Release prep (v0.1.0): one-command Linux install (`installer/linux/get-stint.sh`, checksum
+  verified, tested locally and in CI), short install guide (`docs/INSTALL.md`), CHANGELOG
+  versioned, desktop app compile-checked for Windows (MinGW), Linux .deb/.AppImage built locally.
+
 ## In progress
 - nothing
 

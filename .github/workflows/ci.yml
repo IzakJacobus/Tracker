@@ -151,6 +151,21 @@ jobs:
           sudo bash installer/linux/install.sh --uninstall --purge
           [ ! -e /var/lib/stint ]
           if id stint; then echo "::error::check failed"; exit 1; fi
+      - name: One-command install from a (local) release, checksum verified
+        run: |
+          v=$(sed -n 's/.*"version": "\(.*\)".*/\1/p' package.json | head -1)
+          d="stint-server-$v-linux-x64"
+          mkdir -p rel/v$v "$d"
+          cp apps/server/dist/stint-server-linux-x64 "$d/stint-server"
+          cp LICENSE installer/linux/stint-server.service installer/linux/install.sh "$d/"
+          tar -czf "rel/v$v/$d.tar.gz" "$d"
+          (cd rel/v$v && sha256sum * > SHA256SUMS.txt)
+          (cd rel && python3 -m http.server 47890 --bind 127.0.0.1 >/dev/null 2>&1 &)
+          sleep 1
+          sudo STINT_VERSION="$v" STINT_DOWNLOAD_BASE=http://127.0.0.1:47890 bash installer/linux/get-stint.sh | tee get.log
+          grep -q "Next: finish setup" get.log
+          systemctl is-active --quiet stint-server
+          sudo bash installer/linux/install.sh --uninstall --purge
       - name: Service log
         if: failure()
         run: sudo journalctl -u stint-server --no-pager | tail -100

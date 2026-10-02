@@ -6,7 +6,23 @@ All notable changes to Stint are documented here. The format follows
 
 ## [Unreleased]
 
+## [0.1.0] - 2026-10-02
+
+First release. Self-hosted time tracking for small firms: one office computer runs Stint Server
+(Windows installer, or one command on Linux); everyone else uses the Stint app (Windows, Mac,
+Linux) or a browser, and keeps working offline. Timer, weekly grid and calendar; nested projects
+with rates and budgets; timesheet approvals with locking; reports with PDF, Excel and CSV export;
+nightly backups with one-click restore; a plain-language Health page. Install guide:
+[docs/INSTALL.md](docs/INSTALL.md).
+
+The installers are not code-signed yet: Windows and macOS show a warning the first time (see the
+install guide). The Windows server installer has been built and checked but not yet run on a
+clean Windows machine.
+
 ### Added
+- One-command Linux install: `curl -fsSL …/releases/latest/download/get-stint.sh | sudo bash`
+  (downloads the right build, verifies it against the release checksums, installs or upgrades).
+- A one-page install guide (`docs/INSTALL.md`).
 - Project foundations: Bun monorepo (`apps/server`, `apps/web`, `apps/desktop`, `packages/shared`),
   TypeScript strict mode, Biome, EditorConfig, CI workflow.
 - Architecture and roadmap documents.
