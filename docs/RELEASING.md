@@ -18,7 +18,15 @@ once a maintainer publishes it.
    git commit -am "Release 1.2.0"
    ```
 
-4. Tag and push:
+4. Start the build, either way:
+
+   **On github.com (no git needed):** Releases → **Draft a new release** → *Choose a tag* → type
+   `v1.2.0` → **Create new tag on publish**, pick the branch as *Target*, leave the description
+   empty (it's filled from the CHANGELOG), tick **Set as a pre-release** while it builds, and click
+   **Publish release**. When the build is done, edit the release and untick *pre-release*, so
+   it becomes the "latest" that servers and `get-stint.sh` see.
+
+   **Or with git:**
 
    ```bash
    git tag v1.2.0

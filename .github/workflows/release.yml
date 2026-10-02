@@ -1,12 +1,17 @@
 name: Release
 
-# Builds installers when a version tag is pushed (git tag v1.2.0 && git push origin v1.2.0).
-# Everything is attached to a DRAFT GitHub Release: check it, then click Publish.
-# Running servers only see a release once it is published.
+# Builds installers when a version tag is pushed (git tag v1.2.0 && git push origin v1.2.0), or
+# when a release with a new tag is published on github.com (which creates the tag).
+# A tag push creates a DRAFT release: check it, then click Publish. Running servers only see a
+# release once it is published.
 
 on:
   push:
     tags: ["v*"]
+  # Publishing a release on github.com with a new tag; if the tag push above also fires, the
+  # second run finds the release already built and skips (see "build" below).
+  release:
+    types: [published]
   workflow_dispatch:
     inputs:
       tag:
@@ -15,6 +20,11 @@ on:
 
 permissions:
   contents: write
+
+# One build per tag at a time; a second trigger for the same tag waits, then skips.
+concurrency:
+  group: release-${{ github.event.inputs.tag || github.ref_name }}
+  cancel-in-progress: false
 
 env:
   TAG: ${{ github.event.inputs.tag || github.ref_name }}
@@ -25,6 +35,8 @@ jobs:
   draft:
     name: Create draft release
     runs-on: ubuntu-latest
+    outputs:
+      build: ${{ steps.built.outputs.build }}
     steps:
       - uses: actions/checkout@v5
         with:
@@ -42,11 +54,34 @@ jobs:
       - name: Create draft
         env:
           GH_TOKEN: ${{ github.token }}
-        run: gh release view "$TAG" >/dev/null 2>&1 || gh release create "$TAG" --draft --title "Stint $TAG" --notes-file notes.md
+        run: |
+          if gh release view "$TAG" >/dev/null 2>&1; then
+            # Created on github.com (Releases → Draft a new release): add notes if it has none.
+            if [ -z "$(gh release view "$TAG" --json body --jq .body)" ]; then
+              gh release edit "$TAG" --notes-file notes.md
+            fi
+          else
+            gh release create "$TAG" --draft --title "Stint $TAG" --notes-file notes.md
+          fi
+      - name: Already built?
+        id: built
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          # SHA256SUMS.txt is uploaded last, so its presence means a complete build. A manual
+          # run (workflow_dispatch) always rebuilds.
+          if [ "$GITHUB_EVENT_NAME" != "workflow_dispatch" ] &&
+            gh release view "$TAG" --json assets --jq '.assets[].name' | grep -qx SHA256SUMS.txt; then
+            echo "Release $TAG is already built; nothing to do."
+            echo "build=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "build=true" >> "$GITHUB_OUTPUT"
+          fi
 
   server-windows:
     name: Server installer (Windows)
     needs: draft
+    if: needs.draft.outputs.build == 'true'
     runs-on: windows-latest
     steps:
       - uses: actions/checkout@v5
@@ -89,6 +124,7 @@ jobs:
   server-unix:
     name: Server binaries (Linux, macOS)
     needs: draft
+    if: needs.draft.outputs.build == 'true'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v5
@@ -123,6 +159,7 @@ jobs:
   desktop:
     name: Desktop app (${{ matrix.name }})
     needs: draft
+    if: needs.draft.outputs.build == 'true'
     strategy:
       fail-fast: false
       matrix:
@@ -169,7 +206,7 @@ jobs:
   checksums:
     name: Checksums
     needs: [draft, server-windows, server-unix, desktop]
-    if: always() && needs.draft.result == 'success'
+    if: always() && needs.draft.result == 'success' && needs.draft.outputs.build == 'true'
     runs-on: ubuntu-latest
     steps:
       - name: SHA256SUMS
