@@ -156,6 +156,19 @@ function validateEntry(p: PushCtx, e: TimeEntry): void {
     throw new Reject("invalid", "Invalid source.");
 }
 
+/**
+ * Tags must be listed once each, and newly added ones must exist. Tags already on the
+ * entry are left alone, so an entry whose tag was deleted later can still be edited.
+ */
+function checkEntryTags(p: PushCtx, tagIds: string[], previous: readonly string[]): void {
+  if (new Set(tagIds).size !== tagIds.length) throw new Reject("invalid", "A tag is listed twice.");
+  for (const id of tagIds) {
+    if (previous.includes(id)) continue;
+    const tag = getRow(p.db, TABLES.tags, id) as { deletedAt: number | null } | null;
+    if (!tag || tag.deletedAt) throw new Reject("invalid", "That tag no longer exists.");
+  }
+}
+
 /* ---------------- per-table handlers ---------------- */
 
 function pushEntry(p: PushCtx, c: IncomingChange): PushResult {
@@ -211,6 +224,7 @@ function pushEntry(p: PushCtx, c: IncomingChange): PushResult {
       serverSeq: 0,
     };
     validateEntry(p, entry);
+    checkEntryTags(p, entry.tagIds, []);
     entry.rateSnapshot = snapshotRate(p.db, entry, p.settings);
     const inserted = insertRow(p.db, spec, entry as unknown as Row, result.fieldClock);
     audit(p.db, p.now, {
@@ -230,6 +244,7 @@ function pushEntry(p: PushCtx, c: IncomingChange): PushResult {
   if (!result.patch.deletedAt) {
     next.entryDate = localDate(next.startedAt, p.settings.timezone);
     validateEntry(p, next);
+    if ("tagIds" in result.patch) checkEntryTags(p, next.tagIds, before!.tagIds);
   }
   const derived: Record<string, unknown> = { ...result.patch };
   if (!result.patch.deletedAt) {
