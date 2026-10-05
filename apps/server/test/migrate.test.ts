@@ -86,7 +86,7 @@ describe("migrations", () => {
           "INSERT INTO projects (id, client_id, name, created_at, updated_at) VALUES ('p', 'missing', 'x', 0, 0)",
         ),
       ).toThrow();
-      db.close();
+      db.close(true);
     } finally {
       rmSync(dir, { recursive: true, force: true });
     }

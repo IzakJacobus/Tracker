@@ -62,7 +62,7 @@ export function inspectDatabase(path: string): {
   } catch (e) {
     return { ok: false, error: `The file isn't a Stint database: ${(e as Error).message}` };
   } finally {
-    db?.close();
+    db?.close(true);
   }
 }
 
@@ -193,7 +193,7 @@ export function restoreBackup(ctx: AppContext, file: string): RestoreResult {
   const previousCa = getMeta(ctx.db, "tls_ca_cert");
 
   const swapIn = (source: string) => {
-    ctx.db.close();
+    ctx.db.close(true);
     for (const suffix of ["-wal", "-shm"]) rmSync(`${dbPath}${suffix}`, { force: true });
     copyFileSync(source, dbPath);
     const db = openDatabase(dbPath);
