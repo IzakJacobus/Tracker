@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { isValidIsoDate } from "./dates.ts";
 
 /* ------------------------------------------------------------------ */
 /* Primitives                                                          */
@@ -9,7 +10,10 @@ export const Id = z
   .regex(/^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/, {
     message: "Invalid id",
   });
-export const IsoDate = z.string().regex(/^\d{4}-\d{2}-\d{2}$/, { message: "Use YYYY-MM-DD" });
+export const IsoDate = z
+  .string()
+  .regex(/^\d{4}-\d{2}-\d{2}$/, { message: "Use YYYY-MM-DD" })
+  .refine(isValidIsoDate, { message: "That date doesn't exist." });
 export const Clock = z.string().regex(/^([01]\d|2[0-3]):[0-5]\d$/, { message: "Use HH:MM" });
 export const Color = z.string().regex(/^#[0-9a-fA-F]{6}$/, { message: "Use a #rrggbb colour" });
 /** Money in minor units (cents). Rates are minor units per hour. */
