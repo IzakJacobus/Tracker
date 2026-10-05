@@ -194,7 +194,7 @@ bun run check                       # lint, type-check, unit and integration tes
 bun run test:e2e                    # Playwright end-to-end tests (builds the web client)
 
 # A demo firm (Karoo Consulting Engineers, 5 people, 3 months of time):
-STINT_DATA_DIR=./apps/server/data bun run seed -- --reset     # password: stint demo 2026
+bun run seed -- --reset             # into apps/server/data; password: stint demo 2026
 bun run --filter @stint/web build
 STINT_DATA_DIR=./apps/server/data STINT_WEB_DIR=./apps/web/dist bun apps/server/src/main.ts
 # → http://localhost:47601  (sign in as thandi@karoo.co.za)
