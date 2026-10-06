@@ -6,7 +6,7 @@ once a maintainer publishes it.
 
 ## Steps
 
-1. Make sure `main` is green in CI (lint, type-check, tests, e2e, desktop, package).
+1. Make sure `main` is green in CI (lint, type-check, tests, e2e, package, Linux install).
 2. Pick the version ([Semantic Versioning](https://semver.org/)): a patch for fixes, a minor
    release for features, and a major one when an upgrade needs manual steps.
 3. Set it everywhere and update the changelog:
@@ -39,8 +39,6 @@ once a maintainer publishes it.
    - `stint-server-1.2.0-windows-x64-portable.zip`: just the executable,
    - `stint-server-1.2.0-{linux-x64,linux-arm64,darwin-arm64,darwin-x64}.tar.gz`: with a
      systemd unit,
-   - the desktop app: `Stint_1.2.0_x64-setup.exe` (Windows), `.dmg` (macOS), and `.deb` and
-     `.AppImage` (Linux),
    - `SHA256SUMS.txt`.
 
    The release notes are taken from the matching CHANGELOG section.
@@ -67,11 +65,9 @@ Installers are currently **unsigned**:
 
 - **Windows:** SmartScreen shows "Windows protected your PC" until an installer has built up a
   reputation. Users click *More info → Run anyway*. To remove the warning, buy an OV or EV
-  code-signing certificate (or use Azure Trusted Signing). Then sign `stint-server.exe`, the
-  installer and the Tauri bundle in the workflow (`signtool sign /fd sha256 /tr …`, and
-  Tauri's `bundle.windows.certificateThumbprint` / `signCommand`).
-- **macOS:** Gatekeeper blocks unsigned apps. Right-click → *Open* works for testing. A public
-  release needs an Apple Developer ID, signing and notarisation (`tauri-action` supports this
-  through secrets).
+  code-signing certificate (or use Azure Trusted Signing). Then sign `stint-server.exe` and the
+  installer in the workflow (`signtool sign /fd sha256 /tr …`).
+
+People use Stint in a browser, so there is no client app to sign.
 
 Keep signing credentials in GitHub Actions secrets, never in the repository.

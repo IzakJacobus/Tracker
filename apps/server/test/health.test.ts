@@ -14,7 +14,7 @@ type Health = {
     fix?: { action: string; label: string; args?: Record<string, string> };
   }[];
   connected: { name: string; kind: string }[];
-  pairing: { code: string | null };
+  connect: { url: string | null; urls: string[] };
 };
 
 function server() {
@@ -26,7 +26,7 @@ function server() {
 }
 
 describe("health", () => {
-  test("is admin-only and reports backups, connected people and the pairing code", async () => {
+  test("is admin-only and reports backups, connected people and the browser address", async () => {
     const t = server();
     const admin = await t.setup();
     const { agent: member } = await t.createUser(admin, {
@@ -43,7 +43,8 @@ describe("health", () => {
     expect(h.body.checks.find((c) => c.id === "backup_location")?.status).toBe("warning");
     expect(h.body.status).toBe("warning");
     expect(h.body.connected.map((c) => c.name).sort()).toEqual(["Aisha", "Thandi Admin"]);
-    expect(h.body.pairing.code).toMatch(/^([0-9A-Z]{4}-){5}[0-9A-Z]{4}$/);
+    expect(h.body.connect.url).toBe("https://test.local:47600");
+    expect(h.body.connect.urls).toContain("https://192.168.1.20:47600");
   });
 
   test("a recent successful backup turns the backup check green", async () => {

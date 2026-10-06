@@ -6,6 +6,19 @@ All notable changes to Stint are documented here. The format follows
 
 ## [Unreleased]
 
+### Changed
+- **Stint is web-only.** Everyone opens Stint in a browser (Chrome, Edge, Firefox or Safari) on
+  Windows, Linux, Mac, phones and tablets, and can install it as an app from the browser menu.
+  Only the server is installed. The Setup wizard and the Health page show the address to share,
+  a QR code for phones, and a link to Stint's certificate.
+
+### Removed
+- The desktop app (Windows, macOS and Linux installers), with its tray, idle detection and
+  start-with-Windows option. Upgrade by opening Stint in a browser instead.
+- LAN discovery (mDNS and the UDP responder) and pairing codes. The installers no longer open
+  UDP ports, and upgrading removes the old UDP firewall rules.
+- Bearer-token sign-in, which only the desktop app used. Sessions are always secure cookies.
+
 ### Fixed
 - Restoring a backup failed on a Windows server (the database file was still locked), and
   putting the previous data back failed the same way. Restore now works on Windows.

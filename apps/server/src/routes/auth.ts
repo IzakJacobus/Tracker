@@ -54,24 +54,20 @@ export function authRoutes(ctx: AppContext) {
       throw new ApiError(401, "invalid_credentials", "That email and password do not match.");
     }
     ctx.limiter.succeed(input.email, ip);
-    const kind = c.req.header("x-stint-client") === "desktop" ? "desktop" : "browser";
+    const kind = "browser";
     const token = createSession(ctx.db, found.id, kind, ctx.now(), {
       userAgent: c.req.header("user-agent"),
       ip,
     });
     audit(ctx.db, ctx.now(), { actorId: found.id, action: "login", entity: "session", ip, after: { kind } });
-    if (kind === "browser") {
-      setCookie(c, SESSION_COOKIE, token, {
-        httpOnly: true,
-        secure: true,
-        sameSite: "Strict",
-        path: "/",
-        maxAge: SESSION_TTL_MS / 1000,
-      });
-      return c.json({ ok: true });
-    }
-    // The desktop app keeps the token inside its Rust process and sends it as a bearer token.
-    return c.json({ ok: true, token });
+    setCookie(c, SESSION_COOKIE, token, {
+      httpOnly: true,
+      secure: true,
+      sameSite: "Strict",
+      path: "/",
+      maxAge: SESSION_TTL_MS / 1000,
+    });
+    return c.json({ ok: true });
   });
 
   r.post("/logout", (c) => {

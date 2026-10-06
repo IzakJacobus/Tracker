@@ -1,35 +1,23 @@
 # Stint user guide
 
-> New to Stint? Start with **[How to open Stint](OPENING_STINT.md)**: the app or a browser, and
-> working without Wi-Fi.
+> New to Stint? Start with **[How to open Stint](OPENING_STINT.md)**: opening it in your browser,
+> installing it as an app, and working without Wi-Fi.
 
 This guide is for everyone who records time in Stint. You don't need to know anything about
 servers or networks.
 
 ## Getting started
 
-### Install the app (Windows)
+Stint runs in your web browser (Chrome, Edge, Firefox or Safari) on any computer, phone or
+tablet. There's nothing to install.
 
-1. Ask your office administrator for the installer (`Stint_…_x64-setup.exe`), or download it
-   from the firm's release page.
-2. Run it. If Windows warns about an unknown publisher, click **More info → Run anyway**.
-3. Open **Stint** from the Start menu. The app looks for your office's Stint Server and shows
-   your firm's name. Click it.
-4. Sign in with the email address and password your administrator gave you. The first time,
+1. Open the address your administrator gives you, for example `https://office-pc.local:47600`.
+   The first time, the browser may say the connection isn't private: your firm's server uses its
+   own certificate. Ask your administrator before you continue.
+2. Sign in with the email address and password your administrator gave you. The first time,
    you'll be asked to choose your own password.
-
-If your firm isn't listed, click **Use a pairing code** and type the 24-character code your
-administrator gives you, for example `R2M0-255S-Y1YK-82FK-HRZT-A9AB`.
-
-Stint starts with Windows and sits in the system tray, by the clock. Closing the window keeps
-it running there. Right-click the tray icon to start or stop the timer, or to quit.
-
-### Use it in a browser (Mac, phone, tablet)
-
-Open the address your administrator gives you, for example `https://office-pc.local:47600`. The
-first time, the browser may say the connection isn't private: your firm's server uses its own
-certificate. Ask your administrator before you continue. On a phone, choose **Add to Home
-Screen** to use Stint like an app.
+3. To use Stint like an app, choose **Install Stint** from the browser menu (on a phone: **Add to
+   Home Screen**).
 
 ## Recording time
 
@@ -87,24 +75,11 @@ menu shows:
 
 Don't sign out while changes are pending. Stint warns you if you try.
 
-### When you're away from your desk
-
-If the timer is running and you haven't touched the PC for a while (10 minutes unless your
-administrator changed it), the desktop app asks what happened when you come back:
-
-- **Keep the time**: you were in a meeting about the project.
-- **Discard and continue**: drop the time you were away, and carry on timing from now.
-- **Discard and stop**: stop the timer at the moment you left.
-
-On Linux this works on GNOME and on X11 desktops. On other Wayland desktops (KDE Plasma, Sway)
-the app can't tell when you're away, so it doesn't ask. Its settings page says so.
-
 ### Reminders
 
 If today (after the reminder time your firm set, 16:30 for example) or your last working day has
 less time than expected, a reminder appears at the top of **Track**. Dismiss it if the day was
-genuinely short. In a browser, Stint can also show it as a notification if you allow that. The
-desktop app always uses Windows notifications.
+genuinely short. Stint can also show it as a notification if you allow that.
 
 ## Submitting your timesheet
 
@@ -148,8 +123,7 @@ computer, so they work offline too.
 Click your name at the bottom of the menu to:
 
 - change your password,
-- switch between light, dark and system themes, and
-- (desktop app) choose whether Stint starts with Windows, or disconnect from the server.
+- switch between light, dark and system themes.
 
 On a shared computer, **sign out** when you're done. This removes your copy of the data from
 that computer.
@@ -160,7 +134,7 @@ that computer.
 - **I can't find my project.** You only see projects you've been added to, plus internal ones.
   Ask the project's manager to add you.
 - **Two timers?** You can only have one timer running. If you started one on your laptop and
-  another on your desktop while offline, Stint keeps the one started last and stops the other
+  another on a second computer while offline, Stint keeps the one started last and stops the other
   when they sync.
 - **My entry vanished after syncing.** It was probably in a locked (submitted or approved)
   period. Stint shows a message when it can't save a change, and why.

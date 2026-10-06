@@ -385,15 +385,6 @@ export function OrgSettingsPage() {
                   }
                 />
               </Field>
-              <Field label="Ask about idle time after (minutes)" hint="Desktop app only. 0 turns it off.">
-                <Input
-                  type="number"
-                  min={0}
-                  max={240}
-                  value={s.idleMinutes}
-                  onChange={(e) => set("idleMinutes", Number(e.target.value))}
-                />
-              </Field>
             </div>
           </div>
         </section>

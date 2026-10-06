@@ -52,28 +52,6 @@ jobs:
             test-results
           retention-days: 7
 
-  desktop:
-    name: Desktop (Rust) check and tests
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v5
-      - name: Install Tauri system dependencies
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y libwebkit2gtk-4.1-dev libayatana-appindicator3-dev librsvg2-dev libxdo-dev
-      - uses: dtolnay/rust-toolchain@stable
-      - uses: Swatinem/rust-cache@v2
-        with:
-          workspaces: apps/desktop/src-tauri
-      - uses: oven-sh/setup-bun@v2
-        with:
-          bun-version: 1.4.2
-      - name: Build web client (bundled into the app)
-        run: bun install --frozen-lockfile && bun run --filter @stint/web build
-      - name: cargo test
-        working-directory: apps/desktop/src-tauri
-        run: cargo test --lib
-
   package:
     name: Package (server binary + Windows installer)
     runs-on: ubuntu-latest
@@ -99,7 +77,7 @@ jobs:
           echo "05b82d46ad331cc16bdc00de5c6332c1ef818df8ceefcd49c726553209b3a0da  stage/stint-server-service.exe" | sha256sum -c
           cp installer/windows/stint-server-service.xml stage/
           cp LICENSE stage/LICENSE.txt
-          cp apps/desktop/src-tauri/icons/icon.ico stage/stint.ico
+          cp assets/icon.ico stage/stint.ico
           makensis -V2 -DVERSION=0.0.0 -DSRC=$PWD/stage -DOUTFILE=$PWD/StintServer-Setup-ci.exe installer/windows/server.nsi
           ls -la StintServer-Setup-ci.exe
 
@@ -122,7 +100,7 @@ jobs:
           systemctl is-active --quiet stint-server
           systemctl is-enabled --quiet stint-server
           sudo ufw status | grep -q "47600:47610/tcp.*192.168.0.0/16"
-          sudo ufw status | grep -q "5353/udp.*10.0.0.0/8"
+          if sudo ufw status | grep -q "/udp"; then echo "::error::no UDP ports should be open"; exit 1; fi
       - name: Data folder belongs to the service account only
         run: |
           [ "$(sudo stat -c '%U %a' /var/lib/stint)" = "stint 750" ]

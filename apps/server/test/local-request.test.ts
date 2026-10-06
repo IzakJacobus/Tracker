@@ -30,7 +30,6 @@ describe("first-run setup over a rebound host name", () => {
       dataDir: dir,
       port: 47860,
       httpPort: 47861,
-      discovery: false,
       sleepGuard: false,
       updateCheck: false,
       openBrowser: false,

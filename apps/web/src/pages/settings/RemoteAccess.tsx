@@ -132,9 +132,9 @@ export function RemoteAccessPage() {
               <td>A public hostname, protected by Cloudflare Access</td>
             </tr>
             <tr>
-              <th scope="row">Desktop app pairing</th>
-              <td>Works unchanged (same certificate pinning)</td>
-              <td>Needs Cloudflare's certificate; browser only</td>
+              <th scope="row">Certificate</th>
+              <td>Stint's own (install it once per device)</td>
+              <td>Cloudflare's (trusted everywhere)</td>
             </tr>
           </tbody>
         </table>

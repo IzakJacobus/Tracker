@@ -42,7 +42,8 @@ server.
 3. **Clients and projects**: add a few to start with. The *Internal* client already has
    Administration, Business development, Training, Research & development and Leave.
 4. **Team**: add the people who'll track time (you can do this later too).
-5. **Connect**: shows the pairing code and QR code for other PCs.
+5. **Open Stint on other computers**: shows Stint's address (and a QR code for phones) to share
+   with your team, and a link to Stint's certificate.
 
 ## 3. People and roles
 
@@ -56,7 +57,7 @@ first time they sign in.
 | **Manager** | Everything a member can. They also see the time of people they line-manage, approve or send back those people's timesheets, and manage projects where they are a project manager (tasks, members and sub-projects). |
 | **Admin** | Everything: people, clients, all projects, settings, backups, unlocking timesheets, re-rating, import and the audit log. |
 
-Every rule is enforced by the server, not only hidden in the app.
+Every rule is enforced by the server, not only hidden in the screens.
 
 - **Forgotten password:** Team → the person → *Reset password*. This gives them a new
   temporary password and signs them out everywhere.
@@ -140,7 +141,7 @@ with a button to fix it where possible:
   server restarts.
 - **Updates**: whether a newer Stint is out.
 
-The page also shows the **pairing code** for new PCs, and who is connected right now.
+The page also shows **Stint's address** to share with people, and who is connected right now.
 
 ## 7. Backups
 
@@ -186,7 +187,7 @@ periods are skipped. Stint also reads its own CSV exports, and any CSV with **Da
 2. Download the new `StintServer-Setup` from the release page and run it on the server PC.
 3. The installer stops the service, replaces the program and starts it again. The database is
    backed up automatically before it is upgraded.
-4. Install the new desktop app on people's PCs when convenient.
+4. People's browsers pick up the new version by themselves (they see an *Update* prompt).
 
 To go back to an older version, install it and restore the backup made before the upgrade
 (Settings → Backups → *Safety copies*).
@@ -201,16 +202,16 @@ To go back to an older version, install it and restore the backup made before th
    administrator permission), then open Settings → Backups and **Restore** it.
 4. Uninstall Stint Server from the old PC.
 
-The desktop apps find the new PC by themselves. Their pairing stays valid, because the
-certificate moved with the backup.
+Browsers keep trusting the certificate, because it moved with the backup. If the new PC has a
+different name, share its address from the Health page (people need to sign in again there).
 
 ## 11. Security notes
 
 - Passwords are stored with argon2id. Sessions are random tokens, and only their hashes are
   stored.
 - Sign-in is rate-limited: 5 attempts per account and address, then a 15-minute pause.
-- All traffic between the apps and the server is encrypted (HTTPS). The desktop app accepts
-  only your server's certificate, so another machine on the network can't impersonate it.
+- All traffic between browsers and the server is encrypted (HTTPS). Once Stint's certificate is
+  installed on a computer, its browser trusts only certificates your server issued.
 - The data folder (`C:\ProgramData\Stint`) is readable only by administrators and the Stint
   service.
 - The firewall rules only allow Private and Domain networks, never Public ones such as café
@@ -225,7 +226,7 @@ certificate moved with the backup.
 
 ## 12. Configuration file (advanced)
 
-Most settings are in the app. A few start-up options live in
+Most settings are in Stint's Settings page. A few start-up options live in
 `C:\ProgramData\Stint\stint.config.json` (create it if needed, then restart the *Stint Server*
 service):
 
@@ -233,13 +234,12 @@ service):
 {
   "port": 47600,
   "httpPort": 47601,
-  "discovery": true,
   "sleepGuard": true,
   "updateCheck": true,
   "logLevel": "info"
 }
 ```
 
-Environment variables (`STINT_PORT`, `STINT_DATA_DIR`, `STINT_DISABLE_DISCOVERY`,
+Environment variables (`STINT_PORT`, `STINT_DATA_DIR`,
 `STINT_DISABLE_SLEEP_GUARD`, `STINT_DISABLE_UPDATE_CHECK`, `STINT_LOG_LEVEL`) override the file.
 Logs are in `C:\ProgramData\Stint\logs`.

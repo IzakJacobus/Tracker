@@ -34,7 +34,7 @@ export async function networkProfiles(): Promise<NetworkProfile[]> {
   }));
 }
 
-/** The plain-language warning shown on the Health page and pairing screen, or null when all is well. */
+/** The plain-language warning shown on the Health page and in setup, or null when all is well. */
 export function networkWarningFor(profiles: NetworkProfile[]): string | null {
   const pub = profiles.filter((p) => p.category === "Public");
   if (!pub.length) return null;

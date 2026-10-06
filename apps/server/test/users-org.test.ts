@@ -214,22 +214,26 @@ describe("users", () => {
   });
 });
 
-describe("pairing", () => {
-  test("returns a decodable code and a QR code for signed-in users", async () => {
-    const { decodePairingCode } = await import("@stint/shared");
+describe("connect", () => {
+  test("gives signed-in users the browser addresses and a QR code", async () => {
     const s = createTestServer();
-    s.ctx.runtime.addresses = ["192.168.1.23"];
-    // base64url of a1 b2 c3 d4 e5 f6 07 18 a9 00…
-    s.ctx.runtime.caFingerprint = "obLD1OX2BxipAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA";
+    s.ctx.runtime.addresses = ["10.0.0.5", "192.168.1.23"];
+    s.ctx.runtime.hostname = "office-pc";
     const admin = await s.setup();
-    const r = await s.json<{ code: string; qrSvg: string }>("GET", "/api/pairing", { as: admin });
+    const r = await s.json<{ url: string; urls: string[]; qrUrl: string; qrSvg: string }>(
+      "GET",
+      "/api/connect",
+      {
+        as: admin,
+      },
+    );
     expect(r.status).toBe(200);
-    expect(decodePairingCode(r.body.code)).toEqual({
-      ip: "192.168.1.23",
-      port: 47600,
-      fingerprintPrefix: "a1b2c3d4e5f60718a9",
-    });
+    expect(r.body.url).toBe("https://office-pc.local:47600");
+    expect(r.body.urls).toContain("https://192.168.1.23:47600");
+    expect(r.body.urls).toContain("https://10.0.0.5:47600");
+    // phones often can't resolve .local, so the QR code carries an IP address
+    expect(["https://10.0.0.5:47600", "https://192.168.1.23:47600"]).toContain(r.body.qrUrl);
     expect(r.body.qrSvg).toContain("<svg");
-    expect((await s.json("GET", "/api/pairing")).status).toBe(401);
+    expect((await s.json("GET", "/api/connect")).status).toBe(401);
   });
 });

@@ -6,6 +6,7 @@ import { api, errorMessage } from "../../lib/api.ts";
 import { Button } from "../../ui/Button.tsx";
 import { Alert, Badge } from "../../ui/misc.tsx";
 import { useToast } from "../../ui/Toast.tsx";
+import { ConnectPanel } from "../auth/ConnectPanel.tsx";
 import {
   type CheckStatus,
   fmtAgo,
@@ -136,25 +137,11 @@ export function HealthPage() {
 
       <div className="health-grid">
         <section className="card card__body stack" aria-labelledby="pair-h">
-          <h2 id="pair-h">Connect a PC</h2>
+          <h2 id="pair-h">Open Stint on other computers</h2>
           <p className="muted">
-            Install the Stint app on a PC on this network: it finds this server by itself. If it doesn't, type
-            this pairing code:
+            People open Stint in their web browser. Nothing needs installing on their computers.
           </p>
-          {h.pairing.code ? (
-            <output className="pair-code" aria-label="Pairing code">
-              {h.pairing.code}
-            </output>
-          ) : (
-            <Alert tone="warning">No pairing code yet: this PC has no network address.</Alert>
-          )}
-          {h.pairing.url && (
-            <p className="muted">
-              Or open{" "}
-              <span className="mono">{`https://${h.server.hostname}.local:${h.server.httpsPort}`}</span> in a
-              browser.
-            </p>
-          )}
+          <ConnectPanel onHealthPage />
         </section>
 
         <section className="card card__body stack" aria-labelledby="who-h">
@@ -165,9 +152,7 @@ export function HealthPage() {
             <ul className="plain-list">
               {h.connected.map((c) => (
                 <li key={`${c.userId}-${c.kind}`} className="row row--between">
-                  <span>
-                    {c.name} <Badge>{c.kind === "desktop" ? "Desktop app" : "Browser"}</Badge>
-                  </span>
+                  <span>{c.name}</span>
                   <span className="muted">{fmtAgo(c.lastSeenAt)}</span>
                 </li>
               ))}

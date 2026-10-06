@@ -3,9 +3,9 @@
 Two parts:
 
 1. **Stint Server**, on **one** computer in the office. It keeps everyone's timesheets.
-2. **The Stint app**, on everyone's computer. Or they can use a web browser instead.
+2. **A web browser** on everyone else's computer, phone or tablet. Nothing to install there.
 
-Everything is on the **[releases page](https://github.com/IzakJacobus/Tracker/releases/latest)**.
+The server is on the **[releases page](https://github.com/IzakJacobus/Tracker/releases/latest)**.
 
 ---
 
@@ -51,22 +51,18 @@ your timesheets are safe even if the server computer breaks.
 
 ---
 
-## 3. Install the app on each person's computer
+## 3. Open Stint on each person's computer
 
-Download the app for their computer from the same releases page:
+The last setup step, and the server's **Settings → Health** page, show Stint's address, for
+example `https://office-pc.local:47600`, plus a QR code for phones.
 
-| Computer | File | How |
-| --- | --- | --- |
-| Windows | `Stint_0.1.0_x64-setup.exe` | Run it. No administrator rights needed. |
-| Mac (Apple silicon) | `Stint_0.1.0_aarch64.dmg` | Open it and drag Stint to Applications. If the Mac refuses to open it the first time: **System Settings → Privacy & Security → Open Anyway**. |
-| Ubuntu / Debian | `Stint_0.1.0_amd64.deb` | `sudo apt install ./Stint_0.1.0_amd64.deb` |
-| Other Linux | `Stint_0.1.0_amd64.AppImage` | Make it executable and double-click it. |
-
-Then open **Stint**. It **finds the office server by itself**. Click your company and sign in.
-If it isn't listed, use the **pairing code** from the server's **Settings → Health** page.
-
-**Phones and tablets:** open `https://<server-computer-name>.local:47600` in the browser, sign in,
-and choose **Add to Home Screen**.
+1. On each computer, open that address in **Chrome, Edge, Firefox or Safari**.
+2. The first time, the browser warns that the connection isn't private. That's because Stint makes
+   its own certificate. To stop the warning, click **Stint's certificate** on the setup or Health
+   page, open the downloaded file and install it as a **trusted root certificate**. Do this once
+   per computer.
+3. Sign in. To use Stint like an app with its own icon, choose **Install Stint** from the browser
+   menu (on phones: **Add to Home Screen**).
 
 ---
 
@@ -74,7 +70,7 @@ and choose **Add to Home Screen**.
 
 - **Windows server:** download and run the new `StintServer-Setup`. Your data stays.
 - **Linux server:** run the same `curl … | sudo bash` command again.
-- **Apps:** install the new version over the old one.
+- **Browsers** update themselves: people see an *Update* prompt.
 
 A backup is made automatically before every update.
 

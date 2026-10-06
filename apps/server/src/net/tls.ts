@@ -74,7 +74,7 @@ async function ensureCa(
 }
 
 /**
- * Ensures a CA (created once, stored in the database so backups keep pairings valid)
+ * Ensures a CA (created once, stored in the database so a restored backup keeps the same certificate)
  * and a leaf certificate covering all current host names and IP addresses. The leaf
  * is re-issued whenever the address set changes or it is within 30 days of expiry.
  */

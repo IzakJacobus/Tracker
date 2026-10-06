@@ -21,7 +21,7 @@ function reachableAt(ctx: AppContext): string[] {
 export function systemRoutes(ctx: AppContext) {
   const r = new Hono<HonoEnv>();
 
-  /** Public: lets clients and the pairing screen identify this server. */
+  /** Public: identifies this server (name, version); also used as a readiness check. */
   r.get("/info", (c) => {
     const org = getOrgRow(ctx.db);
     return c.json({
@@ -32,7 +32,7 @@ export function systemRoutes(ctx: AppContext) {
       setupComplete: org !== null,
       caFingerprint: ctx.runtime.caFingerprint,
       time: ctx.now(),
-      /** host:port addresses this server answers on; the desktop app remembers them for failover. */
+      /** host:port addresses this server answers on. */
       reachableAt: reachableAt(ctx),
     });
   });

@@ -30,8 +30,8 @@ USER_NAME=stint
 SERVICE=stint-server
 # HTTPS (with room for Stint's automatic port fallback: 47600, 47602, ... 47610)
 TCP_PORTS="47600:47610"
-# UDP discovery responder and mDNS
-UDP_PORTS=(47609 5353)
+# Before 0.2 Stint also opened UDP for LAN discovery (47609) and mDNS (5353); those rules are removed.
+LEGACY_UDP_PORTS=(47609 5353)
 NETS=(10.0.0.0/8 172.16.0.0/12 192.168.0.0/16 100.64.0.0/10)
 FW_COMMENT="Stint Server"
 POLKIT_RULE=/etc/polkit-1/rules.d/50-stint-server.rules
@@ -62,42 +62,51 @@ fi
 ufw_active() { command -v ufw >/dev/null && ufw status 2>/dev/null | grep -q "^Status: active"; }
 firewalld_active() { command -v firewall-cmd >/dev/null && firewall-cmd --state >/dev/null 2>&1; }
 
+legacy_udp_close() {
+  if command -v ufw >/dev/null; then
+    for net in "${NETS[@]}"; do
+      for p in "${LEGACY_UDP_PORTS[@]}"; do ufw delete allow proto udp from "$net" to any port "$p" >/dev/null 2>&1 || true; done
+    done
+  fi
+  if firewalld_active; then
+    for net in "${NETS[@]}"; do
+      for p in "${LEGACY_UDP_PORTS[@]}"; do
+        firewall-cmd --permanent --remove-rich-rule="rule family=ipv4 source address=$net port port=$p protocol=udp accept" >/dev/null 2>&1 || true
+      done
+    done
+  fi
+}
+
 firewall_open() {
   [ "$firewall" -eq 1 ] || return 0
+  legacy_udp_close
   if ufw_active; then
     say "Allowing Stint through ufw (private networks only)…"
     for net in "${NETS[@]}"; do
       ufw allow proto tcp from "$net" to any port "$TCP_PORTS" comment "$FW_COMMENT" >/dev/null
-      for p in "${UDP_PORTS[@]}"; do ufw allow proto udp from "$net" to any port "$p" comment "$FW_COMMENT" >/dev/null; done
     done
   elif firewalld_active; then
     say "Allowing Stint through firewalld (private networks only)…"
     for net in "${NETS[@]}"; do
       firewall-cmd --permanent --add-rich-rule="rule family=ipv4 source address=$net port port=${TCP_PORTS/:/-} protocol=tcp accept" >/dev/null
-      for p in "${UDP_PORTS[@]}"; do
-        firewall-cmd --permanent --add-rich-rule="rule family=ipv4 source address=$net port port=$p protocol=udp accept" >/dev/null
-      done
     done
     firewall-cmd --reload >/dev/null
   else
-    echo "No active ufw or firewalld found: nothing to open. If you use another firewall, allow TCP $TCP_PORTS and UDP ${UDP_PORTS[*]} from your office network."
+    echo "No active ufw or firewalld found: nothing to open. If you use another firewall, allow TCP $TCP_PORTS from your office network."
   fi
 }
 
 firewall_close() {
   [ "$firewall" -eq 1 ] || return 0
+  legacy_udp_close
   if command -v ufw >/dev/null; then
     for net in "${NETS[@]}"; do
       ufw delete allow proto tcp from "$net" to any port "$TCP_PORTS" >/dev/null 2>&1 || true
-      for p in "${UDP_PORTS[@]}"; do ufw delete allow proto udp from "$net" to any port "$p" >/dev/null 2>&1 || true; done
     done
   fi
   if firewalld_active; then
     for net in "${NETS[@]}"; do
       firewall-cmd --permanent --remove-rich-rule="rule family=ipv4 source address=$net port port=${TCP_PORTS/:/-} protocol=tcp accept" >/dev/null 2>&1 || true
-      for p in "${UDP_PORTS[@]}"; do
-        firewall-cmd --permanent --remove-rich-rule="rule family=ipv4 source address=$net port port=$p protocol=udp accept" >/dev/null 2>&1 || true
-      done
     done
     firewall-cmd --reload >/dev/null 2>&1 || true
   fi

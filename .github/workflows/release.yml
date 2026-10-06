@@ -45,7 +45,6 @@ jobs:
         run: |
           v="${TAG#v}"
           grep -q "\"version\": \"$v\"" package.json || { echo "package.json version isn't $v. Run: bun scripts/set-version.ts $v"; exit 1; }
-          grep -q "\"version\": \"$v\"" apps/desktop/src-tauri/tauri.conf.json || { echo "tauri.conf.json version isn't $v"; exit 1; }
       - name: Release notes from CHANGELOG
         run: |
           v="${TAG#v}"
@@ -104,7 +103,7 @@ jobs:
           if ($hash -ne $env:WINSW_SHA256) { throw "WinSW checksum mismatch: $hash" }
           Copy-Item installer/windows/stint-server-service.xml stage/
           Copy-Item LICENSE stage/LICENSE.txt
-          Copy-Item apps/desktop/src-tauri/icons/icon.ico stage/stint.ico
+          Copy-Item assets/icon.ico stage/stint.ico
       - name: Build installer (NSIS)
         shell: pwsh
         run: |
@@ -156,56 +155,9 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: gh release upload "$TAG" stint-server-*.tar.gz installer/linux/get-stint.sh --clobber
 
-  desktop:
-    name: Desktop app (${{ matrix.name }})
-    needs: draft
-    if: needs.draft.outputs.build == 'true'
-    strategy:
-      fail-fast: false
-      matrix:
-        include:
-          - name: Windows
-            os: windows-latest
-          - name: macOS
-            os: macos-latest
-          - name: Linux
-            os: ubuntu-22.04
-    runs-on: ${{ matrix.os }}
-    steps:
-      - uses: actions/checkout@v5
-        with:
-          ref: ${{ env.TAG }}
-      - uses: oven-sh/setup-bun@v2
-        with:
-          bun-version: 1.4.2
-      - uses: dtolnay/rust-toolchain@stable
-      - uses: swatinem/rust-cache@v2
-        with:
-          workspaces: apps/desktop/src-tauri
-      - name: Linux build dependencies
-        if: runner.os == 'Linux'
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y libwebkit2gtk-4.1-dev libayatana-appindicator3-dev librsvg2-dev libxdo-dev patchelf
-      - run: bun install --frozen-lockfile
-      # tauri.conf.json's beforeBuildCommand builds the web client.
-      - name: Build bundles
-        working-directory: apps/desktop
-        run: bunx tauri build
-      - name: Upload
-        shell: bash
-        env:
-          GH_TOKEN: ${{ github.token }}
-        run: |
-          shopt -s nullglob
-          b=apps/desktop/src-tauri/target/release/bundle
-          files=("$b"/nsis/*.exe "$b"/dmg/*.dmg "$b"/deb/*.deb "$b"/appimage/*.AppImage)
-          [ ${#files[@]} -gt 0 ] || { echo "No bundles found"; ls -R "$b" || true; exit 1; }
-          gh release upload "$TAG" "${files[@]}" --clobber
-
   checksums:
     name: Checksums
-    needs: [draft, server-windows, server-unix, desktop]
+    needs: [draft, server-windows, server-unix]
     if: always() && needs.draft.result == 'success' && needs.draft.outputs.build == 'true'
     runs-on: ubuntu-latest
     steps:

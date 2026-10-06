@@ -56,7 +56,7 @@ export interface Health {
   };
   backups: { folder: string; last: LastBackup | null; lastSuccessfulAt: number | null };
   connected: { userId: string; name: string; kind: string; lastSeenAt: number; ip: string }[];
-  pairing: { code: string | null; ip: string | null; url: string | null };
+  connect: { url: string | null; urls: string[] };
   update: UpdateInfo | null;
   platform: {
     checkedAt: number;

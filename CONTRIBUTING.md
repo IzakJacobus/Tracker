@@ -6,7 +6,6 @@ documented.
 ## Prerequisites
 
 * [Bun](https://bun.sh) 1.4.2+ (runtime, package manager, test runner)
-* For the desktop app: Rust (stable) and the [Tauri prerequisites](https://v2.tauri.app/start/prerequisites/)
 
 ## Getting started
 
@@ -44,8 +43,8 @@ bun run test:e2e    # Playwright end-to-end tests (needs `bun run build` first)
 
 ## Releasing
 
-1. Update `CHANGELOG.md` (move *Unreleased* to the new version) and bump versions in
-   `package.json` files and `apps/desktop/src-tauri/tauri.conf.json`.
+1. Update `CHANGELOG.md` (move *Unreleased* to the new version) and bump the version in every
+   `package.json`: `bun scripts/set-version.ts 0.2.0`.
 2. Tag: `git tag v0.2.0 && git push origin v0.2.0`.
-3. The *Release* workflow builds the server installer and desktop installers and publishes a
+3. The *Release* workflow builds the server for Windows (installer) and Linux, and publishes a
    GitHub Release.

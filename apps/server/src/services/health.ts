@@ -2,7 +2,7 @@ import { statfsSync, statSync } from "node:fs";
 import { join } from "node:path";
 import { localDate, localTime } from "@stint/shared";
 import type { AppContext } from "../context.ts";
-import { pairingInfo } from "../routes/pairing.ts";
+import { connectInfo } from "../routes/connect.ts";
 import { backupFolder, lastBackup, lastSuccessfulBackup } from "./backup.ts";
 import { getOrgSettings } from "./org.ts";
 import { storedUpdateInfo } from "./updates.ts";
@@ -253,7 +253,7 @@ export function healthReport(ctx: AppContext) {
     },
     backups: { folder, last, lastSuccessfulAt: lastOk },
     connected,
-    pairing: pairingInfo(ctx),
+    connect: connectInfo(ctx),
     update,
     platform: p ?? null,
   };

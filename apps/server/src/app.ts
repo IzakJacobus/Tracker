@@ -6,8 +6,8 @@ import { ApiError } from "./lib/errors.ts";
 import { adminRoutes } from "./routes/admin.ts";
 import { authRoutes } from "./routes/auth.ts";
 import { clientRoutes } from "./routes/clients.ts";
+import { connectRoutes } from "./routes/connect.ts";
 import { orgRoutes } from "./routes/org.ts";
-import { pairingRoutes } from "./routes/pairing.ts";
 import { projectRoutes } from "./routes/projects.ts";
 import { syncRoutes } from "./routes/sync.ts";
 import { systemRoutes } from "./routes/system.ts";
@@ -34,7 +34,7 @@ export function createApp(ctx: AppContext) {
   api.route("/auth", authRoutes(ctx));
   api.route("/org", orgRoutes(ctx));
   api.route("/users", userRoutes(ctx));
-  api.route("/pairing", pairingRoutes(ctx));
+  api.route("/connect", connectRoutes(ctx));
   api.route("/clients", clientRoutes(ctx));
   api.route("/projects", projectRoutes(ctx));
   api.route("/tasks", taskRoutes(ctx));

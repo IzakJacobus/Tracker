@@ -1,7 +1,6 @@
 export * from "./csvImport.ts";
 export * from "./dates.ts";
 export * from "./hlc.ts";
-export * from "./pairing.ts";
 export * from "./permissions.ts";
 export * from "./rates.ts";
 export * from "./reports.ts";

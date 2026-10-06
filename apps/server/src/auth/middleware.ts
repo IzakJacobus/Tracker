@@ -6,18 +6,13 @@ import type { AuthedUser, HonoEnv } from "../http.ts";
 import { ApiError, forbidden, unauthorized } from "../lib/errors.ts";
 import { SESSION_COOKIE, validateSession } from "./sessions.ts";
 
-export function readToken(authHeader: string | undefined, cookie: string | undefined): string | null {
-  if (authHeader?.startsWith("Bearer ")) return authHeader.slice(7).trim() || null;
-  return cookie ?? null;
-}
-
-/** Resolves the session (cookie or bearer token) into c.var.user / c.var.actor. */
+/** Resolves the session cookie into c.var.user / c.var.actor. */
 export function sessionMiddleware(ctx: AppContext) {
   return createMiddleware<HonoEnv>(async (c, next) => {
     c.set("user", null);
     c.set("actor", null);
     c.set("sessionToken", null);
-    const token = readToken(c.req.header("authorization"), getCookie(c, SESSION_COOKIE));
+    const token = getCookie(c, SESSION_COOKIE) ?? null;
     if (token) {
       const s = validateSession(ctx.db, token, ctx.now());
       if (s) {

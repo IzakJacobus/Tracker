@@ -1,15 +1,11 @@
-/**
- * Network transport. The browser/PWA talks to the same origin with a cookie
- * session. The desktop app (Tauri) routes requests through Rust, which pins the
- * server's certificate and holds the session token; see DesktopTransport.
- */
+/** Network transport: the browser/PWA talks to the same origin with a cookie session. */
 export interface TransportResponse {
   status: number;
   body: unknown;
 }
 
 export interface Transport {
-  kind: "browser" | "desktop";
+  kind: "browser";
   request(method: string, path: string, body?: unknown, signal?: AbortSignal): Promise<TransportResponse>;
 }
 
@@ -61,28 +57,6 @@ export class BrowserTransport implements Transport {
   }
 }
 
-interface TauriInternals {
-  invoke<T>(cmd: string, args?: Record<string, unknown>): Promise<T>;
-}
-
-export function tauri(): TauriInternals | null {
-  const w = window as unknown as { __TAURI_INTERNALS__?: TauriInternals };
-  return w.__TAURI_INTERNALS__ ?? null;
-}
-
-export class DesktopTransport implements Transport {
-  readonly kind = "desktop" as const;
-  async request(method: string, path: string, body?: unknown): Promise<TransportResponse> {
-    const t = tauri();
-    if (!t) throw new NetworkError("Desktop bridge unavailable.");
-    try {
-      return await t.invoke<TransportResponse>("api_request", { method, path, body: body ?? null });
-    } catch (e) {
-      throw new NetworkError(typeof e === "string" ? e : "Cannot reach the Stint server.");
-    }
-  }
-}
-
 export function defaultTransport(): Transport {
-  return tauri() ? new DesktopTransport() : new BrowserTransport();
+  return new BrowserTransport();
 }

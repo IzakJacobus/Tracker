@@ -16,7 +16,7 @@ const ROOT = resolve(import.meta.dir, "..");
 const WEB_DIST = resolve(ROOT, "../web/dist");
 const GEN_DIR = join(ROOT, ".build");
 const OUT_DIR = join(ROOT, "dist");
-const ICON = resolve(ROOT, "../desktop/src-tauri/icons/icon.ico");
+const ICON = resolve(ROOT, "../../assets/icon.ico");
 
 const TARGETS = {
   "windows-x64": { bun: "bun-windows-x64", ext: ".exe" },
