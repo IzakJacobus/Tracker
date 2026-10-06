@@ -1,13 +1,18 @@
-import { FileUp, Upload } from "lucide-react";
+import { exportWorkbook, readWorkbookParts, templateWorkbook } from "@stint/shared/export";
+import { FileDown, FileUp, Upload } from "lucide-react";
 import { type ChangeEvent, useState } from "react";
 import { useData } from "../../data/DataProvider.tsx";
 import { useUsers } from "../../data/hooks.ts";
 import { api, errorMessage } from "../../lib/api.ts";
+import { saveFile } from "../../lib/download.ts";
 import { fmtHours } from "../../lib/format.ts";
 import { Button } from "../../ui/Button.tsx";
-import { Field, Select, Switch } from "../../ui/Field.tsx";
+import { Field, Input, Select, Switch } from "../../ui/Field.tsx";
 import { Alert } from "../../ui/misc.tsx";
 import { useToast } from "../../ui/Toast.tsx";
+import { useReportData, useToday } from "../reports/data.ts";
+
+const XLSX_MIME = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet";
 
 interface Summary {
   dryRun: boolean;
@@ -20,6 +25,15 @@ interface Summary {
   errors: { line: number; message: string }[];
   unmatchedPeople: string[];
   created: { clients: string[]; projects: string[]; tasks: string[]; tags: string[] };
+  projectRows: number;
+  projectsUpdated: number;
+}
+
+/** What was chosen to import: hours and/or the Projects sheet of a workbook. */
+interface Chosen {
+  name: string;
+  csv: string;
+  projectsCsv?: string;
 }
 
 const FORMAT = {
@@ -43,12 +57,61 @@ function CreatedList({ label, items }: { label: string; items: string[] }) {
   );
 }
 
-/** Bring in history from Toggl Track (or a previous Stint) as CSV. Always previews first. */
+/** Download the whole company as an Excel workbook (Projects and Hours sheets), or an empty template. */
+function ExportSection() {
+  const data = useReportData();
+  const today = useToday();
+  const toast = useToast();
+  const [from, setFrom] = useState("");
+  const [to, setTo] = useState("");
+
+  async function download() {
+    if (!data) return;
+    try {
+      const bytes = exportWorkbook(data, { from: from || undefined, to: to || undefined });
+      await saveFile(`Stint ${today}.xlsx`, bytes, XLSX_MIME);
+    } catch (e) {
+      toast.error(`Couldn't create the file: ${errorMessage(e)}`);
+    }
+  }
+
+  return (
+    <section className="card card__body stack" aria-labelledby="export-h">
+      <h2 id="export-h">Export to Excel</h2>
+      <p className="muted">
+        One workbook with two sheets: <strong>Projects</strong> (every project and item with its code, type,
+        done state and budget) and <strong>Hours</strong> (every entry). You can edit it in Excel and import
+        it again.
+      </p>
+      <div className="form-grid">
+        <Field label="Hours from" hint="Leave empty for everything">
+          <Input type="date" value={from} onChange={(e) => setFrom(e.target.value)} />
+        </Field>
+        <Field label="Hours to">
+          <Input type="date" value={to} onChange={(e) => setTo(e.target.value)} />
+        </Field>
+      </div>
+      <div className="row">
+        <Button variant="primary" icon={<FileDown />} disabled={!data} onClick={() => void download()}>
+          Download Excel workbook
+        </Button>
+        <Button
+          icon={<FileDown />}
+          onClick={() => void saveFile("Stint import template.xlsx", templateWorkbook(), XLSX_MIME)}
+        >
+          Download empty template
+        </Button>
+      </div>
+    </section>
+  );
+}
+
+/** Export to Excel, and bring in an Excel workbook or CSV (Toggl Track, a previous Stint). Always previews first. */
 export function ImportPage() {
   const users = useUsers();
   const { mutate } = useData();
   const toast = useToast();
-  const [file, setFile] = useState<{ name: string; text: string } | null>(null);
+  const [file, setFile] = useState<Chosen | null>(null);
   const [createMissing, setCreateMissing] = useState(true);
   const [people, setPeople] = useState<Record<string, string>>({});
   const [result, setResult] = useState<Summary | null>(null);
@@ -62,10 +125,27 @@ export function ImportPage() {
       setError("The file is too big (20 MB at most). Export a shorter date range.");
       return;
     }
-    setFile({ name: f.name, text: await f.text() });
     setResult(null);
     setPeople({});
     setError(null);
+    try {
+      if (/\.xlsx$/i.test(f.name)) {
+        const parts = readWorkbookParts(new Uint8Array(await f.arrayBuffer()));
+        if (!parts.projectsCsv && !parts.hoursCsv) {
+          setFile(null);
+          setError(
+            "No Projects or Hours sheet found in this workbook. Download the empty template to see the layout.",
+          );
+          return;
+        }
+        setFile({ name: f.name, csv: parts.hoursCsv ?? "", projectsCsv: parts.projectsCsv ?? undefined });
+      } else setFile({ name: f.name, csv: await f.text() });
+    } catch (err) {
+      setFile(null);
+      setError(errorMessage(err));
+    } finally {
+      e.target.value = "";
+    }
   }
 
   async function run(dryRun: boolean, mapping = people) {
@@ -74,12 +154,15 @@ export function ImportPage() {
     setError(null);
     try {
       const chosen = Object.fromEntries(Object.entries(mapping).filter(([, id]) => id));
-      const body = { csv: file.text, dryRun, createMissing, people: chosen };
+      const body = { csv: file.csv, projectsCsv: file.projectsCsv, dryRun, createMissing, people: chosen };
       const r = dryRun
         ? await api.post<Summary>("/admin/import", body)
         : await mutate(() => api.post<Summary>("/admin/import", body));
       setResult(r);
-      if (!dryRun) toast.success(`Imported ${r.imported} entries (${fmtHours(r.seconds)} h).`);
+      if (!dryRun)
+        toast.success(
+          `Imported ${r.imported} entries (${fmtHours(r.seconds)} h)${r.created.projects.length ? ` and ${r.created.projects.length} new projects or items` : ""}.`,
+        );
     } catch (e) {
       setError(errorMessage(e));
     } finally {
@@ -91,10 +174,11 @@ export function ImportPage() {
 
   return (
     <div className="stack stack--lg" style={{ maxWidth: 900 }}>
-      <Alert tone="info" title="Moving from Toggl Track?">
-        In Toggl, open Reports → Detailed, choose the date range and export as CSV. Upload that file here.
-        Nothing is saved until you've seen the preview and clicked Import. Importing the same file twice
-        doesn't duplicate anything.
+      <ExportSection />
+      <Alert tone="info" title="Importing">
+        Upload an Excel workbook (the one you exported, or the template) or a CSV. Moving from Toggl Track?
+        Open Reports → Detailed, choose the date range and export as CSV. Nothing is saved until you've seen
+        the preview and clicked Import. Importing the same file twice doesn't duplicate anything.
       </Alert>
       {error && <Alert tone="danger">{error}</Alert>}
 
@@ -102,8 +186,13 @@ export function ImportPage() {
         <h2 id="file-h">1. Choose the file</h2>
         <label className="file-drop">
           <FileUp aria-hidden="true" />
-          <span>{file ? file.name : "Choose a CSV file"}</span>
-          <input type="file" accept=".csv,text/csv" className="sr-only" onChange={(e) => void onFile(e)} />
+          <span>{file ? file.name : "Choose an Excel (.xlsx) or CSV file"}</span>
+          <input
+            type="file"
+            accept=".xlsx,.csv,text/csv,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+            className="sr-only"
+            onChange={(e) => void onFile(e)}
+          />
         </label>
         <Switch
           checked={createMissing}
@@ -120,13 +209,24 @@ export function ImportPage() {
       {result && (
         <section className="card card__body stack" aria-labelledby="preview-h" aria-live="polite">
           <h2 id="preview-h">{result.dryRun ? "2. Check the preview" : "Done"}</h2>
-          <p className="muted">Read as: {FORMAT[result.format]}.</p>
+          <p className="muted">
+            {result.rows > 0
+              ? `Hours read as: ${FORMAT[result.format]}.`
+              : "Projects only: no hours in this file."}
+          </p>
           <div className="stat-row">
             <div className="stat">
               <div className="stat__label">{result.dryRun ? "Will import" : "Imported"}</div>
               <div className="stat__value">{result.imported}</div>
               <div className="stat__sub">{fmtHours(result.seconds)} h</div>
             </div>
+            {result.projectRows > 0 && (
+              <div className="stat">
+                <div className="stat__label">Projects and items</div>
+                <div className="stat__value">{result.created.projects.length}</div>
+                <div className="stat__sub">new, {result.projectsUpdated} changed</div>
+              </div>
+            )}
             <div className="stat">
               <div className="stat__label">Already in Stint</div>
               <div className="stat__value">{result.duplicates}</div>
@@ -199,13 +299,14 @@ export function ImportPage() {
             </details>
           )}
 
-          {result.dryRun && result.imported > 0 && (
-            <div className="row">
-              <Button variant="primary" loading={busy} onClick={() => void run(false)}>
-                Import {result.imported} entries
-              </Button>
-            </div>
-          )}
+          {result.dryRun &&
+            (result.imported > 0 || result.created.projects.length > 0 || result.projectsUpdated > 0) && (
+              <div className="row">
+                <Button variant="primary" loading={busy} onClick={() => void run(false)}>
+                  Import{result.imported > 0 ? ` ${result.imported} entries` : " projects"}
+                </Button>
+              </div>
+            )}
         </section>
       )}
     </div>

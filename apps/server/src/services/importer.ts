@@ -1,12 +1,14 @@
 import type { Database } from "bun:sqlite";
 import {
   type Client,
+  codeKey,
   type ImportFormat,
   type ImportRow,
   importStartTimes,
   localDate,
   type Project,
   readImportCsv,
+  readProjectsCsv,
   suggestNextCode,
   type User,
   uuidv7,
@@ -20,7 +22,10 @@ import { isPeriodLocked } from "./syncPush.ts";
 import { bumpSyncEpoch } from "./users.ts";
 
 export interface ImportOptions {
+  /** The hours (a Stint export, Toggl, or simple columns). Empty when only projects are imported. */
   csv: string;
+  /** The Projects sheet of a Stint workbook: projects and items with their codes, types and done state. */
+  projectsCsv?: string;
   dryRun: boolean;
   /** Create clients, projects, tasks and tags that don't exist yet. */
   createMissing: boolean;
@@ -43,6 +48,9 @@ export interface ImportSummary {
   /** Names in the file that matched no one (map them with `people`). */
   unmatchedPeople: string[];
   created: { clients: string[]; projects: string[]; tasks: string[]; tags: string[] };
+  /** Rows of the Projects sheet, and how many existing projects or items they changed. */
+  projectRows: number;
+  projectsUpdated: number;
 }
 
 class Rollback extends Error {}
@@ -55,7 +63,10 @@ const key = (s: string) => s.trim().toLowerCase();
  * Re-importing the same file adds nothing (duplicates are skipped).
  */
 export function importEntries(db: Database, opts: ImportOptions): ImportSummary {
-  const parsed = readImportCsv(opts.csv);
+  const parsed = opts.csv.trim()
+    ? readImportCsv(opts.csv)
+    : { format: "stint" as ImportFormat, rows: [] as ImportRow[], errors: [] };
+  const projectSheet = opts.projectsCsv?.trim() ? readProjectsCsv(opts.projectsCsv) : null;
   const summary: ImportSummary = {
     dryRun: opts.dryRun,
     format: parsed.format,
@@ -67,8 +78,11 @@ export function importEntries(db: Database, opts: ImportOptions): ImportSummary 
     errors: [...parsed.errors],
     unmatchedPeople: [],
     created: { clients: [], projects: [], tasks: [], tags: [] },
+    projectRows: projectSheet?.rows.length ?? 0,
+    projectsUpdated: 0,
   };
-  if (!parsed.rows.length) return summary;
+  if (projectSheet) summary.errors.push(...projectSheet.errors);
+  if (!parsed.rows.length && !projectSheet?.rows.length) return summary;
   const settings = getOrgSettings(db);
   const now = opts.now;
 
@@ -123,17 +137,35 @@ export function importEntries(db: Database, opts: ImportOptions): ImportSummary 
       return c;
     };
 
+    /** Another project or item of this client already uses the code (ignoring case). */
+    const codeUsed = (client: Client, code: string, exceptId?: string) =>
+      projects.some(
+        (x) => x.clientId === client.id && x.id !== exceptId && x.code && codeKey(x.code) === codeKey(code),
+      );
+
     /** The item at `path` (project › … › item), created when allowed. `lastKind` labels a new last item. */
-    const projectFor = (client: Client, path: string[], lastKind: string | null = null): Project | null => {
+    const projectFor = (
+      client: Client,
+      path: string[],
+      lastKind: string | null = null,
+      topCode = "",
+    ): Project | null => {
       let parent: Project | null = null;
       const done: string[] = [];
       const names = path.length ? path : ["Imported (no project)"];
       for (const [depth, name] of names.entries()) {
         done.push(name);
         const parentId: string | null = (parent as Project | null)?.id ?? null;
-        let p: Project | undefined = projects.find(
-          (x) => x.clientId === client.id && x.parentId === parentId && key(x.name) === key(name),
-        );
+        let p: Project | undefined =
+          (depth === 0 && topCode
+            ? projects.find(
+                (x) =>
+                  x.clientId === client.id && !x.parentId && x.code && codeKey(x.code) === codeKey(topCode),
+              )
+            : undefined) ??
+          projects.find(
+            (x) => x.clientId === client.id && x.parentId === parentId && key(x.name) === key(name),
+          );
         if (!p) {
           if (!opts.createMissing) return null;
           const siblings = projects.filter((x) => x.clientId === client.id && x.parentId === parentId);
@@ -145,10 +177,12 @@ export function importEntries(db: Database, opts: ImportOptions): ImportSummary 
             // A new top-level project gets the next code in the client's own pattern.
             code:
               depth === 0
-                ? suggestNextCode(
-                    projects.filter((x) => x.clientId === client.id).map((x) => x.code),
-                    "P-001",
-                  )
+                ? topCode && !codeUsed(client, topCode)
+                  ? topCode
+                  : suggestNextCode(
+                      projects.filter((x) => x.clientId === client.id).map((x) => x.code),
+                      "P-001",
+                    )
                 : null,
             kind: depth === names.length - 1 ? lastKind : null,
             color: parent?.color ?? PROJECT_COLORS[projects.length % PROJECT_COLORS.length],
@@ -225,14 +259,51 @@ export function importEntries(db: Database, opts: ImportOptions): ImportSummary 
       bumpSyncEpoch(db, userId, { withManager: true });
     };
 
+    let touchedProjects = false;
+
+    // Projects sheet first, so the hours below can land on the items it creates.
+    for (const row of projectSheet?.rows ?? []) {
+      const fail = (message: string) => summary.errors.push({ line: row.line, message });
+      const client = clientFor(row.client);
+      if (!client) {
+        fail(`There is no client called "${row.client}".`);
+        continue;
+      }
+      const before = projects.length;
+      const project = projectFor(client, row.path, row.kind || null, row.projectCode);
+      if (!project) {
+        fail(`There is no project called "${row.path.join(" › ")}" for ${client.name}.`);
+        continue;
+      }
+      if (projects.length !== before) touchedProjects = true;
+      const patch: Record<string, unknown> = {};
+      const isTop = !project.parentId;
+      if (row.kind && project.kind !== row.kind) patch.kind = row.kind;
+      if (row.budgetMinutes !== null && project.budgetMinutes !== row.budgetMinutes)
+        patch.budgetMinutes = row.budgetMinutes;
+      if (row.done === true && !project.archivedAt) patch.archivedAt = now;
+      if (row.done === false && project.archivedAt) patch.archivedAt = null;
+      // An existing project without a code takes the one in the file (item codes are optional).
+      const wanted = isTop ? row.projectCode : row.itemCode;
+      if (wanted && !project.code) {
+        if (codeUsed(client, wanted, project.id))
+          fail(`The code "${wanted}" is already used by another project of ${client.name}.`);
+        else patch.code = wanted;
+      }
+      if (Object.keys(patch).length) {
+        Object.assign(project, updateRow(db, TABLES.projects, project.id, patch, now));
+        // Changes to a project this very import created are part of its creation.
+        if (!projects.slice(before).includes(project)) summary.projectsUpdated++;
+        touchedProjects = true;
+      }
+    }
+
     const unmatched = new Set<string>();
     const userIds = parsed.rows.map(userFor);
     const starts = importStartTimes(parsed.rows, (r) => userFor(r) ?? r.person, settings.timezone);
     const dup = db.query<{ n: number }, [string, string, number, number]>(
       "SELECT COUNT(*) AS n FROM time_entries WHERE user_id = ? AND project_id = ? AND started_at = ? AND duration_s = ? AND deleted_at IS NULL",
     );
-    let touchedProjects = false;
-
     for (const [i, r] of parsed.rows.entries()) {
       const fail = (message: string) => {
         summary.errors.push({ line: r.line, message });
@@ -255,7 +326,7 @@ export function importEntries(db: Database, opts: ImportOptions): ImportSummary 
       const before = projects.length;
       // A task column (Toggl, Stint 0.1) is one more level: since 0.2 tasks are items in the tree.
       const path = r.task ? [...r.project, r.task] : r.project;
-      const project = projectFor(client, path, r.task ? "Task" : null);
+      const project = projectFor(client, path, r.task ? "Task" : null, r.projectCode);
       if (!project) {
         fail(`There is no project called "${path.join(" › ")}" for ${client.name}.`);
         continue;
@@ -299,7 +370,7 @@ export function importEntries(db: Database, opts: ImportOptions): ImportSummary 
     summary.unmatchedPeople = [...unmatched].sort();
     if (touchedProjects) invalidateAccessCache(db);
 
-    if (!opts.dryRun && summary.imported + summary.created.projects.length > 0) {
+    if (!opts.dryRun && summary.imported + summary.created.projects.length + summary.projectsUpdated > 0) {
       audit(db, now, {
         actorId: opts.actorId,
         action: "import",
@@ -312,6 +383,7 @@ export function importEntries(db: Database, opts: ImportOptions): ImportSummary 
           duplicates: summary.duplicates,
           errors: summary.errors.length,
           created: summary.created,
+          projectsUpdated: summary.projectsUpdated,
         },
         ip: opts.ip,
       });

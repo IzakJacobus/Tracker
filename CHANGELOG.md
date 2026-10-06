@@ -33,6 +33,14 @@ All notable changes to Stint are documented here. The format follows
   Only the server is installed. The Setup wizard and the Health page show the address to share,
   a QR code for phones, and a link to Stint's certificate.
 
+### Added
+- **Excel export and import** (Settings → Import / Export, admins). Export a workbook with a
+  **Projects** sheet (client, project code, path, type, item code, done, budget hours) and an
+  **Hours** sheet; edit it in Excel and import it again, or start from the downloadable empty
+  template. Import previews first, creates missing clients, projects and items (with the codes
+  in the file), updates type, done state and budgets, matches projects by code, and skips hours
+  that are already in Stint. Toggl Track and other CSV files still work.
+
 ### Removed
 - **Billing, completely.** Stint tracks hours only. Gone: hourly rates (per person, project,
   client and company), billable flags, money budgets, rate snapshots on entries, the currency,

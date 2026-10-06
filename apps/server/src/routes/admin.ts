@@ -33,7 +33,8 @@ const BackupName = z.object({ name: z.string().regex(/^stint-[\w-]+\.db$/, "Pick
 const RunBackupInput = z.object({ folder: z.string().trim().min(1).max(1000).optional() });
 const FsQuery = z.object({ path: z.string().max(1000).optional() });
 const ImportInput = z.object({
-  csv: z.string().min(1, "Choose a CSV file.").max(20_000_000, "The file is too big (20 MB at most)."),
+  csv: z.string().max(20_000_000, "The file is too big (20 MB at most).").default(""),
+  projectsCsv: z.string().max(20_000_000, "The file is too big (20 MB at most).").optional(),
   dryRun: z.boolean().default(true),
   createMissing: z.boolean().default(true),
   people: z.record(z.string().max(200), Id).default({}),
@@ -91,10 +92,12 @@ export function adminRoutes(ctx: AppContext) {
     return c.json({ rows, next: rows.length === q.limit ? rows[rows.length - 1]!.id : null });
   });
 
-  /** CSV import (Toggl Track detailed export, Stint export, or simple columns). Dry run by default. */
+  /** Import hours (Toggl Track detailed export, Stint export, or simple columns) and a Stint workbook's projects. Dry run by default. */
   r.post("/import", async (c) => {
     const actor = actorOf(c);
     const input = await body(c, ImportInput);
+    if (!input.csv.trim() && !input.projectsCsv?.trim())
+      throw new ApiError(422, "validation_failed", "Choose a file to import.");
     return c.json(importEntries(ctx.db, { ...input, actorId: actor.id, ip: clientIp(c), now: ctx.now() }));
   });
 

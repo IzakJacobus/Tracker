@@ -47,6 +47,8 @@ export interface ImportRow {
   email: string;
   person: string;
   client: string;
+  /** The top-level project's own code, when the file has one. */
+  projectCode: string;
   /** Project path from the top-level project down. */
   project: string[];
   task: string;
@@ -69,6 +71,7 @@ const ALIASES: Record<string, string[]> = {
   person: ["user", "member", "person", "name", "username"],
   client: ["client", "customer"],
   project: ["project"],
+  projectCode: ["project code", "code"],
   task: ["task"],
   description: ["description", "notes", "note"],
   date: ["start date", "date", "day"],
@@ -198,6 +201,7 @@ export function readImportCsv(text: string): ParsedImport {
       email: get(r, "email").toLowerCase(),
       person: get(r, "person"),
       client: get(r, "client"),
+      projectCode: get(r, "projectCode"),
       project,
       task: get(r, "task"),
       description: get(r, "description").slice(0, 2000),
@@ -237,4 +241,85 @@ export function importStartTimes(
     cursor.set(key, start + r.durationS * 1000);
     return start;
   });
+}
+
+export interface ProjectRow {
+  line: number;
+  client: string;
+  /** The top-level project's code ("" when the file doesn't say). */
+  projectCode: string;
+  /** Names from the top-level project down to this row's project or item. */
+  path: string[];
+  kind: string;
+  itemCode: string;
+  /** true = mark done, false = reopen, null = leave as it is. */
+  done: boolean | null;
+  budgetMinutes: number | null;
+}
+
+const PROJECT_ALIASES: Record<string, string[]> = {
+  client: ["client", "customer"],
+  projectCode: ["project code", "code"],
+  path: ["path", "project", "item"],
+  kind: ["type", "kind", "level"],
+  itemCode: ["item code", "sub code"],
+  done: ["done", "completed", "closed"],
+  budget: ["budget hours", "budget (hours)", "budget", "hours budget"],
+};
+
+/** Reads the Projects sheet (as CSV text): one row per project or item. */
+export function readProjectsCsv(text: string): {
+  rows: ProjectRow[];
+  errors: { line: number; message: string }[];
+} {
+  const table = parseCsv(text);
+  const errors: { line: number; message: string }[] = [];
+  if (table.length < 2)
+    return { rows: [], errors: [{ line: 1, message: "The Projects sheet has no rows." }] };
+  const n = table[0]!.map(norm);
+  const col: Record<string, number> = {};
+  for (const [key, names] of Object.entries(PROJECT_ALIASES)) {
+    const i = names.map((a) => n.indexOf(a)).find((x) => x >= 0);
+    if (i !== undefined) col[key] = i;
+  }
+  if (col.path === undefined)
+    return { rows: [], errors: [{ line: 1, message: "The Projects sheet needs a Path column." }] };
+  const get = (r: string[], k: string) =>
+    col[k] === undefined ? "" : (r[col[k]!] ?? "").trim().replace(/^'(?=[=+-@])/, "");
+  const rows: ProjectRow[] = [];
+  for (const [i, r] of table.slice(1).entries()) {
+    const line = i + 2;
+    const path = get(r, "path")
+      .split(/s*[›>]s*/)
+      .map((p) => p.trim())
+      .filter(Boolean);
+    if (!path.length) continue;
+    const doneRaw = get(r, "done").toLowerCase();
+    const done = /^(yes|y|true|1|done|x)$/.test(doneRaw)
+      ? true
+      : /^(no|n|false|0|open)$/.test(doneRaw)
+        ? false
+        : null;
+    const budgetRaw = get(r, "budget");
+    let budgetMinutes: number | null = null;
+    if (budgetRaw) {
+      const s = parseImportDuration(budgetRaw);
+      if (s === null || s < 0) {
+        errors.push({ line, message: `"${budgetRaw}" isn't a number of hours.` });
+        continue;
+      }
+      budgetMinutes = s > 0 ? Math.round(s / 60) : null;
+    }
+    rows.push({
+      line,
+      client: get(r, "client"),
+      projectCode: get(r, "projectCode").slice(0, 40),
+      path,
+      kind: get(r, "kind").slice(0, 40),
+      itemCode: get(r, "itemCode").slice(0, 40),
+      done,
+      budgetMinutes,
+    });
+  }
+  return { rows, errors };
 }

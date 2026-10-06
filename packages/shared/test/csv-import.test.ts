@@ -6,6 +6,7 @@ import {
   parseImportDuration,
   parseImportTime,
   readImportCsv,
+  readProjectsCsv,
 } from "../src/csvImport.ts";
 import { toCsv } from "../src/export/csv.ts";
 
@@ -66,6 +67,7 @@ describe("readImportCsv", () => {
       email: "aisha@karoo.test",
       person: "Aisha Patel",
       client: "Drakenstein",
+      projectCode: "",
       project: ["Paarl bridge upgrade"],
       task: "Site visit",
       description: "Inspection, east abutment",
@@ -139,7 +141,7 @@ describe("importStartTimes", () => {
       project: ["P"],
       task: "",
       description: "",
-      billable: null,
+      projectCode: "",
       tags: [],
     };
     const rows = [
@@ -153,5 +155,43 @@ describe("importStartTimes", () => {
       Date.UTC(2026, 8, 28, 7, 0),
       Date.UTC(2026, 8, 28, 12, 0, 30),
     ]);
+  });
+});
+
+describe("Projects sheet", () => {
+  test("reads path, codes, type, done and budget; skips empty paths", () => {
+    const csv = [
+      "Client,Project code,Path,Type,Item code,Done,Budget hours",
+      "Drakenstein,2026-014,Paarl bridge,,,,900",
+      "Drakenstein,2026-014,Paarl bridge > Design › Pier,Task,D-01,Yes,1.5",
+      "Drakenstein,2026-014,,,,,",
+      "Drakenstein,2026-014,Paarl bridge › Old,Phase,,No,",
+      "Drakenstein,2026-014,Paarl bridge › Bad,Phase,,,lots",
+    ].join("\n");
+    const r = readProjectsCsv(csv);
+    expect(r.errors).toEqual([{ line: 6, message: '"lots" isn\'t a number of hours.' }]);
+    expect(r.rows.map((x) => x.path)).toEqual([
+      ["Paarl bridge"],
+      ["Paarl bridge", "Design", "Pier"],
+      ["Paarl bridge", "Old"],
+    ]);
+    expect(r.rows[0]).toMatchObject({ projectCode: "2026-014", budgetMinutes: 54_000, done: null, kind: "" });
+    expect(r.rows[1]).toMatchObject({ kind: "Task", itemCode: "D-01", done: true, budgetMinutes: 90 });
+    expect(r.rows[2]?.done).toBe(false);
+  });
+
+  test("needs a Path column", () => {
+    expect(readProjectsCsv("Client,Code\nX,1").errors[0]?.message).toContain("Path");
+  });
+
+  test("the Hours sheet keeps the project code", () => {
+    const r = readImportCsv(
+      "Date,Person,Email,Client,Project code,Project,Hours\n2026-09-28,A,a@b.c,Drakenstein,2026-014,Paarl bridge › Design,1:30:00",
+    );
+    expect(r.rows[0]).toMatchObject({
+      projectCode: "2026-014",
+      project: ["Paarl bridge", "Design"],
+      durationS: 5400,
+    });
   });
 });
