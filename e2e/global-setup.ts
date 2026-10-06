@@ -54,7 +54,8 @@ export default async function globalSetup() {
     budgetMinutes: 6000,
   });
   await call("POST", "/projects", { parentId: project.id, name: "Detailed design" });
-  await call("POST", "/tasks", { projectId: project.id, name: "Site visit" });
+  // Tasks are items in the project tree (0.2).
+  await call("POST", "/projects", { parentId: project.id, name: "Site visit", kind: "Task" });
   for (const id of [mgr.id, member.id]) {
     await call("PUT", `/projects/${project.id}/members/${id}`, {
       role: id === mgr.id ? "manager" : "member",

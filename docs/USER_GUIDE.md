@@ -19,48 +19,38 @@ tablet. There's nothing to install.
 3. To use Stint like an app, choose **Install Stint** from the browser menu (on a phone: **Add to
    Home Screen**).
 
-## Recording time
+## Logging your hours
 
-### The timer
+### Log hours
 
-The bar at the bottom of every screen is the timer.
+Click **Log hours** on the Track page, or press **N** anywhere in Stint (as long as you aren't
+typing in a box).
 
-1. Type what you're working on, for example *Pile capacity check*.
-2. Choose the project (and task, if there is one). Start typing to search. Your favourites and
-   recent projects are at the top.
-3. Press **Enter** or the ▶ button. The time runs in ochre, so you can see it's on.
-4. Press ■ to stop. The entry is saved.
+1. **Worked on**: choose the project, then the item you worked on. Projects are broken down into
+   items (phases, tasks, work packages…, whatever your firm uses); click an item to go a level
+   deeper, and **Back** to go up. Hours go on the lowest level. You can also type to search by
+   name or project code. Your favourites (☆) and recent items are at the top.
+2. **Date**: the day you did the work.
+3. **Hours**: type `1.5`, `1:30` or `90m`. A whole number up to 12 is hours (`8`); above
+   that it is minutes (`45`).
+4. **Note** (optional): what you did, for example *Pile capacity check*.
 
-Press **S** anywhere in Stint to start or stop the timer, as long as you aren't typing in a
-box.
+Items that are marked **done** don't appear: their work is finished. Ask the project's manager to
+reopen one if you still need it.
 
-Changed your mind about what you're doing? Edit the description or project while the timer
-runs.
+### Filling in a whole week
 
-### Adding time afterwards
+**Week** view is a spreadsheet: one row per item, one column per day. Click a cell and type
+hours, for example `2:30`. **Enter** moves down, and the arrow keys move around. Your favourite
+items always have a row, and **Add row** adds another.
 
-- **Add time** (or press **N**) opens a form. Enter the date, a start time and either an end
-  time or a duration. Durations can be typed as `1:30`, `1.5`, `1h30` or `90m`.
-- **Week** view is a spreadsheet: one row per project, one column per day. Click a cell and
-  type hours, for example `2:30`. **Enter** moves down, and the arrow keys move around. Your
-  favourite projects always have a row.
-- **Day** view is a calendar. Click and drag on an empty area to add a block. Drag a block to
-  move it, or drag its bottom edge to change its length.
-
-In the list view, each entry has **▶ Continue** (start the timer again on the same work) and a
-**⋯** menu with *Duplicate*, *Edit* and *Delete*. Deleting can be undone from the message that
-appears.
-
-### Billable or not
-
-Each project has a default. Client work is usually billable, and internal work (admin,
-training, leave) isn't. The **$** button beside the timer switches it for one entry. You can
-only see rates and amounts if your firm allows it.
+In the list view, each entry has **+** (log more hours on the same item and day) and a **⋯** menu
+with *Edit*, *Duplicate* and *Delete*. Deleting can be undone from the message that appears.
 
 ### Tags
 
-Use tags such as *site*, *travel* or *overtime* to group time across projects. Click the tag
-icon beside the timer.
+Use tags such as *site*, *travel* or *overtime* to group time across projects. Choose them in the
+Log hours window.
 
 ### Working offline
 
@@ -111,11 +101,10 @@ computer, so they work offline too.
 | Key | Does |
 | --- | --- |
 | <kbd>Ctrl</kbd>+<kbd>K</kbd> or <kbd>/</kbd> | Command palette: search projects, pages and actions |
-| <kbd>S</kbd> | Start or stop the timer |
-| <kbd>N</kbd> | Add time |
-| <kbd>←</kbd> <kbd>→</kbd> | Previous or next week (or day) on Track |
+| <kbd>N</kbd> | Log hours |
+| <kbd>←</kbd> <kbd>→</kbd> | Previous or next week on Track |
 | <kbd>T</kbd> | Back to today |
-| <kbd>1</kbd> <kbd>2</kbd> <kbd>3</kbd> | List, Week or Day view |
+| <kbd>1</kbd> <kbd>2</kbd> | List or Week view |
 | <kbd>?</kbd> | Show all shortcuts |
 
 ## Your account
@@ -133,8 +122,8 @@ that computer.
 - **I forgot my password.** Ask an administrator to reset it.
 - **I can't find my project.** You only see projects you've been added to, plus internal ones.
   Ask the project's manager to add you.
-- **Two timers?** You can only have one timer running. If you started one on your laptop and
-  another on a second computer while offline, Stint keeps the one started last and stops the other
-  when they sync.
+- **I can't log hours on a project.** If it has items under it, choose one of them: hours go on the
+  lowest level. If the item you want isn't listed, it may be marked done; ask the project's
+  manager to reopen it.
 - **My entry vanished after syncing.** It was probably in a locked (submitted or approved)
   period. Stint shows a message when it can't save a change, and why.

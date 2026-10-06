@@ -127,6 +127,31 @@ describe("users", () => {
     expect(r.status).toBe(403);
   });
 
+  test("a firm can have several admins, each with full admin rights", async () => {
+    const s = createTestServer();
+    const admin = await s.setup();
+    const second = await s.createUser(admin, {
+      email: "second@example.com",
+      name: "Second Admin",
+      role: "admin",
+    });
+    const third = await s.createUser(second.agent, {
+      email: "third@example.com",
+      name: "Third Admin",
+      role: "admin",
+    });
+    expect((await s.json("GET", "/api/admin/health", { as: third.agent })).status).toBe(200);
+    const users = await s.json<{ role: string }[]>("GET", "/api/users", { as: admin });
+    expect(users.body.filter((u) => u.role === "admin")).toHaveLength(3);
+    // With other admins around, the first one can step down.
+    const me = await s.json<{ user: { id: string } }>("GET", "/api/auth/me", { as: admin });
+    const down = await s.json("PATCH", `/api/users/${me.body.user.id}`, {
+      as: second.agent,
+      body: { role: "member" },
+    });
+    expect(down.status).toBe(200);
+  });
+
   test("the last admin cannot be demoted or deactivated", async () => {
     const s = createTestServer();
     const admin = await s.setup();

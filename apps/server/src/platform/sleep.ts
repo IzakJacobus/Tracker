@@ -55,7 +55,7 @@ export function createSleepGuard(log: Logger): SleepGuard {
               "systemd-inhibit",
               "--what=sleep",
               "--who=Stint Server",
-              "--why=Keeping timers in sync",
+              "--why=Keeping Stint available to the office",
               "--mode=block",
               "tail",
               `--pid=${process.pid}`,

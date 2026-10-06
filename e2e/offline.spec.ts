@@ -13,11 +13,11 @@ test("offline edit, then sync", async ({ page, context }) => {
 
   // Add an entry while offline.
   await page.keyboard.press("n");
-  await page.getByPlaceholder("Search projects and tasks").fill("site visit");
+  await page.getByPlaceholder("Search projects, items and codes").fill("site visit");
   await page.keyboard.press("Enter");
-  await page.getByPlaceholder("What did you work on?").fill("Offline site notes");
-  await page.getByLabel("Duration").fill("1:15");
-  await page.getByRole("button", { name: "Add time" }).last().click();
+  await page.getByPlaceholder("What did you do?").fill("Offline site notes");
+  await page.getByLabel("Hours").fill("1:15");
+  await page.getByRole("button", { name: "Log hours" }).last().click();
   await expect(page.locator(".entry-row", { hasText: "Offline site notes" })).toBeVisible();
   await expect(page.locator(".sidebar .sync-pill")).toContainText("Offline", { timeout: 10_000 });
 
@@ -26,7 +26,7 @@ test("offline edit, then sync", async ({ page, context }) => {
     .locator(".entry-row", { hasText: "Offline site notes" })
     .getByRole("button", { name: /Edit entry/ })
     .click();
-  await page.getByPlaceholder("What did you work on?").fill("Offline site notes (edited)");
+  await page.getByPlaceholder("What did you do?").fill("Offline site notes (edited)");
   await page.getByRole("dialog").getByRole("button", { name: "Save", exact: true }).click();
   await expect(page.locator(".sidebar .sync-pill")).toContainText("2 saved");
 

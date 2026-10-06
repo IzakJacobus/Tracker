@@ -17,7 +17,8 @@ describe("sync pull", () => {
     const full = await s.json<Pull>("GET", "/api/sync/pull?since=0", { as: admin });
     expect(full.status).toBe(200);
     expect(full.body.organization?.name).toBe("Karoo Consulting Engineers");
-    expect(full.body.changes.projects?.length).toBe(5);
+    // 5 internal projects plus the 13 items under them (Annual leave, Meetings, ...).
+    expect(full.body.changes.projects?.length).toBe(18);
     expect(full.body.changes.users?.length).toBe(1);
     expect(full.body.hasMore).toBe(false);
 
@@ -131,7 +132,7 @@ describe("sync pull", () => {
     expect((r2.body.changes.projects ?? []).map((p) => p.name)).toContain("Bob's project");
   });
 
-  test("opening up, closing or moving a project makes every app resync its sub-projects and tasks", async () => {
+  test("opening up, closing or moving a project makes every app resync the items under it", async () => {
     const s = createTestServer();
     const admin = await s.setup();
     const bob = await s.createUser(admin, { email: "bob@example.com", name: "Bob" });
@@ -141,10 +142,10 @@ describe("sync pull", () => {
         .body;
     const secret = await make({ name: "Secret" });
     const sub = await make({ name: "Secret sub", parentId: secret.id });
-    await s.json("POST", "/api/tasks", { as: admin, body: { projectId: sub.id, name: "Secret task" } });
+    await make({ name: "Secret task", parentId: sub.id, kind: "Task" });
     const open = await make({ name: "Open", visibility: "everyone" });
     const pull = async () => (await s.json<Pull>("GET", "/api/sync/pull?since=0", { as: bob.agent })).body;
-    const names = (p: Pull) => [...(p.changes.projects ?? []), ...(p.changes.tasks ?? [])].map((x) => x.name);
+    const names = (p: Pull) => (p.changes.projects ?? []).map((x) => x.name);
 
     const p0 = await pull();
     expect(names(p0)).not.toContain("Secret sub");
@@ -159,7 +160,7 @@ describe("sync pull", () => {
     expect(p2.epoch).not.toBe(p1.epoch);
     expect(names(p2)).not.toContain("Secret sub");
 
-    // Moving the sub-project under an open project opens it up for Bob.
+    // Moving the item under an open project opens it (and everything under it) up for Bob.
     await s.json("POST", `/api/projects/${sub.id}/move`, { as: admin, body: { parentId: open.id } });
     const p3 = await pull();
     expect(p3.epoch).not.toBe(p2.epoch);

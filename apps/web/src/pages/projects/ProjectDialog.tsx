@@ -1,9 +1,9 @@
-import type { Project, ProjectMember, Task, User } from "@stint/shared";
-import { Archive, ArchiveRestore, Plus, Trash2 } from "lucide-react";
-import { type FormEvent, useCallback, useEffect, useState } from "react";
+import type { Project, ProjectMember, User } from "@stint/shared";
+import { CheckCircle2, ChevronRight, Plus, RotateCcw, Trash2 } from "lucide-react";
+import { type FormEvent, useCallback, useEffect, useMemo, useState } from "react";
 import { useMe } from "../../app/session.tsx";
 import { useData } from "../../data/DataProvider.tsx";
-import { useClients, useMembers, useProjects, useTasks, useUsers } from "../../data/hooks.ts";
+import { useClients, useMembers, useProjects, useUsers } from "../../data/hooks.ts";
 import { ApiError, api, errorMessage } from "../../lib/api.ts";
 import { moneyInputValue, parseMoneyInput } from "../../lib/format.ts";
 import { Button } from "../../ui/Button.tsx";
@@ -27,7 +27,30 @@ const COLORS = [
   "#475569",
 ];
 
-type Tab = "details" | "tasks" | "team";
+export type Tab = "details" | "items" | "team";
+
+/** Types offered for new items; a firm can type anything else, and its own types are suggested too. */
+const DEFAULT_KINDS = ["Phase", "Task", "Work package", "Deliverable", "Stage"];
+
+/** Item types already used in the company, then the defaults. */
+export function useKindSuggestions(): string[] {
+  const projects = useProjects();
+  return useMemo(() => {
+    const used = projects.map((p) => p.kind).filter((k): k is string => Boolean(k));
+    return [...new Set([...used, ...DEFAULT_KINDS])];
+  }, [projects]);
+}
+
+function KindList({ id }: { id: string }) {
+  const kinds = useKindSuggestions();
+  return (
+    <datalist id={id}>
+      {kinds.map((k) => (
+        <option key={k} value={k} />
+      ))}
+    </datalist>
+  );
+}
 
 /** Select value meaning "create a new client together with this project". */
 const NEW_CLIENT = "__new_client__";
@@ -43,7 +66,8 @@ export function ProjectDialog(
   const projects = useProjects();
   const live =
     props.mode === "edit" ? (projects.find((p) => p.id === props.project.id) ?? props.project) : null;
-  const title = live ? live.name : "New project";
+  const isItem = props.mode === "edit" ? Boolean(props.project.parentId) : Boolean(props.parentId);
+  const title = live ? live.name : isItem ? "New item" : "New project";
 
   return (
     <Dialog open onClose={props.onClose} title={title} wide>
@@ -51,13 +75,13 @@ export function ProjectDialog(
         <div
           className="segmented"
           role="tablist"
-          aria-label="Project sections"
+          aria-label={isItem ? "Item sections" : "Project sections"}
           style={{ alignSelf: "flex-start" }}
         >
           {(
             [
               ["details", "Details"],
-              ["tasks", "Tasks"],
+              ["items", "Items"],
               ["team", "People"],
             ] as const
           ).map(([k, label]) => (
@@ -75,7 +99,7 @@ export function ProjectDialog(
           onDone={props.onClose}
         />
       )}
-      {tab === "tasks" && live && <TasksPanel project={live} />}
+      {tab === "items" && live && <ItemsPanel project={live} />}
       {tab === "team" && live && <TeamPanel project={live} />}
     </Dialog>
   );
@@ -107,10 +131,12 @@ function DetailsForm({
     [clients],
   );
 
+  const isItem = Boolean(parent ?? project?.parentId);
   const [f, setF] = useState({
     clientId: project?.clientId ?? defaultClient,
     name: project?.name ?? "",
     code: project?.code ?? "",
+    kind: project?.kind ?? "",
     color: project?.color ?? parent?.color ?? COLORS[projects.length % COLORS.length]!,
     billableDefault: project?.billableDefault ?? parent?.billableDefault ?? !clientIsInternal(defaultClient),
     visibility: project?.visibility ?? (clientIsInternal(defaultClient) ? "everyone" : "members"),
@@ -152,6 +178,7 @@ function DetailsForm({
     const common = {
       name: f.name,
       code: f.code.trim() || null,
+      kind: f.kind.trim() || null,
       color: f.color,
       billableDefault: f.billableDefault,
       visibility: f.visibility,
@@ -204,10 +231,11 @@ function DetailsForm({
 
   return (
     <form className="stack" onSubmit={submit} noValidate>
+      <KindList id="item-kinds" />
       {error && <Alert tone="danger">{error}</Alert>}
       {parent && (
         <p className="muted">
-          Sub-project of <strong>{parent.name}</strong>
+          An item under <strong>{parent.name}</strong>. Add items under it later to go another level deeper.
         </p>
       )}
       <div className="grid-2">
@@ -247,6 +275,15 @@ function DetailsForm({
         <Field label="Name" error={fields.name}>
           <Input value={f.name} onChange={(e) => setF({ ...f, name: e.target.value })} autoFocus />
         </Field>
+        <Field label="Type" hint={isItem ? "What your firm calls it, e.g. Phase or Task." : "Optional."}>
+          <Input
+            value={f.kind}
+            onChange={(e) => setF({ ...f, kind: e.target.value })}
+            placeholder={isItem ? "e.g. Phase, Task" : "e.g. Project, Tender"}
+            list="item-kinds"
+            maxLength={40}
+          />
+        </Field>
         <Field label="Code" hint="Optional short reference, e.g. a job number.">
           <Input
             value={f.code}
@@ -254,16 +291,18 @@ function DetailsForm({
             placeholder="e.g. 2026-014"
           />
         </Field>
-        <Field label="Who can track time here?">
-          <Select
-            value={f.visibility}
-            onChange={(e) => setF({ ...f, visibility: e.target.value as Project["visibility"] })}
-          >
-            <option value="members">Only people added to the project</option>
-            <option value="everyone">Everyone in the company</option>
-          </Select>
-        </Field>
-        <Field label="Budget (hours)" hint="Includes all sub-projects. Warns at 80 % and 100 %.">
+        {!isItem && (
+          <Field label="Who can log hours here?">
+            <Select
+              value={f.visibility}
+              onChange={(e) => setF({ ...f, visibility: e.target.value as Project["visibility"] })}
+            >
+              <option value="members">Only people added to the project</option>
+              <option value="everyone">Everyone in the company</option>
+            </Select>
+          </Field>
+        )}
+        <Field label="Budget (hours)" hint="Includes everything under it. Warns at 80 % and 100 %.">
           <Input
             type="number"
             min={0}
@@ -326,31 +365,34 @@ function DetailsForm({
       <div className="row" style={{ justifyContent: "flex-end" }}>
         <Button onClick={onDone}>Cancel</Button>
         <Button type="submit" variant="primary" loading={busy}>
-          {project ? "Save" : "Create project"}
+          {project ? "Save" : isItem ? "Add item" : "Create project"}
         </Button>
       </div>
     </form>
   );
 }
 
-function TasksPanel({ project }: { project: Project }) {
-  const me = useMe();
+/** The items directly under a project or item: add, rename, retype, and mark them done or reopen them. */
+function ItemsPanel({ project }: { project: Project }) {
   const { mutate } = useData();
   const toast = useToast();
-  const tasks = useTasks()
-    .filter((t) => t.projectId === project.id)
-    .sort((a, b) => a.sortOrder - b.sortOrder);
+  const projects = useProjects();
+  const items = projects
+    .filter((p) => p.parentId === project.id && !p.deletedAt)
+    .sort((a, b) => a.sortOrder - b.sortOrder || a.name.localeCompare(b.name));
+  const childCount = (id: string) => projects.filter((p) => p.parentId === id && !p.deletedAt).length;
   const [name, setName] = useState("");
+  const [kind, setKind] = useState("");
   const [busy, setBusy] = useState(false);
-  const seesMoney = me.permissions.seeRates;
-  const currency = me.organization?.settings.currency ?? "ZAR";
 
   async function add(e: FormEvent) {
     e.preventDefault();
     if (!name.trim()) return;
     setBusy(true);
     try {
-      await mutate(() => api.post("/tasks", { projectId: project.id, name: name.trim() }));
+      await mutate(() =>
+        api.post("/projects", { parentId: project.id, name: name.trim(), kind: kind.trim() || null }),
+      );
       setName("");
     } catch (err) {
       toast.error(errorMessage(err));
@@ -359,9 +401,9 @@ function TasksPanel({ project }: { project: Project }) {
     }
   }
 
-  async function patch(t: Task, body: Record<string, unknown>) {
+  async function patch(p: Project, body: Record<string, unknown>) {
     try {
-      await mutate(() => api.patch(`/tasks/${t.id}`, body));
+      await mutate(() => api.patch(`/projects/${p.id}`, body));
     } catch (err) {
       toast.error(errorMessage(err));
     }
@@ -370,95 +412,102 @@ function TasksPanel({ project }: { project: Project }) {
   return (
     <div className="stack">
       <p className="muted">
-        Tasks are optional. Use them for the kinds of work on this project, e.g. <em>Design</em>,{" "}
-        <em>Site visit</em>, <em>Report writing</em>. A task rate overrides every other rate.
+        Break the work down as far as you need: phases, tasks, work packages… Call them whatever your firm
+        calls them. People log hours on the lowest level. Mark an item <strong>done</strong> when its work is
+        finished; it then can't take new hours, but its hours stay in reports.
       </p>
-      <form className="row" onSubmit={add}>
+      <form className="row row--wrap" onSubmit={add}>
         <Input
           value={name}
           onChange={(e) => setName(e.target.value)}
-          placeholder="New task name"
-          aria-label="New task name"
+          placeholder="New item name"
+          aria-label="New item name"
+          style={{ flex: "2 1 200px" }}
         />
+        <Input
+          value={kind}
+          onChange={(e) => setKind(e.target.value)}
+          placeholder="Type (optional)"
+          aria-label="New item type"
+          list="new-item-kinds"
+          maxLength={40}
+          style={{ flex: "1 1 120px" }}
+        />
+        <KindList id="new-item-kinds" />
         <Button type="submit" icon={<Plus />} loading={busy}>
-          Add task
+          Add item
         </Button>
       </form>
-      {tasks.length > 0 && (
+      {items.length > 0 && (
         <table className="table">
           <thead>
             <tr>
-              <th>Task</th>
-              <th>Billable</th>
-              {seesMoney && <th className="num">Rate ({currency})</th>}
-              <th aria-label="Actions" />
+              <th>Item</th>
+              <th>Type</th>
+              <th aria-label="Status" />
             </tr>
           </thead>
           <tbody>
-            {tasks.map((t) => (
-              <tr key={t.id} style={{ opacity: t.archivedAt ? 0.55 : 1 }}>
-                <td>
-                  <Input
-                    className="input--bare"
-                    defaultValue={t.name}
-                    aria-label="Task name"
-                    onBlur={(e) =>
-                      e.target.value.trim() &&
-                      e.target.value !== t.name &&
-                      patch(t, { name: e.target.value.trim() })
-                    }
-                  />
-                </td>
-                <td>
-                  <Select
-                    value={t.billable === null ? "inherit" : t.billable ? "yes" : "no"}
-                    aria-label="Billable"
-                    onChange={(e) =>
-                      patch(t, { billable: e.target.value === "inherit" ? null : e.target.value === "yes" })
-                    }
-                  >
-                    <option value="inherit">
-                      Same as project ({project.billableDefault ? "billable" : "non-billable"})
-                    </option>
-                    <option value="yes">Billable</option>
-                    <option value="no">Non-billable</option>
-                  </Select>
-                </td>
-                {seesMoney && (
-                  <td className="num">
+            {items.map((t) => {
+              const n = childCount(t.id);
+              return (
+                <tr key={t.id} style={{ opacity: t.archivedAt ? 0.55 : 1 }}>
+                  <td>
+                    <div className="row" style={{ gap: 6 }}>
+                      <Input
+                        className="input--bare"
+                        defaultValue={t.name}
+                        aria-label="Item name"
+                        onBlur={(e) =>
+                          e.target.value.trim() &&
+                          e.target.value !== t.name &&
+                          patch(t, { name: e.target.value.trim() })
+                        }
+                      />
+                      {n > 0 && (
+                        <span className="subtle row" style={{ gap: 2, whiteSpace: "nowrap" }}>
+                          {n} under it <ChevronRight size={14} />
+                        </span>
+                      )}
+                    </div>
+                  </td>
+                  <td>
                     <Input
                       className="input--bare"
-                      style={{ textAlign: "right", width: 120 }}
-                      inputMode="decimal"
-                      defaultValue={moneyInputValue(t.rate)}
-                      placeholder="inherit"
-                      aria-label="Task rate"
+                      defaultValue={t.kind ?? ""}
+                      placeholder="—"
+                      aria-label="Item type"
+                      list="row-item-kinds"
+                      maxLength={40}
                       onBlur={(e) => {
-                        const v = e.target.value.trim() ? parseMoneyInput(e.target.value) : null;
-                        if (v !== t.rate) void patch(t, { rate: v });
+                        const v = e.target.value.trim() || null;
+                        if (v !== (t.kind ?? null)) void patch(t, { kind: v });
                       }}
                     />
                   </td>
-                )}
-                <td style={{ textAlign: "right" }}>
-                  <Button
-                    size="sm"
-                    variant="ghost"
-                    iconOnly
-                    label={t.archivedAt ? `Restore ${t.name}` : `Archive ${t.name}`}
-                    icon={t.archivedAt ? <ArchiveRestore /> : <Archive />}
-                    onClick={() =>
-                      mutate(() =>
-                        api.post(`/tasks/${t.id}/${t.archivedAt ? "unarchive" : "archive"}`),
-                      ).catch((e) => toast.error(errorMessage(e)))
-                    }
-                  />
-                </td>
-              </tr>
-            ))}
+                  <td style={{ textAlign: "right", whiteSpace: "nowrap" }}>
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      icon={t.archivedAt ? <RotateCcw /> : <CheckCircle2 />}
+                      onClick={() =>
+                        mutate(() => api.post(`/projects/${t.id}/${t.archivedAt ? "unarchive" : "archive"}`))
+                          .then(() =>
+                            toast.show(t.archivedAt ? `Reopened “${t.name}”.` : `Marked “${t.name}” done.`),
+                          )
+                          .catch((e) => toast.error(errorMessage(e)))
+                      }
+                    >
+                      {t.archivedAt ? "Reopen" : "Mark done"}
+                    </Button>
+                  </td>
+                </tr>
+              );
+            })}
           </tbody>
         </table>
       )}
+      <KindList id="row-item-kinds" />
     </div>
   );
 }

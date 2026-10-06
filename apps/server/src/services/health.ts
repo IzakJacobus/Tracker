@@ -171,7 +171,7 @@ export function healthReport(ctx: AppContext) {
     label: "Sleep prevention",
     status: !wantGuard ? "info" : p?.sleepGuard.active ? "ok" : p ? "warning" : "info",
     detail: !wantGuard
-      ? "Off. If this PC sleeps, timers can't sync until it wakes."
+      ? "Off. If this PC sleeps, people's hours can't sync until it wakes."
       : p?.sleepGuard.active
         ? "This PC is kept awake while Stint Server runs (the screen can still turn off)."
         : "Couldn't stop this PC from sleeping. Set its power plan to never sleep.",

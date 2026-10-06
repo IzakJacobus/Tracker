@@ -6,13 +6,30 @@ All notable changes to Stint are documented here. The format follows
 
 ## [Unreleased]
 
+### Upgrading from 0.1
+- Upgrade while everyone's Stint shows **Synced**. The upgrade reshapes projects and tasks, so
+  every browser downloads its data again; changes made offline and not yet sent could be lost.
+- A backup is made automatically before the database is upgraded.
+
 ### Changed
+- **One flexible project tree.** Under a project you add items, and items under items, as deep as
+  you need. Each item gets a type your firm chooses (Phase, Task, Work package, …); it is only a
+  name, so every firm can organise work its own way. Tasks are now items: upgrading turns every
+  task into an item under its project and moves its hours with it.
+- **Log hours instead of timing.** People choose the project, drill down to the item they worked
+  on, and type the hours (`1.5`, `1:30` or `90m`), with an optional note. Hours go on the lowest
+  level: an item with items under it can't take hours itself.
+- **Mark items done.** A done item, and everything under it, can't take new hours. Its hours stay
+  in reports, and it can be reopened.
 - **Stint is web-only.** Everyone opens Stint in a browser (Chrome, Edge, Firefox or Safari) on
   Windows, Linux, Mac, phones and tablets, and can install it as an app from the browser menu.
   Only the server is installed. The Setup wizard and the Health page show the address to share,
   a QR code for phones, and a link to Stint's certificate.
 
 ### Removed
+- The timer (the bar at the bottom, the <kbd>S</kbd> shortcut and "Continue") and the Day
+  calendar view. A timer still running when the server is upgraded is stopped with the time it
+  ran (at most 24 hours). Press <kbd>N</kbd> to log hours.
 - The desktop app (Windows, macOS and Linux installers), with its tray, idle detection and
   start-with-Windows option. Upgrade by opening Stint in a browser instead.
 - LAN discovery (mDNS and the UDP responder) and pairing codes. The installers no longer open

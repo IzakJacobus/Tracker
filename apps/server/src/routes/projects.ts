@@ -63,6 +63,7 @@ export function projectRoutes(ctx: AppContext) {
       parentId,
       name: input.name,
       code: input.code ?? null,
+      kind: input.kind?.trim() || null,
       color:
         input.color ?? parent?.color ?? PROJECT_COLORS[allProjects(ctx.db).length % PROJECT_COLORS.length],
       billableDefault: input.billableDefault ?? parent?.billableDefault ?? !client.isInternal,
@@ -98,7 +99,7 @@ export function projectRoutes(ctx: AppContext) {
     const input = await body(c, UpdateProjectInput);
     const now = ctx.now();
     const after = updateRow(ctx.db, TABLES.projects, id, input, now);
-    // Sub-projects and tasks didn't change, so incremental sync wouldn't deliver (or retract) them.
+    // Items underneath didn't change, so incremental sync wouldn't deliver (or retract) them.
     if (input.visibility !== undefined && input.visibility !== before.visibility) bumpGlobalSyncEpoch(ctx.db);
     audit(ctx.db, now, {
       actorId: actor.id,

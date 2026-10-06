@@ -148,6 +148,7 @@ function project(
     parentId,
     name,
     code: null,
+    kind: null,
     color: "#1f5c4a",
     billableDefault: true,
     rate: null,
@@ -164,21 +165,19 @@ function project(
   });
   return id;
 }
+/** An item of kind "Task" under a project (tasks are items in the project tree since 0.2). */
 function task(projectId: string, name: string, rate: number | null = null) {
-  const id = uuidv7();
-  insertRow(db, TABLES.tasks, {
-    id,
-    projectId,
-    name,
+  const parent = db
+    .query<{ client_id: string; color: string; visibility: string }, [string]>(
+      "SELECT client_id, color, visibility FROM projects WHERE id = ?",
+    )
+    .get(projectId)!;
+  return project(parent.client_id, projectId, name, {
+    kind: "Task",
+    color: parent.color,
+    visibility: parent.visibility,
     rate,
-    billable: null,
-    sortOrder: sort++,
-    archivedAt: null,
-    createdAt: now,
-    updatedAt: now,
-    deletedAt: null,
   });
-  return id;
 }
 function member(
   projectId: string,
@@ -209,10 +208,17 @@ const bridge = project(drakenstein, null, "Paarl bridge upgrade", {
   budgetMinutes: 900 * 60,
   budgetAmount: 95_000_000,
 });
-const design = project(drakenstein, bridge, "Detailed design", { color: "#b3361f" });
-const wp1 = project(drakenstein, design, "WP1 Structural", { color: "#b3361f" });
-const wp2 = project(drakenstein, design, "WP2 Geotechnical", { color: "#b3361f", rate: 105000 });
-const monitoring = project(drakenstein, bridge, "Construction monitoring", { color: "#b3361f" });
+const design = project(drakenstein, bridge, "Detailed design", { color: "#b3361f", kind: "Phase" });
+const wp1 = project(drakenstein, design, "WP1 Structural", { color: "#b3361f", kind: "Work package" });
+const wp2 = project(drakenstein, design, "WP2 Geotechnical", {
+  color: "#b3361f",
+  kind: "Work package",
+  rate: 105000,
+});
+const monitoring = project(drakenstein, bridge, "Construction monitoring", {
+  color: "#b3361f",
+  kind: "Phase",
+});
 const roads = project(drakenstein, null, "Rural roads assessment", {
   code: "2026-022",
   color: "#ca8a04",
@@ -223,8 +229,8 @@ const pipeline = project(winelands, null, "Berg River pipeline", {
   color: "#2463a6",
   budgetMinutes: 600 * 60,
 });
-const pumps = project(winelands, pipeline, "Pump station design", { color: "#2463a6" });
-const eia = project(winelands, pipeline, "Environmental approvals", { color: "#2463a6" });
+const pumps = project(winelands, pipeline, "Pump station design", { color: "#2463a6", kind: "Phase" });
+const eia = project(winelands, pipeline, "Environmental approvals", { color: "#2463a6", kind: "Phase" });
 const lab = project(stellies, null, "Structures lab refurbishment", {
   code: "2026-031",
   color: "#0f766e",
@@ -242,7 +248,9 @@ task(bridge, "Site visit");
 const reportWriting = task(bridge, "Report writing");
 const drawings = task(design, "Drawings & modelling");
 task(pipeline, "Meetings");
+const routeWork = task(pipeline, "Route & wayleaves");
 const tailingsSite = task(tailings, "Site inspection", 150000);
+const stability = task(tailings, "Stability analysis");
 
 member(bridge, pieter, "manager");
 member(bridge, aisha);
@@ -265,24 +273,26 @@ const internal = Object.fromEntries(
     .all()
     .map((p) => [p.name, p.id]),
 );
-const leaveTasks = Object.fromEntries(
-  db
-    .query<{ id: string; name: string }, [string]>("SELECT id, name FROM tasks WHERE project_id = ?")
-    .all(internal.Leave!)
-    .map((t) => [t.name, t.id]),
-);
+/** The items under an internal project, by name. */
+const itemsOf = (projectId: string) =>
+  Object.fromEntries(
+    db
+      .query<{ id: string; name: string }, [string]>("SELECT id, name FROM projects WHERE parent_id = ?")
+      .all(projectId)
+      .map((t) => [t.name, t.id]),
+  ) as Record<string, string>;
+const leaveTasks = itemsOf(internal.Leave!);
+const adminItems = itemsOf(internal.Administration!);
+const bizDevItems = itemsOf(internal["Business development"]!);
+const trainingItems = itemsOf(internal.Training!);
 
 /* who works on what (weights) */
 const work: Record<string, [string, string | null, number, string[]][]> = {
   [adminId]: [
-    [
-      internal["Business development"]!,
-      null,
-      3,
-      ["Proposal for Overstrand coastal study", "Client meeting — Ferrum", "Tender documents"],
-    ],
+    [bizDevItems.Proposals!, null, 2, ["Proposal for Overstrand coastal study", "Tender documents"]],
+    [bizDevItems["Client meetings"]!, null, 1, ["Client meeting — Ferrum"]],
     [bridge, reportWriting, 2, ["Review of design report", "Progress report to council"]],
-    [internal.Administration!, null, 2, ["Invoicing", "Staff meeting", "Timesheet approvals"]],
+    [adminItems["Timesheets & admin"]!, null, 2, ["Invoicing", "Timesheet approvals"]],
   ],
   [pieter]: [
     [design, drawings, 3, ["Deck reinforcement check", "Bearing layout", "Design review with Aisha"]],
@@ -294,7 +304,7 @@ const work: Record<string, [string, string | null, number, string[]][]> = {
     [wp1, null, 4, ["Pier design", "Load combinations", "Revit model"]],
     [wp2, null, 2, ["Borehole logs", "Pile capacity"]],
     [eia, null, 2, ["Water use licence application", "Specialist study review"]],
-    [tailings, null, 1, ["Stability analysis"]],
+    [tailings, stability, 1, ["Stability analysis"]],
   ],
   [sipho]: [
     [monitoring, siteVisit, 3, ["Daily site diary", "Concrete cube results"]],
@@ -303,7 +313,7 @@ const work: Record<string, [string, string | null, number, string[]][]> = {
   ],
   [lerato]: [
     [roads, null, 2, ["GIS mapping", "Traffic counts"]],
-    [pipeline, null, 3, ["Route alignment drawings", "Wayleave applications"]],
+    [pipeline, routeWork, 3, ["Route alignment drawings", "Wayleave applications"]],
     [lab, null, 2, ["Bill of quantities", "Tender drawings"]],
   ],
 };
@@ -311,8 +321,8 @@ const work: Record<string, [string, string | null, number, string[]][]> = {
 const today = localDate(now, tz);
 const start = startOfMonth(addDays(startOfMonth(today), -62));
 const internalExtras: [string, string | null, string][] = [
-  [internal.Administration!, null, "Timesheets & admin"],
-  [internal.Training!, null, "ECSA CPD webinar"],
+  [adminItems.Meetings!, null, "Staff meeting"],
+  [trainingItems.CPD!, null, "ECSA CPD webinar"],
   [internal["Research & development"]!, null, "Spreadsheet tools for load checks"],
 ];
 
@@ -329,8 +339,9 @@ const entrySql = (
   const e = {
     id: uuidv7(startedAt),
     userId,
-    projectId,
-    taskId,
+    // A "task" here is an item under the project: time goes on the item itself.
+    projectId: taskId ?? projectId,
+    taskId: null,
     description,
     startedAt,
     durationS,
@@ -338,7 +349,7 @@ const entrySql = (
     billable,
     rateSnapshot: 0,
     currency: settings.currency,
-    source: rnd() < 0.6 ? "timer" : rnd() < 0.5 ? "grid" : "manual",
+    source: rnd() < 0.5 ? "grid" : "manual",
     tagIds: [],
     createdAt: startedAt,
     updatedAt: startedAt,

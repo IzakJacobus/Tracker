@@ -21,6 +21,7 @@ import { tailscaleStatus } from "./platform/tailscale.ts";
 import { runBackup, startBackupScheduler } from "./services/backup.ts";
 import { getOrgRow, getOrgSettings } from "./services/org.ts";
 import { startPlatformMonitor } from "./services/platformMonitor.ts";
+import { closeRunningTimers } from "./services/timers.ts";
 import { startUpdateChecks } from "./services/updates.ts";
 import { emptySource, folderSource, type StaticSource, serveStatic } from "./web/static.ts";
 
@@ -66,6 +67,8 @@ export async function startServer(config: ServerConfig, opts: StartOptions): Pro
     },
   });
   if (result.applied.length) log.info("Database migrated", { applied: result.applied });
+  const closed = closeRunningTimers(db, Date.now());
+  if (closed) log.info("Stopped running timers left from an older version", { count: closed });
   if (!getMeta(db, "server_id")) setMeta(db, "server_id", uuidv7());
 
   const hostname = machineName();

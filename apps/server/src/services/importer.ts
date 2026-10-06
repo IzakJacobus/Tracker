@@ -8,7 +8,6 @@ import {
   type Project,
   readImportCsv,
   resolveBillable,
-  type Task,
   type User,
   uuidv7,
 } from "@stint/shared";
@@ -91,7 +90,6 @@ export function importEntries(db: Database, opts: ImportOptions): ImportSummary 
     const internal = clients.find((c) => c.isInternal)!;
     const clientByName = new Map(clients.map((c) => [key(c.name), c]));
     const projects = listRows(db, TABLES.projects, "deleted_at IS NULL") as Project[];
-    const tasks = listRows(db, TABLES.tasks, "deleted_at IS NULL") as Task[];
     const tags = listRows(db, TABLES.tags, "deleted_at IS NULL") as { id: string; name: string }[];
     const tagByName = new Map(tags.map((t) => [key(t.name), t.id]));
     const projectById = new Map(projects.map((p) => [p.id, p]));
@@ -125,10 +123,12 @@ export function importEntries(db: Database, opts: ImportOptions): ImportSummary 
       return c;
     };
 
-    const projectFor = (client: Client, path: string[]): Project | null => {
+    /** The item at `path` (project › … › item), created when allowed. `lastKind` labels a new last item. */
+    const projectFor = (client: Client, path: string[], lastKind: string | null = null): Project | null => {
       let parent: Project | null = null;
       const done: string[] = [];
-      for (const name of path.length ? path : ["Imported (no project)"]) {
+      const names = path.length ? path : ["Imported (no project)"];
+      for (const [depth, name] of names.entries()) {
         done.push(name);
         const parentId: string | null = (parent as Project | null)?.id ?? null;
         let p: Project | undefined = projects.find(
@@ -143,6 +143,7 @@ export function importEntries(db: Database, opts: ImportOptions): ImportSummary 
             parentId,
             name: name.slice(0, 200),
             code: null,
+            kind: depth === names.length - 1 ? lastKind : null,
             color: parent?.color ?? PROJECT_COLORS[projects.length % PROJECT_COLORS.length],
             billableDefault: parent?.billableDefault ?? !client.isInternal,
             rate: null,
@@ -163,27 +164,6 @@ export function importEntries(db: Database, opts: ImportOptions): ImportSummary 
         parent = p;
       }
       return parent;
-    };
-
-    const taskFor = (project: Project, name: string): Task | null => {
-      if (!name) return null;
-      const found = tasks.find((t) => t.projectId === project.id && key(t.name) === key(name));
-      if (found || !opts.createMissing) return found ?? null;
-      const t = insertRow(db, TABLES.tasks, {
-        id: uuidv7(now),
-        projectId: project.id,
-        name: name.slice(0, 200),
-        rate: null,
-        billable: null,
-        sortOrder: tasks.filter((x) => x.projectId === project.id).length,
-        archivedAt: null,
-        createdAt: now,
-        updatedAt: now,
-        deletedAt: null,
-      }) as Task;
-      tasks.push(t);
-      summary.created.tasks.push(`${project.name} › ${t.name}`);
-      return t;
     };
 
     const tagIdsFor = (names: string[]): string[] | null => {
@@ -269,17 +249,14 @@ export function importEntries(db: Database, opts: ImportOptions): ImportSummary 
         continue;
       }
       const before = projects.length;
-      const project = projectFor(client, r.project);
+      // A task column (Toggl, Stint 0.1) is one more level: since 0.2 tasks are items in the tree.
+      const path = r.task ? [...r.project, r.task] : r.project;
+      const project = projectFor(client, path, r.task ? "Task" : null);
       if (!project) {
-        fail(`There is no project called "${r.project.join(" › ")}" for ${client.name}.`);
+        fail(`There is no project called "${path.join(" › ")}" for ${client.name}.`);
         continue;
       }
       if (projects.length !== before) touchedProjects = true;
-      const task = taskFor(project, r.task);
-      if (r.task && !task) {
-        fail(`There is no task called "${r.task}" on ${project.name}.`);
-        continue;
-      }
       const tagIds = tagIdsFor(r.tags);
       if (!tagIds) {
         fail(`Unknown tag in "${r.tags.join(", ")}".`);
@@ -298,7 +275,7 @@ export function importEntries(db: Database, opts: ImportOptions): ImportSummary 
       }
       ensureMember(project, userId);
       touchedProjects = true;
-      const entry = { userId, projectId: project.id, taskId: task?.id ?? null };
+      const entry = { userId, projectId: project.id, taskId: null };
       insertRow(db, TABLES.timeEntries, {
         id: uuidv7(startedAt),
         ...entry,
@@ -306,7 +283,7 @@ export function importEntries(db: Database, opts: ImportOptions): ImportSummary 
         startedAt,
         durationS: r.durationS,
         entryDate,
-        billable: r.billable ?? resolveBillable(task, project),
+        billable: r.billable ?? resolveBillable(null, project),
         rateSnapshot: snapshotRate(db, entry, settings),
         currency: settings.currency,
         source: "import",

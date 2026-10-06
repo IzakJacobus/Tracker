@@ -179,6 +179,8 @@ export const Project = z.object({
   parentId: Id.nullable(),
   name: Name,
   code: z.string().max(40).nullable(),
+  /** What the firm calls this item ("Phase", "Task", ...). Only a label: every item behaves the same. */
+  kind: z.string().max(40).nullable().default(null),
   color: Color,
   billableDefault: z.boolean(),
   rate: Money.nullable(),
@@ -349,6 +351,7 @@ export const CreateProjectInput = z.object({
   parentId: Id.nullable().optional(),
   name: Name,
   code: optionalCode,
+  kind: z.string().trim().max(40).nullable().optional(),
   color: Color.optional(),
   billableDefault: z.boolean().optional(),
   rate: Money.nullable().optional(),

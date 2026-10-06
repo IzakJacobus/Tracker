@@ -8,11 +8,11 @@ test("submit a timesheet, manager sends it back, member resubmits, manager appro
   const member = await memberCtx.newPage();
   await login(member, "member");
   await member.keyboard.press("n");
-  await member.getByPlaceholder("Search projects and tasks").fill("paarl");
+  await member.getByPlaceholder("Search projects, items and codes").fill("paarl");
   await member.keyboard.press("Enter");
-  await member.getByPlaceholder("What did you work on?").fill("Approval flow check");
-  await member.getByLabel("Duration").fill("3");
-  await member.getByRole("button", { name: "Add time" }).last().click();
+  await member.getByPlaceholder("What did you do?").fill("Approval flow check");
+  await member.getByLabel("Hours").fill("3");
+  await member.getByRole("button", { name: "Log hours" }).last().click();
   await waitSynced(member);
   const card = member.getByRole("region", { name: "Timesheet submission" });
   await card.getByRole("button", { name: /^Submit/ }).click();

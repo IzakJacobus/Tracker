@@ -15,7 +15,7 @@ export function AuthLayout({ children, wide }: { children: ReactNode; wide?: boo
           </p>
           <ul className="auth__points">
             <li>
-              <CheckCircle2 /> Timers and edits are instant, even offline
+              <CheckCircle2 /> Logging hours is instant, even offline
             </li>
             <li>
               <CheckCircle2 /> Monthly timesheets and client summaries in one click

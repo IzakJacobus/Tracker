@@ -73,10 +73,9 @@ export class EntryRepo {
     this.ctx.onChange?.();
   }
 
-  async billableFor(projectId: string, taskId: string | null): Promise<boolean> {
+  async billableFor(projectId: string, _taskId: string | null = null): Promise<boolean> {
     const project = await this.ctx.db.projects.get(projectId);
-    const task = taskId ? await this.ctx.db.tasks.get(taskId) : null;
-    return project ? resolveBillable(task ?? null, project) : true;
+    return project ? resolveBillable(null, project) : true;
   }
 
   async create(draft: EntryDraft): Promise<TimeEntry> {
@@ -155,45 +154,12 @@ export class EntryRepo {
     return this.create({ ...entry, source: entry.source });
   }
 
-  async running(): Promise<TimeEntry | undefined> {
-    const mine = await this.ctx.db.timeEntries.where("userId").equals(this.ctx.userId).toArray();
-    return mine.filter((e) => e.durationS === null).sort((a, b) => b.startedAt - a.startedAt)[0];
-  }
-
-  async stop(at = this.now()): Promise<TimeEntry | undefined> {
-    const r = await this.running();
-    if (!r) return undefined;
-    const durationS = Math.max(0, Math.round((at - r.startedAt) / 1000));
-    // Timers left running past 24 h are capped; the person can fix the entry afterwards.
-    await this.update(r.id, { durationS: clampDuration(durationS) });
-    return { ...r, durationS };
-  }
-
-  /** Starts a timer (stopping any running one first). */
-  async start(
-    draft: Omit<EntryDraft, "startedAt" | "durationS" | "source"> & { startedAt?: number },
-  ): Promise<TimeEntry> {
-    const at = draft.startedAt ?? this.now();
-    await this.stop(at);
-    return this.create({ ...draft, startedAt: at, durationS: null, source: "timer" });
-  }
-
-  async continueEntry(e: TimeEntry): Promise<TimeEntry> {
-    return this.start({
-      projectId: e.projectId,
-      taskId: e.taskId,
-      description: e.description,
-      tagIds: e.tagIds,
-      billable: e.billable,
-    });
-  }
-
   async duplicate(e: TimeEntry): Promise<TimeEntry> {
     return this.create({
       projectId: e.projectId,
       taskId: e.taskId,
       description: e.description,
-      startedAt: e.durationS === null ? e.startedAt : e.startedAt + e.durationS * 1000,
+      startedAt: e.startedAt + (e.durationS ?? 0) * 1000,
       durationS: e.durationS ?? 0,
       billable: e.billable,
       tagIds: e.tagIds,

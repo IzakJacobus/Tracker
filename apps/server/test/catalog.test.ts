@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import type { Client, Project, ProjectMember, Task } from "@stint/shared";
+import type { Client, Project, ProjectMember } from "@stint/shared";
 import { createTestServer } from "./helpers.ts";
 
 async function world() {
@@ -201,22 +201,32 @@ describe("projects", () => {
   });
 });
 
-describe("tasks and tags", () => {
-  test("project managers add tasks; members cannot", async () => {
+describe("items and tags", () => {
+  test("items nest as deep as needed with the firm's own types; members can't add them", async () => {
     const { s, admin, alice, root } = await world();
-    const t = await s.json<Task>("POST", "/api/tasks", {
-      as: admin,
-      body: { projectId: root.id, name: "Site visit", rate: 80000 },
-    });
-    expect(t.status).toBe(201);
+    let parentId = root.id;
+    const kinds = ["Phase", "Work package", "Task", "Sub-task"];
+    for (const kind of kinds) {
+      const r = await s.json<Project>("POST", "/api/projects", {
+        as: admin,
+        body: { parentId, name: `${kind} 1`, kind },
+      });
+      expect(r.status).toBe(201);
+      expect(r.body).toMatchObject({ kind, clientId: root.clientId, parentId });
+      parentId = r.body.id;
+    }
     await s.json("PUT", `/api/projects/${root.id}/members/${alice.id}`, { as: admin, body: {} });
-    expect(
-      (await s.json("POST", "/api/tasks", { as: alice.agent, body: { projectId: root.id, name: "Nope" } }))
-        .status,
-    ).toBe(403);
-    const list = await s.json<Task[]>("GET", `/api/tasks?projectId=${root.id}`, { as: alice.agent });
-    expect(list.body[0]!.name).toBe("Site visit");
-    expect(list.body[0]!.rate).toBeNull();
+    const denied = await s.json("POST", "/api/projects", {
+      as: alice.agent,
+      body: { parentId: root.id, name: "Nope", kind: "Task" },
+    });
+    expect(denied.status).toBe(403);
+    const list = await s.json<Project[]>("GET", "/api/projects", { as: alice.agent });
+    const mine = list.body.filter((p) => p.clientId === root.clientId && p.kind);
+    expect(mine.map((p) => p.kind)).toEqual(kinds);
+    // The task routes are gone: tasks are items now.
+    const gone = await s.json("POST", "/api/tasks", { as: admin, body: { projectId: root.id, name: "x" } });
+    expect(gone.status).toBe(404);
   });
 
   test("anyone creates tags; duplicates are rejected case-insensitively", async () => {

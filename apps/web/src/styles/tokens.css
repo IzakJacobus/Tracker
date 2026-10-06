@@ -97,7 +97,8 @@
   /* Layout */
   --sidebar-width: 232px;
   --sidebar-collapsed: 64px;
-  --dock-height: 72px;
+  /* The timer bar along the bottom was removed in 0.2; kept at 0 so toasts sit at the bottom. */
+  --dock-height: 0px;
   --content-max: 1240px;
 
   /* z-index */

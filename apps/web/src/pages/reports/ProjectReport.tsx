@@ -89,7 +89,7 @@ export function ProjectReportPage() {
         <div className="stat">
           <div className="stat__label">Total hours</div>
           <div className="stat__value mono">{formatDuration(r.total.seconds)}</div>
-          <div className="stat__sub">including all sub-projects</div>
+          <div className="stat__sub">including everything under it</div>
         </div>
         <div className="stat">
           <div className="stat__label">Billable hours</div>
@@ -105,10 +105,10 @@ export function ProjectReportPage() {
       <div className="report-grid">
         <section className="card" style={{ overflow: "auto" }}>
           <div className="card__header">
-            <h2>By sub-project</h2>
+            <h2>By item</h2>
           </div>
           <table className="table">
-            {head("Project")}
+            {head("Item")}
             <tbody>
               {r.bySubproject.map((p) => (
                 <tr key={p.projectId}>
@@ -136,22 +136,6 @@ export function ProjectReportPage() {
               </tbody>
             </table>
           </section>
-          <section className="card" style={{ overflow: "auto" }}>
-            <div className="card__header">
-              <h2>By task</h2>
-            </div>
-            <table className="table">
-              {head("Task")}
-              <tbody>
-                {r.byTask.map((t) => (
-                  <tr key={t.taskId ?? "none"}>
-                    <td>{t.task?.name ?? <span className="subtle">No task</span>}</td>
-                    {sumCells(t.sum)}
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </section>
         </div>
       </div>
       <section className="card" style={{ overflow: "auto" }}>
@@ -164,9 +148,8 @@ export function ProjectReportPage() {
             <tr>
               <th>Date</th>
               <th>Person</th>
-              <th>Project</th>
-              <th>Task</th>
-              <th>Description</th>
+              <th>Worked on</th>
+              <th>Note</th>
               <th className="num">Hours</th>
               {money && <th className="num">Amount</th>}
             </tr>
@@ -177,7 +160,6 @@ export function ProjectReportPage() {
                 <td className="mono">{fmtDate(l.date, settings)}</td>
                 <td>{l.user?.name}</td>
                 <td>{l.projectPath}</td>
-                <td>{l.task?.name}</td>
                 <td>{l.entry.description}</td>
                 <td className="num mono">{formatDuration(l.seconds)}</td>
                 {money && (

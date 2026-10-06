@@ -25,15 +25,18 @@ import { useLiveQuery } from "dexie-react-hooks";
 import {
   Archive,
   ArchiveRestore,
+  CheckCircle2,
   ChevronDown,
   ChevronRight,
   FolderPlus,
   FolderTree,
   GripVertical,
+  ListTree,
   MoreHorizontal,
   MoveRight,
   Pencil,
   Plus,
+  RotateCcw,
   Search,
   Users as UsersIcon,
 } from "lucide-react";
@@ -41,7 +44,7 @@ import { useMemo, useRef, useState } from "react";
 import { useMe } from "../../app/session.tsx";
 import { accessFromLocal } from "../../data/access.ts";
 import { useData } from "../../data/DataProvider.tsx";
-import { useClients, useMembers, useProjects, useProjectTree, useTasks } from "../../data/hooks.ts";
+import { useClients, useMembers, useProjects, useProjectTree } from "../../data/hooks.ts";
 import { api, errorMessage } from "../../lib/api.ts";
 import { fmtHours, formatMoney } from "../../lib/format.ts";
 import { Button } from "../../ui/Button.tsx";
@@ -50,11 +53,11 @@ import { Badge, Dot, EmptyState, Progress } from "../../ui/misc.tsx";
 import { Menu, Popover } from "../../ui/Popover.tsx";
 import { useToast } from "../../ui/Toast.tsx";
 import { MoveProjectDialog } from "./MoveProjectDialog.tsx";
-import { ProjectDialog } from "./ProjectDialog.tsx";
+import { ProjectDialog, type Tab } from "./ProjectDialog.tsx";
 
 type DialogState =
   | { kind: "new"; clientId: string | null; parentId: string | null }
-  | { kind: "edit"; project: Project; tab?: "details" | "tasks" | "team" }
+  | { kind: "edit"; project: Project; tab?: Tab }
   | { kind: "move"; project: Project }
   | null;
 
@@ -65,7 +68,6 @@ export function ProjectsPage() {
   const clients = useClients();
   const projects = useProjects();
   const members = useMembers();
-  const tasks = useTasks();
   const tree = useProjectTree(projects);
   const entries = useLiveQuery(() => db.timeEntries.toArray(), [db]) ?? [];
   const [search, setSearch] = useState("");
@@ -177,7 +179,7 @@ export function ProjectsPage() {
             aria-label="Search projects"
           />
         </div>
-        <Switch checked={showArchived} onChange={setShowArchived} label="Show archived" />
+        <Switch checked={showArchived} onChange={setShowArchived} label="Show done and archived" />
         {canAddTopLevel && (
           <span className="subtle" style={{ fontSize: "var(--text-sm)", marginLeft: "auto" }}>
             Tip: drag a project onto another to make it a sub-project, or onto a client to move it to the top.
@@ -202,7 +204,7 @@ export function ProjectsPage() {
           }
         >
           {canAddTopLevel
-            ? "Create a project for each piece of client work. Add sub-projects and tasks to break it down."
+            ? "Create a project for each piece of client work, then add items under it (phases, tasks… as deep as you need)."
             : "You haven't been added to any projects yet. Ask your manager to add you."}
         </EmptyState>
       )}
@@ -253,7 +255,6 @@ export function ProjectsPage() {
                           return n;
                         })
                       }
-                      taskCount={tasks.filter((x) => x.projectId === node.id && !x.archivedAt).length}
                       memberCount={members.filter((m) => m.projectId === node.id).length}
                       currency={currency}
                       seesMoney={seesMoney}
@@ -268,10 +269,13 @@ export function ProjectsPage() {
                           await mutate(() =>
                             api.post(`/projects/${node.id}/${node.archivedAt ? "unarchive" : "archive"}`),
                           );
+                          const item = Boolean(node.parentId);
                           toast.show(
                             node.archivedAt
-                              ? `Restored “${node.name}”.`
-                              : `Archived “${node.name}”. Its time is kept.`,
+                              ? `${item ? "Reopened" : "Restored"} “${node.name}”.`
+                              : item
+                                ? `Marked “${node.name}” done. Its hours are kept, and it can't take new ones.`
+                                : `Archived “${node.name}”. Its time is kept.`,
                             {
                               kind: "success",
                             },
@@ -369,7 +373,6 @@ function ProjectRow({
   hasChildren,
   collapsed,
   onToggle,
-  taskCount,
   memberCount,
   currency,
   seesMoney,
@@ -385,12 +388,11 @@ function ProjectRow({
   hasChildren: boolean;
   collapsed: boolean;
   onToggle: () => void;
-  taskCount: number;
   memberCount: number;
   currency: string;
   seesMoney: boolean;
   manage: boolean;
-  onEdit: (tab?: "details" | "tasks" | "team") => void;
+  onEdit: (tab?: Tab) => void;
   onAddChild: () => void;
   onMove: () => void;
   onArchive: () => void;
@@ -450,12 +452,8 @@ function ProjectRow({
       <div className="tree-meta">
         {!project.billableDefault && <Badge>Non-billable</Badge>}
         {project.visibility === "everyone" && <Badge tone="info">Everyone</Badge>}
-        {project.archivedAt && <Badge>Archived</Badge>}
-        {taskCount > 0 && (
-          <button type="button" className="tree-link" onClick={() => onEdit("tasks")}>
-            {taskCount} task{taskCount === 1 ? "" : "s"}
-          </button>
-        )}
+        {project.kind && <Badge>{project.kind}</Badge>}
+        {project.archivedAt && <Badge>{project.parentId ? "Done" : "Archived"}</Badge>}
         {memberCount > 0 && (
           <button
             type="button"
@@ -510,14 +508,18 @@ function ProjectRow({
                 onClose={() => setMenu(false)}
                 items={[
                   { label: "Edit", icon: <Pencil />, onSelect: () => onEdit("details") },
-                  { label: "Add sub-project", icon: <FolderPlus />, onSelect: onAddChild },
-                  { label: "Tasks", icon: <Plus />, onSelect: () => onEdit("tasks") },
+                  { label: "Add item under it", icon: <FolderPlus />, onSelect: onAddChild },
+                  { label: "Items", icon: <ListTree />, onSelect: () => onEdit("items") },
                   { label: "People", icon: <UsersIcon />, onSelect: () => onEdit("team") },
                   { label: "Move to…", icon: <MoveRight />, onSelect: onMove },
                   "sep",
-                  project.archivedAt
-                    ? { label: "Restore", icon: <ArchiveRestore />, onSelect: onArchive }
-                    : { label: "Archive", icon: <Archive />, onSelect: onArchive, danger: true },
+                  project.parentId
+                    ? project.archivedAt
+                      ? { label: "Reopen", icon: <RotateCcw />, onSelect: onArchive }
+                      : { label: "Mark done", icon: <CheckCircle2 />, onSelect: onArchive }
+                    : project.archivedAt
+                      ? { label: "Restore", icon: <ArchiveRestore />, onSelect: onArchive }
+                      : { label: "Archive", icon: <Archive />, onSelect: onArchive, danger: true },
                 ]}
               />
             </Popover>

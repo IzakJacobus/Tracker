@@ -22,7 +22,8 @@ export function WeekGrid({ days, entries }: { days: string[]; entries: TimeEntry
   const toast = useToast();
   const lockFor = useLocks();
   const favorites = useFavorites();
-  const { items, byKey } = usePickerItems();
+  const picker = usePickerItems();
+  const { byKey } = picker;
   const now = useNow(30_000);
   const [extra, setExtra] = useState<Combo[]>([]);
   const addAnchor = useRef<HTMLButtonElement>(null);
@@ -31,7 +32,7 @@ export function WeekGrid({ days, entries }: { days: string[]; entries: TimeEntry
   const rows = useMemo(() => {
     const keys = new Map<string, Combo>();
     for (const e of [...entries].sort((a, b) => a.startedAt - b.startedAt)) {
-      keys.set(comboKey(e), { projectId: e.projectId, taskId: e.taskId });
+      keys.set(comboKey(e), { projectId: e.projectId, taskId: null });
     }
     for (const c of [...favorites, ...extra]) if (!keys.has(comboKey(c))) keys.set(comboKey(c), c);
     return [...keys.values()];
@@ -144,9 +145,15 @@ export function WeekGrid({ days, entries }: { days: string[]; entries: TimeEntry
                           className="week-grid__input mono"
                           defaultValue={secs ? formatDuration(secs) : ""}
                           placeholder="–"
-                          disabled={locked || !item}
-                          aria-label={`${item?.projectLabel ?? "Project"}${item?.taskName ? ` · ${item.taskName}` : ""}, ${d}`}
-                          title={locked ? "Locked — this period is submitted or approved" : undefined}
+                          disabled={locked || !item || (!item.loggable && secs === 0)}
+                          aria-label={`${item?.projectLabel ?? "Project"}, ${d}`}
+                          title={
+                            locked
+                              ? "Locked — this period is submitted or approved"
+                              : item && !item.loggable
+                                ? "Done, or has items under it: log new hours on an item under it"
+                                : undefined
+                          }
                           inputMode="decimal"
                           onFocus={(e) => e.currentTarget.select()}
                           onKeyDown={(e) => onKey(e, r, col)}
@@ -194,8 +201,7 @@ export function WeekGrid({ days, entries }: { days: string[]; entries: TimeEntry
                   label="Add a project row"
                 >
                   <PickerList
-                    items={items}
-                    byKey={byKey}
+                    data={picker}
                     selected={null}
                     onPick={(c) => {
                       setExtra([...extra, c]);

@@ -44,6 +44,7 @@ const project = (id: string, clientId: string, parentId: string | null, name: st
   id,
   clientId,
   parentId,
+  kind: null,
   name,
   code: null,
   color: "#000000",

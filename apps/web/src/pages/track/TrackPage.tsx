@@ -1,5 +1,5 @@
 import { addDays, localDate, startOfWeek } from "@stint/shared";
-import { CalendarDays, List, Plus, Table2 } from "lucide-react";
+import { List, Plus, Table2 } from "lucide-react";
 import { useEffect } from "react";
 import { useSearchParams } from "react-router";
 import { useEntryDialog } from "../../tracking/EntryDialogHost.tsx";
@@ -8,12 +8,11 @@ import { Reminder } from "../../tracking/Reminder.tsx";
 import { SubmitCard } from "../../tracking/SubmitCard.tsx";
 import { Button } from "../../ui/Button.tsx";
 import { Segmented } from "../../ui/Field.tsx";
-import { DayCalendar } from "./DayCalendar.tsx";
 import { ListView } from "./ListView.tsx";
 import { WeekGrid } from "./WeekGrid.tsx";
 import { WeekHeader } from "./WeekHeader.tsx";
 
-type View = "list" | "week" | "day";
+type View = "list" | "week";
 const VIEW_KEY = "stint.track.view";
 
 export function TrackPage() {
@@ -23,7 +22,8 @@ export function TrackPage() {
   const today = localDate(Date.now(), settings.timezone);
   const date = /^\d{4}-\d{2}-\d{2}$/.test(params.get("date") ?? "") ? params.get("date")! : today;
   const stored = localStorage.getItem(VIEW_KEY);
-  const view = (params.get("view") ?? stored ?? "list") as View;
+  // "day" (a calendar of start and end times) was removed in 0.2: hours only.
+  const view: View = (params.get("view") ?? stored) === "week" ? "week" : "list";
   const weekStart = startOfWeek(date, settings.weekStart);
   const days = Array.from({ length: 7 }, (_, i) => addDays(weekStart, i));
   const entries = useMyEntries(days[0]!, days[6]!);
@@ -48,12 +48,11 @@ export function TrackPage() {
         t.closest("input, textarea, select, [contenteditable], [role=dialog]")
       )
         return;
-      if (e.key === "ArrowLeft") set({ date: addDays(date, view === "day" ? -1 : -7) });
-      else if (e.key === "ArrowRight") set({ date: addDays(date, view === "day" ? 1 : 7) });
+      if (e.key === "ArrowLeft") set({ date: addDays(date, -7) });
+      else if (e.key === "ArrowRight") set({ date: addDays(date, 7) });
       else if (e.key === "t") set({ date: today });
       else if (e.key === "1") set({ view: "list" });
       else if (e.key === "2") set({ view: "week" });
-      else if (e.key === "3") set({ view: "day" });
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
@@ -64,7 +63,7 @@ export function TrackPage() {
       <div className="page-header">
         <div>
           <h1>Track</h1>
-          <p>Your time this week. Everything is saved on this computer first, so it works offline too.</p>
+          <p>Your hours this week. Everything is saved on this computer first, so it works offline too.</p>
         </div>
         <div className="row">
           <Segmented<View>
@@ -74,15 +73,10 @@ export function TrackPage() {
             options={[
               { value: "list", label: "List", icon: <List /> },
               { value: "week", label: "Week", icon: <Table2 /> },
-              { value: "day", label: "Day", icon: <CalendarDays /> },
             ]}
           />
-          <Button
-            variant="primary"
-            icon={<Plus />}
-            onClick={() => dialog.open({ date: view === "day" ? date : today })}
-          >
-            Add time
+          <Button variant="primary" icon={<Plus />} onClick={() => dialog.open({ date })}>
+            Log hours
           </Button>
         </div>
       </div>
@@ -92,24 +86,21 @@ export function TrackPage() {
         days={days}
         entries={entries}
         selected={date}
-        onSelect={(d) =>
-          set({ date: d, ...(view === "list" ? {} : view === "week" ? { view: "day" as View } : {}) })
-        }
+        onSelect={(d) => set({ date: d })}
         onShift={(w) => set({ date: addDays(date, w * 7) })}
         onToday={() => set({ date: today })}
       />
       {view === "list" && (
-        <ListView entries={entries} onEdit={(e) => dialog.open({ entry: e })} onAdd={() => dialog.open({})} />
-      )}
-      {view === "week" && <WeekGrid days={days} entries={entries} />}
-      {view === "day" && (
-        <DayCalendar
-          date={date}
+        <ListView
           entries={entries}
           onEdit={(e) => dialog.open({ entry: e })}
-          onCreateAt={(t) => dialog.open({ date, startTime: t, durationS: 3600 })}
+          onAdd={() => dialog.open({ date })}
+          onLogMore={(e) =>
+            dialog.open({ date: e.entryDate, combo: { projectId: e.projectId, taskId: null } })
+          }
         />
       )}
+      {view === "week" && <WeekGrid days={days} entries={entries} />}
     </div>
   );
 }

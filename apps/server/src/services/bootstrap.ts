@@ -84,6 +84,7 @@ export function createInternalClient(db: Database, now: number): string {
       parentId: null,
       name: p.name,
       code: null,
+      kind: null,
       color: p.color,
       billableDefault: false,
       rate: null,
@@ -98,12 +99,20 @@ export function createInternalClient(db: Database, now: number): string {
       deletedAt: null,
     });
     p.tasks.forEach((t, j) => {
-      insertRow(db, TABLES.tasks, {
+      insertRow(db, TABLES.projects, {
         id: uuidv7(now),
-        projectId,
+        clientId,
+        parentId: projectId,
         name: t,
+        code: null,
+        kind: "Task",
+        color: p.color,
+        billableDefault: false,
         rate: null,
-        billable: null,
+        budgetMinutes: null,
+        budgetAmount: null,
+        visibility: "everyone",
+        notes: "",
         sortOrder: j,
         archivedAt: null,
         createdAt: now,

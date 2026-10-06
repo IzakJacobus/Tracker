@@ -55,35 +55,20 @@ describe("EntryRepo (optimistic, offline-first)", () => {
     expect(out[0]!.patch).not.toHaveProperty("userId");
   });
 
-  test("billable defaults come from the task, then the project", async () => {
+  test("billable defaults come from the project (tasks are items since 0.2)", async () => {
     const { db, repo } = setup();
-    await db.projects.put({ id: "p1", billableDefault: true } as never);
-    await db.tasks.put({ id: "t1", projectId: "p1", billable: false } as never);
-    const e = await repo.create({ projectId: "p1", taskId: "t1", startedAt: Date.now(), durationS: 60 });
+    await db.projects.put({ id: "p1", billableDefault: false } as never);
+    const e = await repo.create({ projectId: "p1", startedAt: Date.now(), durationS: 60 });
     expect(e.billable).toBe(false);
   });
 
-  test("start stops the running timer at the new start time", async () => {
-    const { db, repo, advance } = setup();
-    await db.projects.put({ id: "p1", billableDefault: true } as never);
-    const a = await repo.start({ projectId: "p1" });
-    advance(25 * 60_000);
-    const b = await repo.start({ projectId: "p1", description: "next" });
-    expect((await db.timeEntries.get(a.id))!.durationS).toBe(1500);
-    expect((await db.timeEntries.get(b.id))!.durationS).toBeNull();
-    expect((await repo.running())!.id).toBe(b.id);
+  test("there is no timer: entries always have hours", () => {
+    const { repo } = setup();
+    expect("start" in repo).toBe(false);
+    expect("stop" in repo).toBe(false);
   });
 
-  test("stop caps runaway timers at 24 hours", async () => {
-    const { db, repo, advance } = setup();
-    await db.projects.put({ id: "p1", billableDefault: true } as never);
-    const a = await repo.start({ projectId: "p1" });
-    advance(3 * 86_400_000);
-    await repo.stop();
-    expect((await db.timeEntries.get(a.id))!.durationS).toBe(86_400);
-  });
-
-  test("continue starts a new timer with the same details; duplicate copies after the original", async () => {
+  test("duplicate copies an entry straight after the original", async () => {
     const { db, repo } = setup();
     await db.projects.put({ id: "p1", billableDefault: true } as never);
     const e = await repo.create({
@@ -93,8 +78,6 @@ describe("EntryRepo (optimistic, offline-first)", () => {
       description: "Survey",
       tagIds: ["t"],
     });
-    const c = await repo.continueEntry(e);
-    expect(c).toMatchObject({ description: "Survey", durationS: null, tagIds: ["t"], source: "timer" });
     const d = await repo.duplicate(e);
     expect(d).toMatchObject({ description: "Survey", durationS: 600, startedAt: e.startedAt + 600_000 });
   });

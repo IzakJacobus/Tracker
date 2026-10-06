@@ -5,11 +5,9 @@ import {
   FolderTree,
   Keyboard,
   Moon,
-  Play,
   Plus,
   Search,
   Settings,
-  Square,
   Sun,
   Timer,
   Users,
@@ -19,9 +17,7 @@ import { createPortal } from "react-dom";
 import { useNavigate } from "react-router";
 import { getThemePref, setThemePref } from "../lib/theme.ts";
 import { useEntryDialog } from "../tracking/EntryDialogHost.tsx";
-import { useRunningEntry } from "../tracking/hooks.ts";
 import { usePickerItems } from "../tracking/ProjectPicker.tsx";
-import { requestTimerStart, requestTimerToggle } from "../tracking/TimerDock.tsx";
 import { Dialog } from "../ui/Dialog.tsx";
 import { useMe } from "./session.tsx";
 
@@ -55,10 +51,7 @@ export function CommandLayer() {
       if (e.key === "/") {
         e.preventDefault();
         setOpen(true);
-      } else if (e.key === "s" || e.key === "S") {
-        e.preventDefault();
-        requestTimerToggle();
-      } else if (e.key === "n" || e.key === "N") {
+      } else if (e.key === "n" || e.key === "N" || e.key === "l" || e.key === "L") {
         e.preventDefault();
         dialog.open({});
       } else if (e.key === "?") {
@@ -82,7 +75,6 @@ function Palette({ onClose, onHelp }: { onClose: () => void; onHelp: () => void 
   const me = useMe();
   const navigate = useNavigate();
   const dialog = useEntryDialog();
-  const running = useRunningEntry();
   const { items } = usePickerItems();
   const [q, setQ] = useState("");
   const [active, setActive] = useState(0);
@@ -92,10 +84,14 @@ function Palette({ onClose, onHelp }: { onClose: () => void; onHelp: () => void 
   const commands = useMemo<Command[]>(() => {
     const go = (to: string) => () => navigate(to);
     const base: (Command | false)[] = [
-      running
-        ? { id: "stop", label: "Stop the timer", icon: <Square />, hint: "S", run: requestTimerToggle }
-        : { id: "start", label: "Start the timer", icon: <Play />, hint: "S", run: requestTimerToggle },
-      { id: "add", label: "Add time manually", icon: <Plus />, hint: "N", run: () => dialog.open({}) },
+      {
+        id: "add",
+        label: "Log hours",
+        icon: <Plus />,
+        hint: "N",
+        keywords: "add time",
+        run: () => dialog.open({}),
+      },
       { id: "g-track", label: "Go to Track", icon: <Timer />, run: go("/") },
       {
         id: "g-week",
@@ -135,7 +131,7 @@ function Palette({ onClose, onHelp }: { onClose: () => void; onHelp: () => void 
       { id: "help", label: "Keyboard shortcuts", icon: <Keyboard />, hint: "?", run: onHelp },
     ];
     return base.filter((c): c is Command => Boolean(c));
-  }, [running, role, navigate, dialog, onHelp]);
+  }, [role, navigate, dialog, onHelp]);
 
   const results = useMemo(() => {
     const query = q.trim().toLowerCase();
@@ -148,14 +144,14 @@ function Palette({ onClose, onHelp }: { onClose: () => void; onHelp: () => void 
           .slice(0, 8)
           .map((i) => ({
             id: `p-${i.key}`,
-            label: `Start timer: ${i.projectLabel}${i.taskName ? ` · ${i.taskName}` : ""}`,
+            label: `Log hours: ${i.code ? `${i.code} ` : ""}${i.projectLabel}`,
             hint: i.clientName,
             icon: <span className="dot" style={{ background: i.color }} />,
-            run: () => requestTimerStart({ projectId: i.projectId, taskId: i.taskId }),
+            run: () => dialog.open({ combo: { projectId: i.projectId, taskId: null } }),
           }))
       : [];
     return [...cmds, ...projects];
-  }, [q, commands, items]);
+  }, [q, commands, items, dialog]);
 
   useEffect(() => {
     listRef.current?.querySelector(`[data-index="${active}"]`)?.scrollIntoView({ block: "nearest" });
@@ -182,7 +178,7 @@ function Palette({ onClose, onHelp }: { onClose: () => void; onHelp: () => void 
             className="input"
             // biome-ignore lint/a11y/noAutofocus: the palette exists to be typed into
             autoFocus
-            placeholder="Type a command, or a project to start a timer…"
+            placeholder="Type a command, or a project to log hours on…"
             value={q}
             onChange={(e) => {
               setQ(e.target.value);
@@ -246,11 +242,10 @@ function Palette({ onClose, onHelp }: { onClose: () => void; onHelp: () => void 
 
 const SHORTCUTS: [string, string][] = [
   ["Ctrl K  or  /", "Open the command palette"],
-  ["S", "Start or stop the timer"],
-  ["N", "Add time manually"],
+  ["N", "Log hours"],
   ["← →", "Previous / next week (Track)"],
   ["T", "Jump to today (Track)"],
-  ["1  2  3", "List, week grid or day view (Track)"],
+  ["1  2", "List or week grid (Track)"],
   ["Enter / arrows", "Move between cells in the weekly grid"],
   ["?", "Show this list"],
 ];
