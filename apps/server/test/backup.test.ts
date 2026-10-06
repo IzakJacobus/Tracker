@@ -4,7 +4,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { migrate } from "../src/db/migrate.ts";
 import { migrations } from "../src/db/migrations/index.ts";
-import { openDatabase } from "../src/db/open.ts";
+import { closeDatabase, openDatabase } from "../src/db/open.ts";
 import { getMeta } from "../src/lib/meta.ts";
 import {
   backupDue,
@@ -18,12 +18,15 @@ import {
 import { createTestServer } from "./helpers.ts";
 
 const dirs: string[] = [];
+const servers: ReturnType<typeof createTestServer>[] = [];
 const tempDir = () => {
   const d = mkdtempSync(join(tmpdir(), "stint-backup-"));
   dirs.push(d);
   return d;
 };
 afterEach(() => {
+  // Windows can't delete a folder while a database inside it is still open.
+  for (const t of servers.splice(0)) closeDatabase(t.ctx.db);
   for (const d of dirs.splice(0)) rmSync(d, { recursive: true, force: true });
 });
 
@@ -31,6 +34,7 @@ afterEach(() => {
 async function fileServer() {
   const dataDir = tempDir();
   const t = createTestServer();
+  servers.push(t);
   t.ctx.db.close();
   const db = openDatabase(join(dataDir, "stint.db"));
   migrate(db, migrations);

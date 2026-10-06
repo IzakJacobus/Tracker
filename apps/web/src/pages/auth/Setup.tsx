@@ -68,6 +68,11 @@ export function Setup({ fromServerPc }: { fromServerPc: boolean }) {
       // The session cookie is set now; refresh() happens at the end so the wizard stays open.
       setStep("work");
     } catch (err) {
+      if (err instanceof ApiError && err.status === 409) {
+        // Someone finished setup elsewhere (another tab, or the server was restored): go to sign-in.
+        await refresh();
+        return;
+      }
       if (err instanceof ApiError && Object.keys(err.fields).length) {
         const f: Record<string, string> = {};
         for (const [k, v] of Object.entries(err.fields)) f[k.replace(/^admin\./, "")] = v;

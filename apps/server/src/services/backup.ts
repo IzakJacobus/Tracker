@@ -6,7 +6,7 @@ import { localDate, localTime } from "@stint/shared";
 import type { AppContext } from "../context.ts";
 import { migrate } from "../db/migrate.ts";
 import { migrations } from "../db/migrations/index.ts";
-import { openDatabase } from "../db/open.ts";
+import { closeDatabase, openDatabase } from "../db/open.ts";
 import { getMeta, setMeta } from "../lib/meta.ts";
 import { invalidateAccessCache } from "./access.ts";
 import { getOrgSettings } from "./org.ts";
@@ -62,7 +62,7 @@ export function inspectDatabase(path: string): {
   } catch (e) {
     return { ok: false, error: `The file isn't a Stint database: ${(e as Error).message}` };
   } finally {
-    db?.close();
+    if (db) closeDatabase(db);
   }
 }
 
@@ -193,7 +193,7 @@ export function restoreBackup(ctx: AppContext, file: string): RestoreResult {
   const previousCa = getMeta(ctx.db, "tls_ca_cert");
 
   const swapIn = (source: string) => {
-    ctx.db.close();
+    closeDatabase(ctx.db);
     for (const suffix of ["-wal", "-shm"]) rmSync(`${dbPath}${suffix}`, { force: true });
     copyFileSync(source, dbPath);
     const db = openDatabase(dbPath);

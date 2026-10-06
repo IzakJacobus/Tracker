@@ -19,7 +19,7 @@
     "typecheck": "bun run --filter '*' typecheck && tsc -p e2e/tsconfig.json",
     "test": "bun run test:shared && bun run test:server && bun run test:web",
     "test:shared": "cd packages/shared && bun test",
-    "test:server": "cd apps/server && bun test",
+    "test:server": "cd apps/server && bun run test",
     "test:web": "cd apps/web && bun run test",
     "test:e2e": "bun run --filter '@stint/web' build && playwright test -c e2e/playwright.config.ts",
     "seed": "bun run --filter '@stint/server' seed",

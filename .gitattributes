@@ -1,0 +1,5 @@
+# LF everywhere (Biome checks it), so a Windows checkout with core.autocrlf=true still lints clean.
+* text=auto eol=lf
+# The NSIS installer scripts are Windows-only and use CRLF (see .editorconfig).
+*.nsi text eol=crlf
+*.nsh text eol=crlf

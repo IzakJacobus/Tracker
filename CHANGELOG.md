@@ -6,6 +6,20 @@ All notable changes to Stint are documented here. The format follows
 
 ## [Unreleased]
 
+### Fixed
+- Restoring a backup failed on a Windows server (the database file was still locked), and
+  putting the previous data back failed the same way. Restore now works on Windows.
+- Timesheets could be submitted for dates that don't exist (such as `2026-00-10`), which showed up
+  in Approvals as "1 – 31 undefined 2026". Dates are now checked against the calendar everywhere.
+- The setup wizard no longer gets stuck on "Stint is already set up" when setup was finished
+  elsewhere; it goes to the sign-in screen.
+- Time entries no longer accept tags that don't exist, or the same tag twice.
+- The weekly grid no longer reads `1:75` as 2:15; it asks again. The hint under the grid explains
+  that a whole number up to 12 is hours and anything larger is minutes.
+- The server tests now pass on Windows (open database files blocked clean-up), and a Windows
+  checkout no longer fails lint because of line endings (`.gitattributes`).
+- The README's demo-data command put the data in the wrong folder.
+
 ## [0.1.0] - 2026-10-02
 
 First release. Self-hosted time tracking for small firms: one office computer runs Stint Server

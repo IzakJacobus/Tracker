@@ -73,11 +73,16 @@ export function migrate(
   const insert = db.prepare(
     "INSERT INTO schema_migrations (version, name, checksum, applied_at) VALUES (?, ?, ?, ?)",
   );
-  for (const m of pending) {
-    db.transaction(() => {
-      db.run(m.sql);
-      insert.run(m.version, m.name, checksum(m.sql), Date.now());
-    })();
+  try {
+    for (const m of pending) {
+      db.transaction(() => {
+        db.run(m.sql);
+        insert.run(m.version, m.name, checksum(m.sql), Date.now());
+      })();
+    }
+  } finally {
+    // An unfinalized statement stops db.close(true) from releasing the file (restore needs that).
+    insert.finalize();
   }
   return { applied: pending.map((m) => m.version), current: sorted.length };
 }

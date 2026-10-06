@@ -87,6 +87,15 @@ export function formatIsoDate(y: number, m: number, d: number): string {
   return `${pad(y, 4)}-${pad(m)}-${pad(d)}`;
 }
 
+/** A YYYY-MM-DD date that exists on the calendar, in the years Stint accepts (2000–2099). */
+export function isValidIsoDate(date: string): boolean {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) return false;
+  const { y, m, d } = parseIsoDate(date);
+  if (y < 2000 || y > 2099) return false;
+  const t = new Date(Date.UTC(y, m - 1, d));
+  return t.getUTCMonth() === m - 1 && t.getUTCDate() === d;
+}
+
 /** Calendar arithmetic on local dates (timezone-independent). */
 export function addDays(date: string, days: number): string {
   const { y, m, d } = parseIsoDate(date);
@@ -204,9 +213,16 @@ export function parseDurationInput(input: string): number | null {
   const s = input.trim().toLowerCase().replace(",", ".");
   if (s === "") return null;
   let m = /^(\d{1,2}):(\d{1,2})(?::(\d{1,2}))?$/.exec(s);
-  if (m) return Number(m[1]) * 3600 + Number(m[2]) * 60 + Number(m[3] ?? 0);
+  if (m) {
+    // "1:75" is a typo, not 2:15.
+    if (Number(m[2]) > 59 || Number(m[3] ?? 0) > 59) return null;
+    return Number(m[1]) * 3600 + Number(m[2]) * 60 + Number(m[3] ?? 0);
+  }
   m = /^(\d+(?:\.\d+)?)\s*h(?:\s*(\d+)\s*(?:m|min)?)?$/.exec(s);
-  if (m) return Math.round(Number(m[1]) * 3600) + Number(m[2] ?? 0) * 60;
+  if (m) {
+    if (Number(m[2] ?? 0) > 59) return null;
+    return Math.round(Number(m[1]) * 3600) + Number(m[2] ?? 0) * 60;
+  }
   m = /^(\d+)\s*m(?:in)?$/.exec(s);
   if (m) return Number(m[1]) * 60;
   m = /^(\d+(?:\.\d+)?)$/.exec(s);

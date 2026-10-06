@@ -95,6 +95,16 @@ describe("timesheet workflow", () => {
     expect((await w.addEntry(w.alice.agent, "2026-10-01")).result.status).toBe("accepted");
   });
 
+  test("dates that don't exist are refused instead of creating a junk period", async () => {
+    const w = await world();
+    for (const date of ["2026-00-10", "2026-02-31", "2026-13-01", "0000-01-01"]) {
+      const r = await w.s.json("POST", "/api/timesheets/submit", { as: w.alice.agent, body: { date } });
+      expect(r.status).toBe(422);
+    }
+    const sheets = await w.s.json<Timesheet[]>("GET", "/api/timesheets", { as: w.admin });
+    expect(sheets.body).toEqual([]);
+  });
+
   test("reject sends it back with a comment and unlocks it for changes", async () => {
     const w = await world();
     const { id } = await w.addEntry(w.alice.agent, "2026-09-10");

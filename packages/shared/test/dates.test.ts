@@ -5,6 +5,7 @@ import {
   endOfMonth,
   formatDate,
   formatDuration,
+  isValidIsoDate,
   localDate,
   parseDurationInput,
   parseTimeInput,
@@ -56,6 +57,23 @@ describe("calendar arithmetic", () => {
     expect(periodFor("2026-09-30", "month", 1)).toEqual({ start: "2026-09-01", end: "2026-09-30" });
     expect(periodFor("2026-09-30", "week", 1)).toEqual({ start: "2026-09-28", end: "2026-10-04" });
   });
+  test("only real calendar dates are valid", () => {
+    for (const ok of ["2026-09-30", "2028-02-29", "2000-01-01", "2099-12-31"]) {
+      expect(isValidIsoDate(ok)).toBe(true);
+    }
+    for (const bad of [
+      "2026-02-29",
+      "2026-02-31",
+      "2026-00-10",
+      "2026-13-01",
+      "2026-09-00",
+      "0000-01-01",
+      "2026-9-1",
+      "x",
+    ]) {
+      expect(isValidIsoDate(bad)).toBe(false);
+    }
+  });
 });
 
 describe("formatting and parsing", () => {
@@ -85,6 +103,12 @@ describe("formatting and parsing", () => {
   test("rejects nonsense durations", () => {
     expect(parseDurationInput("abc")).toBeNull();
     expect(parseDurationInput("")).toBeNull();
+  });
+  test("rejects minutes or seconds past 59 instead of rolling them over", () => {
+    expect(parseDurationInput("1:75")).toBeNull();
+    expect(parseDurationInput("1:30:60")).toBeNull();
+    expect(parseDurationInput("1h 75m")).toBeNull();
+    expect(parseDurationInput("1:59")).toBe(7140);
   });
   test.each([
     ["9", "09:00"],

@@ -405,6 +405,42 @@ describe("sync push: favourites and tags", () => {
     expect(steal.results[0]!.row).toBeNull();
   });
 
+  test("entries only take tags that exist, each once; a tag deleted later doesn't block edits", async () => {
+    const w = await world();
+    const tagId = uuidv7();
+    const tag = (patch: Record<string, unknown>, op = "create") => ({
+      changeId: `c${++seq}`,
+      table: "tags",
+      id: tagId,
+      op,
+      patch,
+      hlc: hlc(w.s.clock.now),
+    });
+    await w.pushAs(w.admin, [tag({ name: "Overtime" })]);
+    const base = { projectId: w.project.id, startedAt: w.startedAt, durationS: 600 };
+    const tagged = uuidv7();
+    const r = await w.pushAs(w.alice.agent, [
+      w.entry(tagged, { ...base, tagIds: [tagId] }, w.now),
+      w.entry(uuidv7(), { ...base, tagIds: [uuidv7()] }, w.now),
+      w.entry(uuidv7(), { ...base, tagIds: [tagId, tagId] }, w.now),
+    ]);
+    expect(r.results.map((x) => x.status)).toEqual(["accepted", "rejected", "rejected"]);
+    expect(r.results[1]!.message).toBe("That tag no longer exists.");
+
+    w.s.clock.advance(1000);
+    await w.pushAs(w.admin, [tag({}, "delete")]);
+    w.s.clock.advance(1000);
+    const edit = await w.pushAs(w.alice.agent, [
+      w.entry(tagged, { description: "Still editable" }, w.s.clock.now, "update"),
+    ]);
+    expect(edit.results[0]!.status).toBe("accepted");
+    w.s.clock.advance(1000);
+    const readd = await w.pushAs(w.alice.agent, [
+      w.entry(tagged, { tagIds: [tagId, uuidv7()] }, w.s.clock.now, "update"),
+    ]);
+    expect(readd.results[0]!.status).toBe("rejected");
+  });
+
   test("anyone can create a tag offline; duplicates are rejected", async () => {
     const w = await world();
     const r = await w.pushAs(w.alice.agent, [

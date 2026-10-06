@@ -185,7 +185,7 @@ with nothing exposed to the internet. Its free plan covers up to 6 users. Step-b
 
 ## For developers
 
-You need [Bun](https://bun.sh) 1.3 or later. Building the desktop app also needs Rust and the
+You need [Bun](https://bun.sh) 1.4.2 or later. Building the desktop app also needs Rust and the
 [Tauri prerequisites](https://tauri.app/start/prerequisites/).
 
 ```bash
@@ -194,7 +194,7 @@ bun run check                       # lint, type-check, unit and integration tes
 bun run test:e2e                    # Playwright end-to-end tests (builds the web client)
 
 # A demo firm (Karoo Consulting Engineers, 5 people, 3 months of time):
-STINT_DATA_DIR=./apps/server/data bun run seed -- --reset     # password: stint demo 2026
+bun run seed -- --reset             # into apps/server/data; password: stint demo 2026
 bun run --filter @stint/web build
 STINT_DATA_DIR=./apps/server/data STINT_WEB_DIR=./apps/web/dist bun apps/server/src/main.ts
 # → http://localhost:47601  (sign in as thandi@karoo.co.za)

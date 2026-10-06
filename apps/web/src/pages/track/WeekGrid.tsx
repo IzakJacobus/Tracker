@@ -226,8 +226,9 @@ export function WeekGrid({ days, entries }: { days: string[]; entries: TimeEntry
         </table>
       </div>
       <p className="subtle grid-hint">
-        Type hours into any cell — <kbd>1:30</kbd>, <kbd>1.5</kbd> or <kbd>90m</kbd>. <kbd>Enter</kbd> moves
-        down, arrow keys move around. Your favourite projects always have a row.
+        Type hours into any cell — <kbd>1:30</kbd>, <kbd>1.5</kbd> or <kbd>90m</kbd>. A whole number up to 12
+        is hours (<kbd>8</kbd>); above that it is minutes (<kbd>45</kbd>). <kbd>Enter</kbd> moves down, arrow
+        keys move around. Your favourite projects always have a row.
       </p>
     </div>
   );
