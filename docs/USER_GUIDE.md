@@ -29,7 +29,7 @@ typing in a box).
 1. **Worked on**: choose the project, then the item you worked on. Projects are broken down into
    items (phases, tasks, work packages…, whatever your firm uses); click an item to go a level
    deeper, and **Back** to go up. Hours go on the lowest level. You can also type to search by
-   name or project code. Your favourites (☆) and recent items are at the top.
+   name or by the project's code. Your favourites (☆) and recent items are at the top.
 2. **Date**: the day you did the work.
 3. **Hours**: type `1.5`, `1:30` or `90m`. A whole number up to 12 is hours (`8`); above
    that it is minutes (`45`).

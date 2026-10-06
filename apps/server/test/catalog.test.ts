@@ -21,7 +21,7 @@ async function world() {
   const root = (
     await s.json<Project>("POST", "/api/projects", {
       as: admin,
-      body: { clientId: client.id, name: "Paarl bridge" },
+      body: { clientId: client.id, name: "Paarl bridge", code: "2026-014" },
     })
   ).body;
   const sub = (
@@ -78,7 +78,7 @@ describe("projects", () => {
     const internal = clients.body.find((c) => c.isInternal)!;
     const p = await s.json<Project>("POST", "/api/projects", {
       as: admin,
-      body: { clientId: internal.id, name: "ISO 9001" },
+      body: { clientId: internal.id, name: "ISO 9001", code: "INT-ISO" },
     });
     expect(p.body.visibility).toBe("everyone");
   });
@@ -98,6 +98,11 @@ describe("projects", () => {
       body: { parentId: root.id },
     });
     expect(moved.body.parentId).toBe(root.id);
+    // Promoting an item to a top-level project needs a code first.
+    expect(
+      (await s.json("POST", `/api/projects/${wp.id}/move`, { as: admin, body: { parentId: null } })).status,
+    ).toBe(422);
+    await s.json("PATCH", `/api/projects/${wp.id}`, { as: admin, body: { code: "WP-1" } });
     const toTop = await s.json<Project>("POST", `/api/projects/${wp.id}/move`, {
       as: admin,
       body: { parentId: null },

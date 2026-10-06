@@ -16,7 +16,7 @@ async function world() {
   const project = (
     await s.json<Project>("POST", "/api/projects", {
       as: admin,
-      body: { clientId: client.id, name: "Bridge" },
+      body: { clientId: client.id, name: "Bridge", code: "B-1" },
     })
   ).body;
   for (const u of [alice, bob, mgr])

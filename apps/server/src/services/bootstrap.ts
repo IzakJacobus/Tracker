@@ -5,13 +5,24 @@ import { insertRow, nextSeq, TABLES } from "../db/tables.ts";
 import { audit } from "../lib/audit.ts";
 
 /** Internal work every consulting firm has. Visible to everyone. */
-export const INTERNAL_PROJECTS: { name: string; color: string; tasks: string[] }[] = [
-  { name: "Administration", color: "#64748b", tasks: ["Timesheets & admin", "Meetings", "IT & equipment"] },
-  { name: "Business development", color: "#b7791f", tasks: ["Proposals", "Client meetings", "Marketing"] },
-  { name: "Training", color: "#6d5bd0", tasks: ["Courses", "Conferences", "CPD"] },
-  { name: "Research & development", color: "#0f766e", tasks: [] },
+export const INTERNAL_PROJECTS: { name: string; code: string; color: string; tasks: string[] }[] = [
+  {
+    name: "Administration",
+    code: "INT-ADM",
+    color: "#64748b",
+    tasks: ["Timesheets & admin", "Meetings", "IT & equipment"],
+  },
+  {
+    name: "Business development",
+    code: "INT-BD",
+    color: "#b7791f",
+    tasks: ["Proposals", "Client meetings", "Marketing"],
+  },
+  { name: "Training", code: "INT-TRN", color: "#6d5bd0", tasks: ["Courses", "Conferences", "CPD"] },
+  { name: "Research & development", code: "INT-RD", color: "#0f766e", tasks: [] },
   {
     name: "Leave",
+    code: "INT-LV",
     color: "#9ca3af",
     tasks: ["Annual leave", "Sick leave", "Family responsibility", "Public holiday"],
   },
@@ -83,7 +94,7 @@ export function createInternalClient(db: Database, now: number): string {
       clientId,
       parentId: null,
       name: p.name,
-      code: null,
+      code: p.code,
       kind: null,
       color: p.color,
       rate: null,

@@ -12,6 +12,13 @@ All notable changes to Stint are documented here. The format follows
 - A backup is made automatically before the database is upgraded.
 
 ### Changed
+- **Every project has a code.** A required reference of the firm's own choosing, up to 40
+  characters (`2026-014`, `BRG/07`, `A12`…), unique for each client (ignoring case). The New
+  project form suggests the next code in the client's own pattern (`2026-014` → `2026-015`).
+  Items under a project may have a code too. The built-in Internal projects start with codes
+  (`INT-ADM`…); projects from 0.1 without one show a "Code missing" badge, and need a code the
+  next time they are edited. Codes are shown first in the project tree, the pickers, reports and
+  exports.
 - **One flexible project tree.** Under a project you add items, and items under items, as deep as
   you need. Each item gets a type your firm chooses (Phase, Task, Work package, …); it is only a
   name, so every firm can organise work its own way. Tasks are now items: upgrading turns every

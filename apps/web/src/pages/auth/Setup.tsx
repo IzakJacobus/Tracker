@@ -258,6 +258,7 @@ export function Setup({ fromServerPc }: { fromServerPc: boolean }) {
 function FirstWorkStep({ onNext }: { onNext: () => void }) {
   const [client, setClient] = useState("");
   const [project, setProject] = useState("");
+  const [code, setCode] = useState(`${new Date().getFullYear()}-001`);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -267,11 +268,15 @@ function FirstWorkStep({ onNext }: { onNext: () => void }) {
       onNext();
       return;
     }
+    if (!code.trim()) {
+      setError("Give the project a code, for example 2026-001.");
+      return;
+    }
     setBusy(true);
     setError(null);
     try {
       const c = await api.post<{ id: string }>("/clients", { name: client.trim() });
-      await api.post("/projects", { clientId: c.id, name: project.trim() });
+      await api.post("/projects", { clientId: c.id, name: project.trim(), code: code.trim() });
       onNext();
     } catch (err) {
       setError(errorMessage(err));
@@ -284,12 +289,12 @@ function FirstWorkStep({ onNext }: { onNext: () => void }) {
     <form className="stack" onSubmit={save}>
       <h1>Your first client and project</h1>
       <p className="muted">
-        Clients are the companies you bill. Projects belong to a client and can have sub-projects. Your firm's
-        own work (admin, training, leave…) is already set up under the built-in <strong>Internal</strong>{" "}
-        client.
+        Clients are the companies you do work for. Each project belongs to a client and has a code of your own
+        choosing; under a project you add items, as many levels deep as you need. Your firm's own work (admin,
+        training, leave…) is already set up under the built-in <strong>Internal</strong> client.
       </p>
       {error && <Alert tone="danger">{error}</Alert>}
-      <div className="grid-2">
+      <div className="grid-3">
         <Field label="Client">
           <Input
             value={client}
@@ -303,6 +308,14 @@ function FirstWorkStep({ onNext }: { onNext: () => void }) {
             value={project}
             onChange={(e) => setProject(e.target.value)}
             placeholder="e.g. Paarl bridge upgrade"
+          />
+        </Field>
+        <Field label="Project code" hint="Your own numbering">
+          <Input
+            value={code}
+            onChange={(e) => setCode(e.target.value)}
+            placeholder="e.g. 2026-001"
+            maxLength={40}
           />
         </Field>
       </div>

@@ -1,4 +1,4 @@
-import type { Project, ProjectMember, User } from "@stint/shared";
+import { type Project, type ProjectMember, suggestNextCode, type User } from "@stint/shared";
 import { CheckCircle2, ChevronRight, Plus, RotateCcw, Trash2 } from "lucide-react";
 import { type FormEvent, useCallback, useEffect, useMemo, useState } from "react";
 import { useMe } from "../../app/session.tsx";
@@ -54,7 +54,7 @@ function KindList({ id }: { id: string }) {
 /** Select value meaning "create a new client together with this project". */
 const NEW_CLIENT = "__new_client__";
 /** Fields the details form shows errors next to. */
-const SHOWN_FIELDS = new Set(["name", "clientId", "newClient"]);
+const SHOWN_FIELDS = new Set(["name", "clientId", "newClient", "code"]);
 
 export function ProjectDialog(
   props:
@@ -129,10 +129,21 @@ function DetailsForm({
   );
 
   const isItem = Boolean(parent ?? project?.parentId);
+  // The next code in the pattern the client already uses (2026-014 → 2026-015).
+  const suggestFor = useCallback(
+    (cid: string) =>
+      suggestNextCode(
+        projects.filter((p) => p.clientId === cid && !p.deletedAt).map((p) => p.code),
+        `${new Date().getFullYear()}-001`,
+      ),
+    [projects],
+  );
+  const needsSuggestion = !isItem && !project?.code;
+  const [codeTouched, setCodeTouched] = useState(false);
   const [f, setF] = useState({
     clientId: project?.clientId ?? defaultClient,
     name: project?.name ?? "",
-    code: project?.code ?? "",
+    code: project?.code ?? (needsSuggestion && defaultClient ? suggestFor(defaultClient) : ""),
     kind: project?.kind ?? "",
     color: project?.color ?? parent?.color ?? COLORS[projects.length % COLORS.length]!,
     visibility: project?.visibility ?? (clientIsInternal(defaultClient) ? "everyone" : "members"),
@@ -145,6 +156,13 @@ function DetailsForm({
   const [newClient, setNewClient] = useState("");
   const canAddClient = me.user.role === "admin";
   const creatingClient = f.clientId === NEW_CLIENT;
+
+  // Until the person types their own code, keep the suggestion in step with the chosen client.
+  useEffect(() => {
+    if (!needsSuggestion || codeTouched || !f.clientId) return;
+    const next = f.clientId === NEW_CLIENT ? suggestFor("") : suggestFor(f.clientId);
+    setF((cur) => (cur.code === next ? cur : { ...cur, code: next }));
+  }, [needsSuggestion, codeTouched, f.clientId, suggestFor]);
 
   // The client list loads a moment after the form opens: pick the default client then, rather
   // than submitting an empty one (which the server rejects).
@@ -165,6 +183,10 @@ function DetailsForm({
 
   async function submit(e: FormEvent) {
     e.preventDefault();
+    if (!isItem && !f.code.trim()) {
+      setFields({ code: "Give the project a code, for example 2026-014." });
+      return;
+    }
     setBusy(true);
     setError(null);
     setFields({});
@@ -269,11 +291,26 @@ function DetailsForm({
             maxLength={40}
           />
         </Field>
-        <Field label="Code" hint="Optional short reference, e.g. a job number.">
+        <Field
+          label={isItem ? "Code" : "Project code"}
+          error={fields.code}
+          hint={
+            isItem
+              ? "Optional. Must be unique for this client."
+              : project && !project.code
+                ? "This project has no code yet. Every project needs one, unique for its client."
+                : "Your own reference, e.g. 2026-014. Unique for this client; use any numbering you like."
+          }
+        >
           <Input
             value={f.code}
-            onChange={(e) => setF({ ...f, code: e.target.value })}
+            onChange={(e) => {
+              setCodeTouched(true);
+              setF({ ...f, code: e.target.value });
+            }}
             placeholder="e.g. 2026-014"
+            maxLength={40}
+            required={!isItem}
           />
         </Field>
         {!isItem && (

@@ -66,13 +66,13 @@ describe("sync pull", () => {
     const secret = (
       await s.json<Project>("POST", "/api/projects", {
         as: admin,
-        body: { clientId: client.id, name: "Secret" },
+        body: { clientId: client.id, name: "Secret", code: "S-1" },
       })
     ).body;
     const mine = (
       await s.json<Project>("POST", "/api/projects", {
         as: admin,
-        body: { clientId: client.id, name: "Mine" },
+        body: { clientId: client.id, name: "Mine", code: "M-1" },
       })
     ).body;
     await s.json("PUT", `/api/projects/${mine.id}/members/${alice.id}`, { as: admin, body: {} });
@@ -96,7 +96,10 @@ describe("sync pull", () => {
     const alice = await s.createUser(admin, { email: "alice@example.com", name: "Alice" });
     const client = (await s.json<Client>("POST", "/api/clients", { as: admin, body: { name: "Acme" } })).body;
     const p = (
-      await s.json<Project>("POST", "/api/projects", { as: admin, body: { clientId: client.id, name: "P" } })
+      await s.json<Project>("POST", "/api/projects", {
+        as: admin,
+        body: { clientId: client.id, name: "P", code: "P-1" },
+      })
     ).body;
     const before = (await s.json<Pull>("GET", "/api/sync/pull?since=0", { as: alice.agent })).body.epoch;
     await s.json("PUT", `/api/projects/${p.id}/members/${alice.id}`, { as: admin, body: {} });
@@ -112,8 +115,12 @@ describe("sync pull", () => {
     const bob = await s.createUser(admin, { email: "bob@example.com", name: "Bob" });
     const client = (await s.json<Client>("POST", "/api/clients", { as: admin, body: { name: "Acme" } })).body;
     const mk = async (name: string) =>
-      (await s.json<Project>("POST", "/api/projects", { as: admin, body: { clientId: client.id, name } }))
-        .body;
+      (
+        await s.json<Project>("POST", "/api/projects", {
+          as: admin,
+          body: { clientId: client.id, name, code: name },
+        })
+      ).body;
     const alicesProject = await mk("Alice's project");
     const bobsProject = await mk("Bob's project");
     await s.json("PUT", `/api/projects/${bobsProject.id}/members/${bob.id}`, { as: admin, body: {} });
@@ -141,8 +148,12 @@ describe("sync pull", () => {
     const bob = await s.createUser(admin, { email: "bob@example.com", name: "Bob" });
     const client = (await s.json<Client>("POST", "/api/clients", { as: admin, body: { name: "Acme" } })).body;
     const make = async (body: Record<string, unknown>) =>
-      (await s.json<Project>("POST", "/api/projects", { as: admin, body: { clientId: client.id, ...body } }))
-        .body;
+      (
+        await s.json<Project>("POST", "/api/projects", {
+          as: admin,
+          body: { clientId: client.id, code: String(body.name), ...body },
+        })
+      ).body;
     const secret = await make({ name: "Secret" });
     const sub = await make({ name: "Secret sub", parentId: secret.id });
     await make({ name: "Secret task", parentId: sub.id, kind: "Task" });

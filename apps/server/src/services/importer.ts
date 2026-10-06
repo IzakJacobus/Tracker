@@ -7,6 +7,7 @@ import {
   localDate,
   type Project,
   readImportCsv,
+  suggestNextCode,
   type User,
   uuidv7,
 } from "@stint/shared";
@@ -141,7 +142,14 @@ export function importEntries(db: Database, opts: ImportOptions): ImportSummary 
             clientId: client.id,
             parentId,
             name: name.slice(0, 200),
-            code: null,
+            // A new top-level project gets the next code in the client's own pattern.
+            code:
+              depth === 0
+                ? suggestNextCode(
+                    projects.filter((x) => x.clientId === client.id).map((x) => x.code),
+                    "P-001",
+                  )
+                : null,
             kind: depth === names.length - 1 ? lastKind : null,
             color: parent?.color ?? PROJECT_COLORS[projects.length % PROJECT_COLORS.length],
             budgetMinutes: null,
