@@ -50,8 +50,13 @@ describe("CSV import", () => {
     expect(r.body.errors.map((e) => e.line)).toEqual([4, 5]);
     expect(r.body.created).toEqual({
       clients: ["Drakenstein"],
-      projects: ["Drakenstein › Paarl bridge upgrade", "Internal › Admin"],
-      tasks: ["Paarl bridge upgrade › Site visit"],
+      // A task column becomes one more level of items (0.2).
+      projects: [
+        "Drakenstein › Paarl bridge upgrade",
+        "Drakenstein › Paarl bridge upgrade › Site visit",
+        "Internal › Admin",
+      ],
+      tasks: [],
       tags: ["site", "travel"],
     });
     expect(t.ctx.db.query("SELECT 1 FROM time_entries").get()).toBeNull();

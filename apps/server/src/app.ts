@@ -11,7 +11,7 @@ import { orgRoutes } from "./routes/org.ts";
 import { projectRoutes } from "./routes/projects.ts";
 import { syncRoutes } from "./routes/sync.ts";
 import { systemRoutes } from "./routes/system.ts";
-import { tagRoutes, taskRoutes } from "./routes/tasks.ts";
+import { tagRoutes } from "./routes/tags.ts";
 import { timesheetRoutes } from "./routes/timesheets.ts";
 import { userRoutes } from "./routes/users.ts";
 
@@ -37,7 +37,6 @@ export function createApp(ctx: AppContext) {
   api.route("/connect", connectRoutes(ctx));
   api.route("/clients", clientRoutes(ctx));
   api.route("/projects", projectRoutes(ctx));
-  api.route("/tasks", taskRoutes(ctx));
   api.route("/tags", tagRoutes(ctx));
   api.route("/sync", syncRoutes(ctx));
   api.route("/timesheets", timesheetRoutes(ctx));

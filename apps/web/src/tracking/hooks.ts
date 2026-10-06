@@ -38,18 +38,6 @@ export function useMyEntries(from: string, to: string): TimeEntry[] {
   );
 }
 
-export function useRunningEntry(): TimeEntry | undefined {
-  const { db } = useData();
-  const me = useMe();
-  return useLiveQuery(
-    async () =>
-      (await db.timeEntries.where("userId").equals(me.user.id).toArray())
-        .filter((e) => e.durationS === null)
-        .sort((a, b) => b.startedAt - a.startedAt)[0],
-    [db, me.user.id],
-  );
-}
-
 /** Submitted or approved periods lock the person's time. */
 export function useLocks(): (date: string) => Timesheet | undefined {
   const { db } = useData();

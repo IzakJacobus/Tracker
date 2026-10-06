@@ -54,7 +54,7 @@ first time they sign in.
 | Role | Can |
 | --- | --- |
 | **Member** | Track their own time, see their own reports, and submit timesheets. They see rates and amounts only if *Members see their own rates* is on. |
-| **Manager** | Everything a member can. They also see the time of people they line-manage, approve or send back those people's timesheets, and manage projects where they are a project manager (tasks, members and sub-projects). |
+| **Manager** | Everything a member can. They also see the time of people they line-manage, approve or send back those people's timesheets, and manage projects where they are a project manager (items and members). |
 | **Admin** | Everything: people, clients, all projects, settings, backups, unlocking timesheets, re-rating, import and the audit log. |
 
 Every rule is enforced by the server, not only hidden in the screens.
@@ -66,35 +66,39 @@ Every rule is enforced by the server, not only hidden in the screens.
 - **Line manager:** the person who approves their timesheets. Changing it updates what the old
   and new managers see.
 
-## 4. Clients, projects, tasks
+## 4. Clients, projects and items
 
-- **Clients** have an optional default rate. The built-in *Internal* client can't be archived.
-- **Projects** can be nested as deep as you like: *Paarl bridge upgrade › Detailed design ›
-  WP1 Structural*. Drag a project in the tree to move it, or use *Move to…* from the keyboard.
-  Totals and budgets roll up through the tree.
+- **Clients** are the companies you do work for. The built-in *Internal* client (admin, training,
+  leave…) can't be archived.
+- **Projects** belong to a client. Under a project you add **items**, and items under items, as
+  deep as you need: *Paarl bridge upgrade › Detailed design › WP1 Structural › Pier design*. Give
+  each item a **type** your firm uses (Phase, Task, Work package, …). It's only a name, so every
+  firm can organise its work its own way; types you've used are suggested next time.
+- **Hours go on the lowest level.** An item with items under it can't take hours itself, so
+  people drill down to what they actually worked on. A project with no items takes hours
+  directly. Totals and budgets roll up through the tree.
+- **Drag** an item in the tree to move it, or use *Move to…* from the keyboard. Everything under
+  it, and its hours, move with it.
 - **Visibility:** a project is either for its *members* (the default for client work) or for
-  *everyone* (the default for internal work). Membership carries down to sub-projects: someone
-  added to *Paarl bridge upgrade* can track on all of its sub-projects. A manager can also see
-  the projects their team works on, but can't track on them.
-- **Project managers** (a role on one project) can add tasks, sub-projects and members to that
-  project.
-- **Tasks** sit under a project (for example *Site visit* or *Drawings & modelling*) and can
-  have their own rate and billable setting.
-- **Budgets:** hours and/or an amount per project. The project page and the reports warn at
-  80 % and 100 %.
-- **Archive** projects and clients that are finished. They disappear from the pickers but stay
-  in reports.
+  *everyone* (the default for internal work). Membership carries down to every item: someone
+  added to *Paarl bridge upgrade* can log hours on all of its items. A manager can also see the
+  projects their team works on, but can't log hours on them.
+- **Project managers** (a role on one project) can add items and members to that project.
+- **Mark items done** when their work is finished (the item's ⋯ menu, or the *Items* tab). A done
+  item and everything under it disappear from the pickers but stay in reports; *Reopen* brings it
+  back. Finished projects and clients are **archived** the same way.
+- **Budgets:** hours and/or an amount on any project or item. The Projects page and the reports
+  warn at 80 % and 100 %.
 
 ### Rates
 
 When someone saves an entry, Stint picks the most specific rate that applies:
 
-1. the task's rate,
-2. the person's rate on that project (set on the project's *People* tab),
-3. the project's rate (or the nearest parent project's rate),
-4. the client's rate,
-5. the person's own rate,
-6. the firm's default rate (Settings → Organisation).
+1. the person's rate on that project (set on the project's *People* tab),
+2. the item's rate (or the nearest rate above it in the tree),
+3. the client's rate,
+4. the person's own rate,
+5. the firm's default rate (Settings → Organisation).
 
 That rate is **frozen on the entry**. Changing a rate later doesn't change past entries, so
 invoices you already sent stay correct. If you do want past entries repriced (a new rate was
@@ -170,7 +174,7 @@ it.
 1. In Toggl Track open **Reports → Detailed**, choose the date range and **Export → CSV**.
 2. In Stint open **Settings → Import** and choose the file.
 3. Click **Preview**. Nothing is saved yet. The preview shows how many entries will be
-   imported, what will be created (clients, projects, tasks, tags) and any problems, line by
+   imported, what will be created (clients, projects, items, tags) and any problems, line by
    line.
 4. If people in the file don't match anyone in Stint by email or name, choose who they are
    from the list, or add them on the Team page first.

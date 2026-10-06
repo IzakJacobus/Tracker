@@ -47,7 +47,7 @@ const NAV: NavItem[] = [
 
 const COLLAPSE_KEY = "stint.sidebar.collapsed";
 
-export function Shell({ dock, statusSlot }: { dock?: ReactNode; statusSlot?: ReactNode }) {
+export function Shell({ statusSlot }: { statusSlot?: ReactNode }) {
   const me = useMe();
   const [collapsed, setCollapsed] = useState(() => localStorage.getItem(COLLAPSE_KEY) === "1");
   const [drawer, setDrawer] = useState(false);
@@ -140,7 +140,6 @@ export function Shell({ dock, statusSlot }: { dock?: ReactNode; statusSlot?: Rea
       <main className="main" id="main" tabIndex={-1}>
         <Outlet />
       </main>
-      {dock}
     </div>
   );
 }

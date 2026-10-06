@@ -19,12 +19,11 @@ don't need the cloud, a subscription or an IT department.
 
 ## What it does
 
-**Tracking**
-- A timer that is always on screen, with the project picker, tags and billable switch beside it.
-  Press <kbd>S</kbd> anywhere to start or stop it.
-- Manual entries, duplicate and "continue", a spreadsheet-style **weekly grid** and a **day
-  calendar** where you drag to move or resize blocks.
-- Favourites and recent projects. A command palette (<kbd>Ctrl</kbd>+<kbd>K</kbd>) and keyboard
+**Logging hours**
+- **Log hours** (or press <kbd>N</kbd>): choose the project, drill down to the item you worked on,
+  type the hours (`1.5`, `1:30`, `90m`) and an optional note.
+- A spreadsheet-style **weekly grid** to fill in a whole week, plus duplicate and "log more".
+- Favourites and recent items. A command palette (<kbd>Ctrl</kbd>+<kbd>K</kbd>) and keyboard
   shortcuts for everything (<kbd>?</kbd> lists them).
 - **Works offline.** Everything is saved on your own computer first and syncs when the server
   is reachable. A status pill shows *Synced*, *Pending* or *Offline*.
@@ -33,10 +32,12 @@ don't need the cloud, a subscription or an IT department.
 **Organising work**
 - Clients, plus a built-in *Internal* client for admin, training, business development and
   leave.
-- Projects nested to any depth (*Bridge upgrade › Detailed design › WP1*), with totals that roll
-  up and a drag-and-drop tree editor.
-- Tasks and tags. Budgets in hours or rand, with warnings at 80 % and 100 %.
-- Rates per task, per person on a project, per project, per client, per person or for the whole
+- Projects broken down into **items**, nested as deep as you like (*Bridge upgrade › Detailed
+  design › WP1*), each with a type your firm chooses (Phase, Task, Work package…). Totals roll up,
+  and a drag-and-drop tree editor keeps it tidy.
+- Mark items **done** when finished: they can't take new hours but stay in reports.
+- Tags. Budgets in hours or rand, with warnings at 80 % and 100 %.
+- Rates per person on a project, per project or item, per client, per person or for the whole
   firm; the most specific one wins. The rate is frozen on each entry, so changing a rate never
   rewrites past invoices. A re-rate tool exists for when you really do want to reprice.
 

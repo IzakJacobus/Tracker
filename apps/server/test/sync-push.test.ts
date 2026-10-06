@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { type Client, formatHlc, type Project, type Task, type TimeEntry, uuidv7 } from "@stint/shared";
+import { type Client, formatHlc, type Project, type TimeEntry, uuidv7 } from "@stint/shared";
 import { type Agent, createTestServer } from "./helpers.ts";
 
 interface PushResult {
@@ -34,12 +34,6 @@ async function world() {
       body: { clientId: client.id, name: "Secret" },
     })
   ).body;
-  const task = (
-    await s.json<Task>("POST", "/api/tasks", {
-      as: admin,
-      body: { projectId: project.id, name: "Site visit", rate: 120000 },
-    })
-  ).body;
   await s.json("PUT", `/api/projects/${project.id}/members/${alice.id}`, { as: admin, body: {} });
   await s.json("PUT", `/api/projects/${project.id}/members/${bob.id}`, { as: admin, body: {} });
 
@@ -60,7 +54,10 @@ async function world() {
   });
   const now = s.clock.now;
   const startedAt = Date.UTC(2026, 8, 29, 7, 0); // 09:00 in Johannesburg, 29 Sept
-  return { s, admin, alice, bob, client, project, other, task, pushAs, entry, now, startedAt };
+  /** An item under `parentId`, created as admin. */
+  const item = async (parentId: string, name: string, extra: Record<string, unknown> = {}) =>
+    (await s.json<Project>("POST", "/api/projects", { as: admin, body: { parentId, name, ...extra } })).body;
+  return { s, admin, alice, bob, client, project, other, item, pushAs, entry, now, startedAt };
 }
 
 function dbEntry(s: ReturnType<typeof createTestServer>, id: string) {
@@ -110,21 +107,26 @@ describe("sync push: time entries", () => {
     expect(dbEntry(w.s, id)!.entry_date).toBe("2026-09-30");
   });
 
-  test("task rate wins; changing the project re-snapshots; later rate changes don't rewrite history", async () => {
+  test("the item's own rate wins; changing the item re-snapshots; later rate changes don't rewrite history", async () => {
     const w = await world();
+    const survey = (
+      await w.s.json<Project>("POST", "/api/projects", {
+        as: w.admin,
+        body: { clientId: w.client.id, name: "Survey", rate: 100000 },
+      })
+    ).body;
+    await w.s.json("PUT", `/api/projects/${survey.id}/members/${w.alice.id}`, { as: w.admin, body: {} });
+    const site = await w.item(survey.id, "Site visit", { kind: "Task", rate: 120000 });
+    const office = await w.item(survey.id, "Office work", { kind: "Task" });
     const id = uuidv7();
     await w.pushAs(w.alice.agent, [
-      w.entry(
-        id,
-        { projectId: w.project.id, taskId: w.task.id, startedAt: w.startedAt, durationS: 60 },
-        w.now,
-      ),
+      w.entry(id, { projectId: site.id, startedAt: w.startedAt, durationS: 60 }, w.now),
     ]);
     expect(dbEntry(w.s, id)!.rate_snapshot).toBe(120000);
-    await w.s.json("PATCH", `/api/tasks/${w.task.id}`, { as: w.admin, body: { rate: 1 } });
+    await w.s.json("PATCH", `/api/projects/${site.id}`, { as: w.admin, body: { rate: 1 } });
     await w.pushAs(w.alice.agent, [w.entry(id, { description: "still 1200" }, w.now + 1000, "update")]);
     expect(dbEntry(w.s, id)!.rate_snapshot).toBe(120000);
-    await w.pushAs(w.alice.agent, [w.entry(id, { taskId: null }, w.now + 2000, "update")]);
+    await w.pushAs(w.alice.agent, [w.entry(id, { projectId: office.id }, w.now + 2000, "update")]);
     expect(dbEntry(w.s, id)!.rate_snapshot).toBe(100000);
   });
 
@@ -265,54 +267,65 @@ describe("sync push: time entries", () => {
     expect(mv.results[0]!.code).toBe("locked");
   });
 
-  test("starting a second timer on another device stops the first one", async () => {
+  test("there is no timer: an entry without hours is refused", async () => {
     const w = await world();
-    const a = uuidv7();
-    const b = uuidv7();
-    const t0 = w.now;
-    await w.pushAs(w.alice.agent, [
-      w.entry(
-        a,
-        { projectId: w.project.id, startedAt: t0, durationS: null, source: "timer" },
-        t0,
-        "create",
-        "laptop",
-      ),
-    ]);
-    await w.pushAs(w.alice.agent, [
-      w.entry(
-        b,
-        { projectId: w.project.id, startedAt: t0 + 25 * 60_000, durationS: null, source: "timer" },
-        t0 + 1,
-        "create",
-        "desktop",
-      ),
-    ]);
-    expect(dbEntry(w.s, a)!.duration_s).toBe(25 * 60);
-    expect(dbEntry(w.s, b)!.duration_s).toBeNull();
-    const reason = w.s.ctx.db
-      .query<{ reason: string }, [string]>(
-        "SELECT reason FROM audit_log WHERE entity_id = ? ORDER BY id DESC LIMIT 1",
-      )
-      .get(a)!.reason;
-    expect(reason).toContain("automatically");
-  });
-
-  test("validation: 24-hour cap and tasks must belong to the project", async () => {
-    const w = await world();
-    const otherTask = (
-      await w.s.json<Task>("POST", "/api/tasks", { as: w.admin, body: { projectId: w.other.id, name: "X" } })
-    ).body;
     const r = await w.pushAs(w.alice.agent, [
-      w.entry(uuidv7(), { projectId: w.project.id, startedAt: w.startedAt, durationS: 90_000 }, w.now),
       w.entry(
         uuidv7(),
-        { projectId: w.project.id, taskId: otherTask.id, startedAt: w.startedAt, durationS: 60 },
+        { projectId: w.project.id, startedAt: w.now, durationS: null, source: "timer" },
         w.now,
       ),
-      w.entry(uuidv7(), { startedAt: w.startedAt, durationS: 60 }, w.now),
     ]);
-    expect(r.results.map((x) => x.status)).toEqual(["rejected", "rejected", "rejected"]);
+    expect(r.results[0]).toMatchObject({ status: "rejected", message: "Enter the hours." });
+  });
+
+  test("validation: 24-hour cap, no tasks, and hours only on the lowest open item", async () => {
+    const w = await world();
+    const phase = await w.item(w.project.id, "Design", { kind: "Phase" });
+    const wp = await w.item(phase.id, "WP1", { kind: "Work package" });
+    const closed = await w.item(phase.id, "Concept", { kind: "Work package" });
+    const underClosed = await w.item(closed.id, "Sketches", { kind: "Task" });
+    await w.s.json("POST", `/api/projects/${closed.id}/archive`, { as: w.admin, body: {} });
+    const e = (projectId: string, extra: Record<string, unknown> = {}) =>
+      w.entry(uuidv7(), { projectId, startedAt: w.startedAt, durationS: 60, ...extra }, w.now);
+    const r = await w.pushAs(w.alice.agent, [
+      e(wp.id, { durationS: 90_000 }),
+      e(wp.id, { taskId: uuidv7() }),
+      w.entry(uuidv7(), { startedAt: w.startedAt, durationS: 60 }, w.now),
+      e(w.project.id),
+      e(phase.id),
+      e(closed.id),
+      e(underClosed.id),
+      e(wp.id),
+    ]);
+    expect(r.results.map((x) => x.status)).toEqual([
+      "rejected",
+      "rejected",
+      "rejected",
+      "rejected",
+      "rejected",
+      "rejected",
+      "rejected",
+      "accepted",
+    ]);
+    expect(r.results[3]!.message).toContain("hours go on the lowest level");
+    expect(r.results[5]!.message).toContain("marked done");
+    expect(r.results[6]!.message).toContain("marked done");
+  });
+
+  test("an older entry on an item that later got items under it stays editable, but can't move to a done item", async () => {
+    const w = await world();
+    const id = uuidv7();
+    await w.pushAs(w.alice.agent, [
+      w.entry(id, { projectId: w.project.id, startedAt: w.startedAt, durationS: 600 }, w.now),
+    ]);
+    const done = await w.item(w.project.id, "Finished part");
+    await w.s.json("POST", `/api/projects/${done.id}/archive`, { as: w.admin, body: {} });
+    const edit = await w.pushAs(w.alice.agent, [w.entry(id, { durationS: 900 }, w.now + 1000, "update")]);
+    expect(edit.results[0]!.status).toBe("accepted");
+    const move = await w.pushAs(w.alice.agent, [w.entry(id, { projectId: done.id }, w.now + 2000, "update")]);
+    expect(move.results[0]!.status).toBe("rejected");
+    expect(dbEntry(w.s, id)!.project_id).toBe(w.project.id);
   });
 
   test("one bad change in a batch doesn't block the good ones", async () => {

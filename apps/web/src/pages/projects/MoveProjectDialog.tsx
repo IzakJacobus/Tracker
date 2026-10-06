@@ -51,7 +51,7 @@ export function MoveProjectDialog({
         </>
       }
     >
-      <Field label="Put it under" hint="Its sub-projects, tasks and time move with it.">
+      <Field label="Put it under" hint="Everything under it, and its hours, move with it.">
         <Select value={target} onChange={(e) => setTarget(e.target.value)}>
           {clients
             .filter((c) => isAdmin || c.id === project.clientId)

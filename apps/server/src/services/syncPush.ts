@@ -6,7 +6,6 @@ import {
   canManageTags,
   canTrackOnProject,
   clampHlc,
-  formatHlc,
   Id,
   type IncomingChange,
   localDate,
@@ -15,17 +14,16 @@ import {
   type OrgSettings,
   resolveBillable,
   resolveRate,
-  resolveRunningTimers,
   SYNC_WRITABLE_FIELDS,
   type TimeEntry,
   type WritableSyncTable,
 } from "@stint/shared";
 import { z } from "zod";
-import { getFieldClock, getRow, insertRow, listRows, type Row, TABLES, updateRow } from "../db/tables.ts";
+import { getFieldClock, getRow, insertRow, type Row, TABLES, updateRow } from "../db/tables.ts";
 import { audit } from "../lib/audit.ts";
 import type { Logger } from "../lib/log.ts";
 import { accessContext } from "./access.ts";
-import { ancestorsNearestFirst, getClient, getProject, getTask } from "./catalog.ts";
+import { allProjects, ancestorsNearestFirst, getClient, getProject, getTask } from "./catalog.ts";
 import { getOrgSettings } from "./org.ts";
 import { entryVisible, shapeEntry } from "./shape.ts";
 import { getUser } from "./users.ts";
@@ -126,12 +124,8 @@ function validateEntry(p: PushCtx, e: TimeEntry): void {
   if (!canTrackOnProject(owner, e.projectId, ownerAccess)) {
     throw new Reject("forbidden", `You're not on the project “${project.name}”. Ask a manager to add you.`);
   }
-  if (e.taskId !== null) {
-    if (typeof e.taskId !== "string") throw new Reject("invalid", "Invalid task.");
-    const task = getTask(p.db, e.taskId);
-    if (!task || task.deletedAt || task.projectId !== e.projectId)
-      throw new Reject("invalid", "That task doesn't belong to the project.");
-  }
+  // Tasks became items in the project tree (0.2): time goes on the item itself.
+  if (e.taskId !== null) throw new Reject("invalid", "Choose the item in the project instead of a task.");
   if (
     typeof e.startedAt !== "number" ||
     !Number.isFinite(e.startedAt) ||
@@ -140,10 +134,8 @@ function validateEntry(p: PushCtx, e: TimeEntry): void {
   ) {
     throw new Reject("invalid", "The start time isn't valid.");
   }
-  if (
-    e.durationS !== null &&
-    (!Number.isInteger(e.durationS) || e.durationS < 0 || e.durationS > MAX_ENTRY_SECONDS)
-  ) {
+  if (e.durationS === null) throw new Reject("invalid", "Enter the hours.");
+  if (!Number.isInteger(e.durationS) || e.durationS < 0 || e.durationS > MAX_ENTRY_SECONDS) {
     throw new Reject("invalid", "An entry can be at most 24 hours long.");
   }
   if (typeof e.description !== "string" || e.description.length > 2000)
@@ -154,6 +146,35 @@ function validateEntry(p: PushCtx, e: TimeEntry): void {
   }
   if (!["timer", "manual", "grid", "import"].includes(e.source))
     throw new Reject("invalid", "Invalid source.");
+}
+
+/**
+ * Hours go on an item with nothing under it, which isn't done (archived), and isn't under a done
+ * item. Only checked when the item is newly chosen, so older entries stay editable.
+ */
+function checkLoggable(p: PushCtx, projectId: string): void {
+  const all = allProjects(p.db);
+  const item = all.find((x) => x.id === projectId);
+  if (!item) return; // validateEntry reports a missing project
+  // Done first: it's the reason that matters to the person, even if the item also has items under it.
+  const byId = new Map(all.map((x) => [x.id, x]));
+  for (
+    let cur: typeof item | undefined = item;
+    cur;
+    cur = cur.parentId ? byId.get(cur.parentId) : undefined
+  ) {
+    if (cur.archivedAt) {
+      throw new Reject(
+        "invalid",
+        cur.parentId
+          ? `“${cur.name}” is marked done, so it can't take new hours.`
+          : `“${cur.name}” is archived, so it can't take new hours.`,
+      );
+    }
+  }
+  if (all.some((x) => x.parentId === projectId && !x.deletedAt)) {
+    throw new Reject("invalid", `Choose an item under “${item.name}”: hours go on the lowest level.`);
+  }
 }
 
 /**
@@ -224,6 +245,7 @@ function pushEntry(p: PushCtx, c: IncomingChange): PushResult {
       serverSeq: 0,
     };
     validateEntry(p, entry);
+    checkLoggable(p, entry.projectId);
     checkEntryTags(p, entry.tagIds, []);
     entry.rateSnapshot = snapshotRate(p.db, entry, p.settings);
     const inserted = insertRow(p.db, spec, entry as unknown as Row, result.fieldClock);
@@ -235,7 +257,6 @@ function pushEntry(p: PushCtx, c: IncomingChange): PushResult {
       after: inserted,
       ip: p.ip,
     });
-    enforceOneTimer(p, ownerId, entry);
     return done(p, c, "accepted");
   }
 
@@ -244,6 +265,8 @@ function pushEntry(p: PushCtx, c: IncomingChange): PushResult {
   if (!result.patch.deletedAt) {
     next.entryDate = localDate(next.startedAt, p.settings.timezone);
     validateEntry(p, next);
+    if ("projectId" in result.patch && result.patch.projectId !== before!.projectId)
+      checkLoggable(p, next.projectId);
     if ("tagIds" in result.patch) checkEntryTags(p, next.tagIds, before!.tagIds);
   }
   const derived: Record<string, unknown> = { ...result.patch };
@@ -264,35 +287,7 @@ function pushEntry(p: PushCtx, c: IncomingChange): PushResult {
     after,
     ip: p.ip,
   });
-  if (!result.patch.deletedAt && next.durationS === null) enforceOneTimer(p, ownerId, next);
   return done(p, c, result.ignoredFields.length ? "merged" : "accepted");
-}
-
-/** If this person now has more than one running timer, stop the older ones. */
-function enforceOneTimer(p: PushCtx, userId: string, _latest: TimeEntry): void {
-  const running = listRows(
-    p.db,
-    TABLES.timeEntries,
-    "user_id = ? AND duration_s IS NULL AND deleted_at IS NULL",
-    [userId],
-  ) as TimeEntry[];
-  const serverHlc = formatHlc({ ms: p.now, counter: 0, node: "server" });
-  for (const u of resolveRunningTimers(running)) {
-    const before = running.find((r) => r.id === u.id)!;
-    if (isPeriodLocked(p.db, userId, before.entryDate)) continue;
-    const clock = { ...getFieldClock(p.db, TABLES.timeEntries, u.id), durationS: serverHlc };
-    const after = updateRow(p.db, TABLES.timeEntries, u.id, { durationS: u.durationS }, p.now, clock);
-    audit(p.db, p.now, {
-      actorId: p.actor.id,
-      action: "update",
-      entity: "time_entry",
-      entityId: u.id,
-      before,
-      after,
-      reason: "Timer stopped automatically because another timer was started.",
-      ip: p.ip,
-    });
-  }
 }
 
 function pushFavorite(p: PushCtx, c: IncomingChange): PushResult {
@@ -343,22 +338,15 @@ function pushFavorite(p: PushCtx, c: IncomingChange): PushResult {
   return done(p, c, result.ignoredFields.length ? "merged" : "accepted");
 }
 
-/** A favourite must point at a project the person can track on, and a task of that project. */
-function checkFavorite(p: PushCtx, row: Row): { projectId: string; taskId: string | null } {
+/** A favourite must point at a project item the person can track on (tasks are items since 0.2). */
+function checkFavorite(p: PushCtx, row: Row): { projectId: string; taskId: null } {
   const projectId = row.projectId;
   if (typeof projectId !== "string" || !canTrackOnProject(p.actor, projectId, p.access)) {
     throw new Reject("forbidden", "You can't track time on that project.");
   }
-  const taskId = typeof row.taskId === "string" ? row.taskId : null;
-  if (row.taskId !== null && row.taskId !== undefined && taskId === null)
-    throw new Reject("invalid", "Invalid task.");
-  if (taskId) {
-    const task = getTask(p.db, taskId);
-    if (!task || task.deletedAt || task.projectId !== projectId) {
-      throw new Reject("invalid", "That task doesn't belong to this project.");
-    }
-  }
-  return { projectId, taskId };
+  if (row.taskId !== null && row.taskId !== undefined)
+    throw new Reject("invalid", "Choose the item in the project instead of a task.");
+  return { projectId, taskId: null };
 }
 
 /** Tag names are trimmed, at most 60 characters and unique (ignoring case); colours are #rrggbb. */

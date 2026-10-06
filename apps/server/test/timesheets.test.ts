@@ -251,19 +251,12 @@ describe("timesheet workflow", () => {
     ).toBe(200);
   });
 
-  test("can't submit a future period, twice, or with a running timer", async () => {
+  test("can't submit a future period or the same period twice", async () => {
     const w = await world();
     expect(
       (await w.s.json("POST", "/api/timesheets/submit", { as: w.alice.agent, body: { date: "2026-11-02" } }))
         .status,
     ).toBe(400);
-    await w.addEntry(w.alice.agent, "2026-09-29", 0, { durationS: null });
-    const running = await w.s.json<{ error: { message: string } }>("POST", "/api/timesheets/submit", {
-      as: w.alice.agent,
-      body: { date: "2026-09-29" },
-    });
-    expect(running.status).toBe(409);
-    expect(running.body.error.message).toContain("timer");
     await w.s.json("POST", "/api/timesheets/submit", { as: w.bob.agent, body: { date: "2026-08-10" } });
     expect(
       (await w.s.json("POST", "/api/timesheets/submit", { as: w.bob.agent, body: { date: "2026-08-10" } }))

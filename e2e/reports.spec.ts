@@ -6,11 +6,11 @@ test("generate a monthly timesheet PDF", async ({ page }) => {
   await login(page, "member");
   // make sure there is some time this month
   await page.keyboard.press("n");
-  await page.getByPlaceholder("Search projects and tasks").fill("paarl");
+  await page.getByPlaceholder("Search projects, items and codes").fill("paarl");
   await page.keyboard.press("Enter");
-  await page.getByPlaceholder("What did you work on?").fill("Monthly report check");
-  await page.getByLabel("Duration").fill("2");
-  await page.getByRole("button", { name: "Add time" }).last().click();
+  await page.getByPlaceholder("What did you do?").fill("Monthly report check");
+  await page.getByRole("dialog").getByLabel("Hours", { exact: true }).fill("2");
+  await page.getByRole("button", { name: "Log hours" }).last().click();
   await waitSynced(page);
 
   await page.getByRole("link", { name: "Reports" }).click();

@@ -108,7 +108,7 @@ export function ImportPage() {
         <Switch
           checked={createMissing}
           onChange={setCreateMissing}
-          label="Create clients, projects, tasks and tags that don't exist in Stint yet"
+          label="Create clients, projects, items and tags that don't exist in Stint yet"
         />
         <div className="row">
           <Button icon={<Upload />} loading={busy && !result} disabled={!file} onClick={() => void run(true)}>
@@ -140,8 +140,7 @@ export function ImportPage() {
           </div>
 
           <CreatedList label="clients" items={result.created.clients} />
-          <CreatedList label="projects" items={result.created.projects} />
-          <CreatedList label="tasks" items={result.created.tasks} />
+          <CreatedList label="projects and items" items={result.created.projects} />
           <CreatedList label="tags" items={result.created.tags} />
 
           {unmatched.length > 0 && result.dryRun && (

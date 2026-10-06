@@ -29,8 +29,7 @@ import { SettingsLayout } from "./pages/settings/SettingsLayout.tsx";
 import { TeamPage } from "./pages/team/Team.tsx";
 import { TrackPage } from "./pages/track/TrackPage.tsx";
 import { onAppUpdate } from "./pwa/register.ts";
-import { EntryDialogHost, useEntryDialog } from "./tracking/EntryDialogHost.tsx";
-import { TimerDock } from "./tracking/TimerDock.tsx";
+import { EntryDialogHost } from "./tracking/EntryDialogHost.tsx";
 import { Logo } from "./ui/misc.tsx";
 import { ToastProvider, useToast } from "./ui/Toast.tsx";
 
@@ -43,7 +42,6 @@ function Splash() {
 }
 
 function AppFrame() {
-  const dialog = useEntryDialog();
   const toast = useToast();
   useEffect(
     () =>
@@ -57,7 +55,7 @@ function AppFrame() {
   );
   return (
     <>
-      <Shell statusSlot={<SyncPill />} dock={<TimerDock onAddManual={() => dialog.open({})} />} />
+      <Shell statusSlot={<SyncPill />} />
       <CommandLayer />
     </>
   );

@@ -49,6 +49,7 @@ export const TABLES = {
     parentId: ["parent_id", "text"],
     name: ["name", "text"],
     code: ["code", "text"],
+    kind: ["kind", "text"],
     color: ["color", "text"],
     billableDefault: ["billable_default", "bool"],
     rate: ["rate", "int"],

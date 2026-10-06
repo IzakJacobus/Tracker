@@ -55,7 +55,6 @@ export function SubmitCard({ today }: { today: string }) {
       [db, me.user.id, period.start, period.end],
     ) ?? [];
   const total = entries.reduce((s, e) => s + (e.durationS ?? 0), 0);
-  const running = entries.some((e) => e.durationS === null);
   const byDay = new Map<string, number>();
   for (const e of entries) byDay.set(e.entryDate, (byDay.get(e.entryDate) ?? 0) + (e.durationS ?? 0));
   const shortDays: string[] = [];
@@ -146,14 +145,8 @@ export function SubmitCard({ today }: { today: string }) {
           <Button
             variant={isPast ? "primary" : "default"}
             icon={<Send />}
-            disabled={offline || running || total === 0}
-            title={
-              offline
-                ? "Connect to the office network to submit"
-                : running
-                  ? "Stop the timer first"
-                  : undefined
-            }
+            disabled={offline || total === 0}
+            title={offline ? "Connect to the office network to submit" : undefined}
             onClick={() => setConfirm(true)}
           >
             {status === "rejected" ? "Submit again" : "Submit"}

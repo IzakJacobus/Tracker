@@ -115,19 +115,21 @@ user            id, email, name, role (admin|manager|member), rate, active,
                 password_hash, weekly_capacity_hours, color
 client          id, name, code, rate, archived, is_internal (one built-in "Internal" client)
 project         id, client_id, parent_id (nullable: nesting to any depth), name, code,
-                color, billable_default, rate, budget_hours, budget_amount, archived,
-                notes
+                kind (the firm's own label for an item: "Phase", "Task", ...), color,
+                billable_default, rate, budget_hours, budget_amount, archived (= "done"
+                for items under a project), notes. A top-level row is a project; every
+                row under it is an item. Hours go on items with nothing under them.
 project_member  project_id, user_id, role (member|manager), rate (per-person override)
-task            id, project_id, name, rate, billable (nullable = inherit), archived
+task            (0.1 only; migration 0002 turned every task into an item and emptied it)
 tag             id, name, color, archived
-time_entry      id, user_id, project_id, task_id?, description, started_at, ended_at?
-                (null = running), duration_s (for manual/grid entries), entry_date
+time_entry      id, user_id, project_id (the item), task_id (always null since 0.2),
+                description, started_at (orders entries within a day), duration_s, entry_date
                 (local YYYY-MM-DD in the org timezone), billable, rate_snapshot,
-                currency_snapshot, source (timer|manual|grid|import), tag_ids (JSON)
+                currency_snapshot, source (manual|grid|import; timer in 0.1), tag_ids (JSON)
 timesheet       id, user_id, period_start, period_end, status
                 (draft|submitted|approved|rejected), submitted_at, decided_by,
                 decided_at, comment
-favorite        user_id, project_id, task_id?  (per user, synced)
+favorite        user_id, project_id (an item)  (per user, synced)
 audit_log       id, at, actor_id, action (create|update|delete|approve|reject|unlock|
                 submit|rerate|restore|login…), entity, entity_id, before, after, reason
 session         token_hash, user_id, created_at, last_seen_at, expires_at, user_agent, ip
@@ -137,7 +139,7 @@ schema_migrations  version, name, checksum, applied_at
 
 ### 3.2 Rate resolution (most specific wins)
 
-`task.rate → project tree, nearest level first → client.rate → user.rate → organization.default_rate`
+`project tree, nearest level first → client.rate → user.rate → organization.default_rate`
 
 At each level of the project tree (the entry's project first, then its parent, and so on up to
 the top), a **per-person project rate** (`project_member.rate`) is checked first, then that
@@ -145,7 +147,7 @@ project's own rate. So a sub-project's rate beats a per-person rate set on its p
 extends the brief's `task > project > client > user > organisation` order: consulting firms
 often bill one senior engineer at a special rate on one project. The resolved rate is
 **snapshotted** onto the time entry when the server accepts it. It is recomputed only when the
-entry's project, task or user changes, or when an admin runs the **Re-rate** tool (date range
+entry's item or user changes, or when an admin runs the **Re-rate** tool (date range
 plus filters, recorded in the audit log). A rate of 0 is a real rate (pro-bono work). Only
 `null` means "not set". Implemented in `packages/shared/src/rates.ts` and unit-tested.
 
@@ -204,9 +206,9 @@ For each change:
    A later edit does not revive a deleted row: once `deleted_at` is set, only an explicit
    restore from the admin UI clears it. This is the "delete wins" rule, so an entry someone
    deleted on purpose never comes back.
-6. **Derived fields.** The server recomputes `rate_snapshot`, `currency_snapshot` and
-   `entry_date`, and makes sure only one timer runs per user. If two devices both started a
-   timer while offline, the older one is stopped when the newer one starts.
+6. **Derived fields and rules.** The server recomputes `rate_snapshot`, `currency_snapshot` and
+   `entry_date`. An entry needs hours (there is no timer), and a newly chosen item must have
+   nothing under it and must not be done (or under a done item). Existing entries stay editable.
 7. Assign a new `server_seq` and write an **audit log** entry, in the same transaction.
 
 The response lists, for each change, `accepted`, `merged` (some fields lost) or
@@ -224,7 +226,7 @@ see their own rates.
 
 If a user's visibility changes (new project assignment, role change), the server increments
 `user.sync_epoch`. The client sees the new epoch in the response and does a full pull
-(`since=0`), keeping its outbox. Reference data such as projects, clients, tasks and tags is
+(`since=0`), keeping its outbox. Reference data such as projects (and their items), clients and tags is
 small, so a full pull is cheap.
 
 ### 4.5 Status shown in the UI
@@ -240,7 +242,7 @@ small, so a full pull is cheap.
 
 Logging in, submitting, approving or rejecting timesheets, admin settings, reports that cover
 other people, and PDF exports of other people's data all need the server. Your own
-entries, timers, favourites and your own monthly timesheet PDF work offline.
+entries, favourites and your own monthly timesheet PDF work offline.
 
 ## 5. Security
 
@@ -399,8 +401,8 @@ secrets are ever committed. Keys and certificates are generated at runtime.
 | --- | --- | --- |
 | Domain unit | bun test | rate resolution, rollups, rounding, HLC, conflict merge, permissions, report builders |
 | Server integration | bun test + in-memory SQLite | every API route: auth, RBAC, validation, sync push and pull, locking, audit |
-| Components | Vitest + Testing Library | timer, grid, forms, sync status |
-| End to end | Playwright | login, start/stop timer, offline edit then sync, submit and approve, monthly PDF |
+| Components | Vitest + Testing Library | grid, forms, sync status |
+| End to end | Playwright | login, log hours (drill down), done items, offline edit then sync, submit and approve, monthly PDF |
 
 CI runs lint, type-check and all test suites on every push and pull request. Tagged releases
 build the installers.
