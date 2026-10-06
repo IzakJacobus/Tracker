@@ -185,7 +185,7 @@ with nothing exposed to the internet. Its free plan covers up to 6 users. Step-b
 
 ## For developers
 
-You need [Bun](https://bun.sh) 1.3 or later. Building the desktop app also needs Rust and the
+You need [Bun](https://bun.sh) 1.4.2 or later. Building the desktop app also needs Rust and the
 [Tauri prerequisites](https://tauri.app/start/prerequisites/).
 
 ```bash

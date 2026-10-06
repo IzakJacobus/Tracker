@@ -5,7 +5,7 @@ documented.
 
 ## Prerequisites
 
-* [Bun](https://bun.sh) 1.3+ (runtime, package manager, test runner)
+* [Bun](https://bun.sh) 1.4.2+ (runtime, package manager, test runner)
 * For the desktop app: Rust (stable) and the [Tauri prerequisites](https://v2.tauri.app/start/prerequisites/)
 
 ## Getting started

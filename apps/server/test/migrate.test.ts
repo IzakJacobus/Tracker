@@ -4,7 +4,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { appliedMigrations, checksum, MigrationError, migrate } from "../src/db/migrate.ts";
 import { migrations } from "../src/db/migrations/index.ts";
-import { openDatabase } from "../src/db/open.ts";
+import { closeDatabase, openDatabase } from "../src/db/open.ts";
 
 describe("migrations", () => {
   test("apply cleanly to an empty database", () => {
@@ -86,7 +86,7 @@ describe("migrations", () => {
           "INSERT INTO projects (id, client_id, name, created_at, updated_at) VALUES ('p', 'missing', 'x', 0, 0)",
         ),
       ).toThrow();
-      db.close(true);
+      closeDatabase(db);
     } finally {
       rmSync(dir, { recursive: true, force: true });
     }
