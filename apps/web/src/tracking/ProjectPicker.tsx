@@ -374,6 +374,7 @@ export function PickerList({
                     role="option"
                     tabIndex={-1}
                     aria-selected={selected === it.key}
+                    aria-label={r.drill ? `${it.name}, ${it.childIds.length} items inside` : undefined}
                     data-index={i}
                     data-active={i === active}
                     className="menu-item picker__item"

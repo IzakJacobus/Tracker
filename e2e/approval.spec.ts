@@ -11,7 +11,7 @@ test("submit a timesheet, manager sends it back, member resubmits, manager appro
   await member.getByPlaceholder("Search projects, items and codes").fill("paarl");
   await member.keyboard.press("Enter");
   await member.getByPlaceholder("What did you do?").fill("Approval flow check");
-  await member.getByLabel("Hours").fill("3");
+  await member.getByRole("dialog").getByLabel("Hours", { exact: true }).fill("3");
   await member.getByRole("button", { name: "Log hours" }).last().click();
   await waitSynced(member);
   const card = member.getByRole("region", { name: "Timesheet submission" });

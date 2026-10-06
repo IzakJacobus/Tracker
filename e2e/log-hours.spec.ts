@@ -9,12 +9,12 @@ test("log hours: choose the project, drill down to the item, enter the hours", a
   await expect(list).toBeVisible();
 
   // The project has items under it, so choosing it drills down instead of picking it.
-  await list.getByRole("option", { name: /Paarl bridge upgrade/ }).click();
+  await list.getByRole("option", { name: /^Paarl bridge upgrade, \d+ items inside$/ }).click();
   await expect(list.getByRole("option", { name: /Detailed design/ })).toBeVisible();
   await list.getByRole("option", { name: /Site visit/ }).click();
   await expect(dialog.locator(".picker-trigger")).toContainText("Paarl bridge upgrade › Site visit");
 
-  await dialog.getByLabel("Hours").fill("2.5");
+  await dialog.getByLabel("Hours", { exact: true }).fill("2.5");
   await dialog.getByLabel("Note").fill("Pier inspection");
   await dialog.getByRole("button", { name: "Log hours" }).click();
   await expect(dialog).toBeHidden();

@@ -9,7 +9,7 @@ test("generate a monthly timesheet PDF", async ({ page }) => {
   await page.getByPlaceholder("Search projects, items and codes").fill("paarl");
   await page.keyboard.press("Enter");
   await page.getByPlaceholder("What did you do?").fill("Monthly report check");
-  await page.getByLabel("Hours").fill("2");
+  await page.getByRole("dialog").getByLabel("Hours", { exact: true }).fill("2");
   await page.getByRole("button", { name: "Log hours" }).last().click();
   await waitSynced(page);
 

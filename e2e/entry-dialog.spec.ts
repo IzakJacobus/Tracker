@@ -20,7 +20,7 @@ test("choosing what you worked on with the mouse in the Log hours window", async
 
   // Real mouse clicks: into the project, then on its item (fails if anything covers the list).
   await dialog.locator(".picker-trigger").click();
-  await list.getByRole("option", { name: /Paarl bridge upgrade/ }).click();
+  await list.getByRole("option", { name: /^Paarl bridge upgrade, \d+ items inside$/ }).click();
   await list
     .getByRole("option", { name: /Detailed design/ })
     .first()
@@ -28,7 +28,7 @@ test("choosing what you worked on with the mouse in the Log hours window", async
   await expect(dialog.locator(".picker-trigger")).toContainText("Detailed design");
 
   await dialog.getByLabel("Note").fill("Picked with the mouse");
-  await dialog.getByLabel("Hours").fill("1:15");
+  await dialog.getByLabel("Hours", { exact: true }).fill("1:15");
   await dialog.getByRole("button", { name: "Log hours" }).click();
   await expect(dialog).toBeHidden();
   await expect(page.locator(".entry-row", { hasText: "Picked with the mouse" })).toBeVisible();

@@ -16,7 +16,7 @@ test("offline edit, then sync", async ({ page, context }) => {
   await page.getByPlaceholder("Search projects, items and codes").fill("site visit");
   await page.keyboard.press("Enter");
   await page.getByPlaceholder("What did you do?").fill("Offline site notes");
-  await page.getByLabel("Hours").fill("1:15");
+  await page.getByRole("dialog").getByLabel("Hours", { exact: true }).fill("1:15");
   await page.getByRole("button", { name: "Log hours" }).last().click();
   await expect(page.locator(".entry-row", { hasText: "Offline site notes" })).toBeVisible();
   await expect(page.locator(".sidebar .sync-pill")).toContainText("Offline", { timeout: 10_000 });
