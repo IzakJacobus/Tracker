@@ -10,7 +10,7 @@ export interface StackDatum {
 }
 
 /**
- * Stacked column chart for hours per day (billable / non-billable).
+ * Stacked column chart for hours per day (client work / internal).
  * Thin columns, 4px rounded tops, 2px surface gap between segments, recessive
  * grid, a legend (2 series) and a per-column tooltip on hover and keyboard focus.
  */

@@ -3,7 +3,10 @@ import type { Client, Project } from "@stint/shared";
 import { createTestServer } from "./helpers.ts";
 
 interface Pull {
-  changes: Record<string, { id: string; rate?: number | null; name?: string; deletedAt?: number | null }[]>;
+  changes: Record<
+    string,
+    ({ id: string; name?: string; deletedAt?: number | null } & Record<string, unknown>)[]
+  >;
   organization: { name: string } | null;
   cursor: number;
   hasMore: boolean;
@@ -54,36 +57,36 @@ describe("sync pull", () => {
     expect(pages).toBeGreaterThan(3);
   });
 
-  test("members only receive what they may see, without money", async () => {
+  test("members only receive what they may see; no row carries billing fields", async () => {
     const s = createTestServer();
     const admin = await s.setup();
-    const alice = await s.createUser(admin, { email: "alice@example.com", name: "Alice", rate: 70000 });
+    const alice = await s.createUser(admin, { email: "alice@example.com", name: "Alice" });
     await s.createUser(admin, { email: "bob@example.com", name: "Bob" });
-    const client = (
-      await s.json<Client>("POST", "/api/clients", { as: admin, body: { name: "Acme", rate: 90000 } })
-    ).body;
+    const client = (await s.json<Client>("POST", "/api/clients", { as: admin, body: { name: "Acme" } })).body;
     const secret = (
       await s.json<Project>("POST", "/api/projects", {
         as: admin,
-        body: { clientId: client.id, name: "Secret", rate: 1 },
+        body: { clientId: client.id, name: "Secret" },
       })
     ).body;
     const mine = (
       await s.json<Project>("POST", "/api/projects", {
         as: admin,
-        body: { clientId: client.id, name: "Mine", rate: 99 },
+        body: { clientId: client.id, name: "Mine" },
       })
     ).body;
-    await s.json("PUT", `/api/projects/${mine.id}/members/${alice.id}`, { as: admin, body: { rate: 12345 } });
+    await s.json("PUT", `/api/projects/${mine.id}/members/${alice.id}`, { as: admin, body: {} });
 
     const r = await s.json<Pull>("GET", "/api/sync/pull?since=0", { as: alice.agent });
     const ids = (r.body.changes.projects ?? []).map((p) => p.id);
     expect(ids).toContain(mine.id);
     expect(ids).not.toContain(secret.id);
     expect(r.body.changes.users?.map((u) => u.name)).toEqual(["Alice"]);
-    expect(r.body.changes.users?.[0]?.rate).toBeNull();
-    for (const table of ["projects", "clients", "projectMembers"]) {
-      for (const row of r.body.changes[table] ?? []) expect(row.rate ?? null).toBeNull();
+    const adminPull = await s.json<Pull>("GET", "/api/sync/pull?since=0", { as: admin });
+    for (const rows of Object.values(adminPull.body.changes)) {
+      for (const row of rows) {
+        expect(Object.keys(row).filter((k) => /rate|billable|currency|amount/i.test(k))).toEqual([]);
+      }
     }
   });
 

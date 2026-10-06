@@ -16,16 +16,13 @@ const hlc = (ms: number, node = "devA") => formatHlc({ ms, counter: 0, node });
 async function world() {
   const s = createTestServer(Date.UTC(2026, 8, 30, 8, 0));
   const admin = await s.setup();
-  await s.json("PATCH", "/api/org", { as: admin, body: { settings: { defaultRate: 50000 } } });
-  const alice = await s.createUser(admin, { email: "alice@example.com", name: "Alice", rate: 70000 });
+  const alice = await s.createUser(admin, { email: "alice@example.com", name: "Alice" });
   const bob = await s.createUser(admin, { email: "bob@example.com", name: "Bob" });
-  const client = (
-    await s.json<Client>("POST", "/api/clients", { as: admin, body: { name: "Acme", rate: 90000 } })
-  ).body;
+  const client = (await s.json<Client>("POST", "/api/clients", { as: admin, body: { name: "Acme" } })).body;
   const project = (
     await s.json<Project>("POST", "/api/projects", {
       as: admin,
-      body: { clientId: client.id, name: "Bridge", rate: 100000 },
+      body: { clientId: client.id, name: "Bridge" },
     })
   ).body;
   const other = (
@@ -66,10 +63,8 @@ function dbEntry(s: ReturnType<typeof createTestServer>, id: string) {
       {
         description: string;
         duration_s: number | null;
-        rate_snapshot: number | null;
         entry_date: string;
         deleted_at: number | null;
-        billable: number;
         project_id: string;
       },
       [string]
@@ -78,7 +73,7 @@ function dbEntry(s: ReturnType<typeof createTestServer>, id: string) {
 }
 
 describe("sync push: time entries", () => {
-  test("a member creates an entry; the server derives the date and snapshots the rate", async () => {
+  test("a member creates an entry; the server derives the date; nothing about money is stored", async () => {
     const w = await world();
     const id = uuidv7();
     const r = await w.pushAs(w.alice.agent, [
@@ -91,10 +86,9 @@ describe("sync push: time entries", () => {
     expect(r.results[0]!.status).toBe("accepted");
     const row = dbEntry(w.s, id)!;
     expect(row.entry_date).toBe("2026-09-29");
-    expect(row.rate_snapshot).toBe(100000); // project rate wins over client/user/org
-    expect(row.billable).toBe(1); // inherited from project
-    // members don't see rates in the response
-    expect(r.results[0]!.row!.rateSnapshot).toBeNull();
+    expect(Object.keys(row)).not.toContain("rate_snapshot");
+    expect(Object.keys(row)).not.toContain("billable");
+    expect(Object.keys(r.results[0]!.row!).sort()).not.toContain("rateSnapshot");
   });
 
   test("the entry date follows the organisation's time zone, not UTC", async () => {
@@ -105,29 +99,6 @@ describe("sync push: time entries", () => {
       w.entry(id, { projectId: w.project.id, startedAt: lateEvening, durationS: 600 }, w.now),
     ]);
     expect(dbEntry(w.s, id)!.entry_date).toBe("2026-09-30");
-  });
-
-  test("the item's own rate wins; changing the item re-snapshots; later rate changes don't rewrite history", async () => {
-    const w = await world();
-    const survey = (
-      await w.s.json<Project>("POST", "/api/projects", {
-        as: w.admin,
-        body: { clientId: w.client.id, name: "Survey", rate: 100000 },
-      })
-    ).body;
-    await w.s.json("PUT", `/api/projects/${survey.id}/members/${w.alice.id}`, { as: w.admin, body: {} });
-    const site = await w.item(survey.id, "Site visit", { kind: "Task", rate: 120000 });
-    const office = await w.item(survey.id, "Office work", { kind: "Task" });
-    const id = uuidv7();
-    await w.pushAs(w.alice.agent, [
-      w.entry(id, { projectId: site.id, startedAt: w.startedAt, durationS: 60 }, w.now),
-    ]);
-    expect(dbEntry(w.s, id)!.rate_snapshot).toBe(120000);
-    await w.s.json("PATCH", `/api/projects/${site.id}`, { as: w.admin, body: { rate: 1 } });
-    await w.pushAs(w.alice.agent, [w.entry(id, { description: "still 1200" }, w.now + 1000, "update")]);
-    expect(dbEntry(w.s, id)!.rate_snapshot).toBe(120000);
-    await w.pushAs(w.alice.agent, [w.entry(id, { projectId: office.id }, w.now + 2000, "update")]);
-    expect(dbEntry(w.s, id)!.rate_snapshot).toBe(100000);
   });
 
   test("members cannot track on projects they're not assigned to", async () => {
@@ -171,17 +142,25 @@ describe("sync push: time entries", () => {
     await w.pushAs(w.alice.agent, [
       w.entry(
         id,
-        { projectId: w.project.id, startedAt: w.startedAt, durationS: 60, rateSnapshot: 1, userId: w.bob.id },
+        {
+          projectId: w.project.id,
+          startedAt: w.startedAt,
+          durationS: 60,
+          userId: w.bob.id,
+          entryDate: "1999-01-01",
+          billable: false,
+          rateSnapshot: 1,
+        },
         w.now,
       ),
     ]);
     const row = w.s.ctx.db
-      .query<{ user_id: string; rate_snapshot: number }, [string]>(
-        "SELECT user_id, rate_snapshot FROM time_entries WHERE id = ?",
-      )
+      .query<Record<string, unknown>, [string]>("SELECT * FROM time_entries WHERE id = ?")
       .get(id)!;
     expect(row.user_id).toBe(w.alice.id);
-    expect(row.rate_snapshot).toBe(100000);
+    expect(row.entry_date).toBe("2026-09-29");
+    // Old clients may still send billing fields; they are ignored (there's nowhere to store them).
+    expect(Object.keys(row).some((k) => /rate|billable|currency/.test(k))).toBe(false);
   });
 
   test("two devices editing different fields: both edits survive", async () => {
@@ -377,7 +356,7 @@ describe("sync push: time entries", () => {
     expect(actions).toEqual(["create", "update", "delete"]);
   });
 
-  test("admins see the rate snapshot through pull; pulls include pushed entries", async () => {
+  test("pulls include pushed entries, for the people allowed to see them", async () => {
     const w = await world();
     const id = uuidv7();
     await w.pushAs(w.alice.agent, [
@@ -386,7 +365,7 @@ describe("sync push: time entries", () => {
     const pull = await w.s.json<{ changes: { timeEntries?: TimeEntry[] } }>("GET", "/api/sync/pull?since=0", {
       as: w.admin,
     });
-    expect(pull.body.changes.timeEntries?.find((e) => e.id === id)?.rateSnapshot).toBe(100000);
+    expect(pull.body.changes.timeEntries?.find((e) => e.id === id)?.durationS).toBe(60);
     const bobPull = await w.s.json<{ changes: { timeEntries?: TimeEntry[] } }>(
       "GET",
       "/api/sync/pull?since=0",

@@ -103,8 +103,8 @@ export function MonthlyReport() {
           <div className="stat__sub">expected {formatDuration(m.expectedSeconds)}</div>
         </div>
         <div className="stat">
-          <div className="stat__label">Billable</div>
-          <div className="stat__value mono">{formatDuration(m.total.billableSeconds)}</div>
+          <div className="stat__label">Client work</div>
+          <div className="stat__value mono">{formatDuration(m.total.seconds - m.internalSeconds)}</div>
         </div>
         <div className="stat">
           <div className="stat__label">Internal</div>
@@ -121,17 +121,15 @@ export function MonthlyReport() {
           <thead>
             <tr>
               <th>Client</th>
-              <th>Project</th>
-              <th className="num">Billable</th>
-              <th className="num">Non-billable</th>
-              <th className="num">Total</th>
+              <th>Worked on</th>
+              <th className="num">Hours</th>
             </tr>
           </thead>
           <tbody>
             {m.byProject.length === 0 && (
               <tr>
-                <td colSpan={5} className="subtle">
-                  No time recorded this month.
+                <td colSpan={3} className="subtle">
+                  No hours logged this month.
                 </td>
               </tr>
             )}
@@ -147,8 +145,6 @@ export function MonthlyReport() {
                   )}
                 </td>
                 <td>{p.path}</td>
-                <td className="num mono">{formatDuration(p.sum.billableSeconds)}</td>
-                <td className="num mono">{formatDuration(p.sum.seconds - p.sum.billableSeconds)}</td>
                 <td className="num mono">{formatDuration(p.sum.seconds)}</td>
               </tr>
             ))}
@@ -156,8 +152,6 @@ export function MonthlyReport() {
           <tfoot>
             <tr>
               <td colSpan={2}>Total</td>
-              <td className="num mono">{formatDuration(m.total.billableSeconds)}</td>
-              <td className="num mono">{formatDuration(m.total.seconds - m.total.billableSeconds)}</td>
               <td className="num mono">{formatDuration(m.total.seconds)}</td>
             </tr>
           </tfoot>
@@ -173,9 +167,7 @@ export function MonthlyReport() {
             <tr>
               <th>Date</th>
               <th>Day</th>
-              <th className="num">Billable</th>
-              <th className="num">Non-billable</th>
-              <th className="num">Total</th>
+              <th className="num">Hours</th>
               <th className="num">Expected</th>
             </tr>
           </thead>
@@ -186,14 +178,6 @@ export function MonthlyReport() {
                 <tr key={d.date} style={{ background: d.working ? undefined : "var(--bg-subtle)" }}>
                   <td className="mono">{fmtDate(d.date, settings)}</td>
                   <td>{DAY[dayOfWeek(d.date)]}</td>
-                  <td className="num mono">
-                    {d.sum.billableSeconds ? formatDuration(d.sum.billableSeconds) : ""}
-                  </td>
-                  <td className="num mono">
-                    {d.sum.seconds - d.sum.billableSeconds
-                      ? formatDuration(d.sum.seconds - d.sum.billableSeconds)
-                      : ""}
-                  </td>
                   <td
                     className="num mono"
                     style={{ color: short ? "var(--warning)" : undefined, fontWeight: 500 }}
@@ -210,8 +194,6 @@ export function MonthlyReport() {
           <tfoot>
             <tr>
               <td colSpan={2}>Total</td>
-              <td className="num mono">{formatDuration(m.total.billableSeconds)}</td>
-              <td className="num mono">{formatDuration(m.total.seconds - m.total.billableSeconds)}</td>
               <td className="num mono">{formatDuration(m.total.seconds)}</td>
               <td className="num mono">{formatDuration(m.expectedSeconds)}</td>
             </tr>

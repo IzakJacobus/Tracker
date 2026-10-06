@@ -10,7 +10,6 @@ import {
 } from "@stint/shared";
 import { useMemo, useState } from "react";
 import { useMe } from "../../app/session.tsx";
-import { formatMoney } from "../../lib/format.ts";
 import { useSettings } from "../../tracking/hooks.ts";
 import { Alert, Avatar, Progress } from "../../ui/misc.tsx";
 import { BarList, StackedColumns } from "./Charts.tsx";
@@ -26,7 +25,6 @@ export function Overview() {
   const today = useToday();
   const data = useReportData();
   const [f, setF] = useState<FilterState>(() => initialFilter(today, settings.weekStart, "this-month"));
-  const seesMoney = me.permissions.seeRates;
   const people = useMemo(
     () =>
       data ? (me.user.role === "member" ? data.users.filter((u) => u.id === me.user.id) : data.users) : [],
@@ -45,24 +43,20 @@ export function Overview() {
     const own = new Map<string, Totals>();
     for (const e of data.entries) {
       if (e.durationS === null || e.deletedAt) continue;
-      const t = own.get(e.projectId) ?? { seconds: 0, billableSeconds: 0, amount: 0, entries: 0 };
+      const t = own.get(e.projectId) ?? { seconds: 0, entries: 0 };
       t.seconds += e.durationS;
-      if (e.billable) t.amount += Math.round((e.durationS * (e.rateSnapshot ?? 0)) / 3600);
+      t.entries += 1;
       own.set(e.projectId, t);
     }
     const rolled = rollup(tree, own);
     return data.projects
-      .filter((p) => !p.archivedAt && (p.budgetMinutes || p.budgetAmount))
+      .filter((p) => !p.archivedAt && p.budgetMinutes)
       .map((p) => ({
         p,
-        s: budgetStatus(p, rolled.get(p.id) ?? { seconds: 0, amount: 0 }),
+        s: budgetStatus(p, rolled.get(p.id) ?? { seconds: 0 }),
         t: rolled.get(p.id),
       }))
-      .sort(
-        (a, b) =>
-          Math.max(b.s.hoursRatio ?? 0, b.s.amountRatio ?? 0) -
-          Math.max(a.s.hoursRatio ?? 0, a.s.amountRatio ?? 0),
-      )
+      .sort((a, b) => (b.s.hoursRatio ?? 0) - (a.s.hoursRatio ?? 0))
       .slice(0, 8);
   }, [data]);
 
@@ -75,31 +69,24 @@ export function Overview() {
         value={f}
         onChange={setF}
         data={data}
-        show={{ tag: true, billable: false, project: true, client: true, user: true }}
+        show={{ tag: true, project: true, client: true, user: true }}
       />
       <div className="stat-row">
         <div className="stat">
-          <div className="stat__label">Hours tracked</div>
+          <div className="stat__label">Hours logged</div>
           <div className="stat__value mono">{formatDuration(d.period.seconds)}</div>
           <div className="stat__sub">{d.period.entries} entries</div>
         </div>
         <div className="stat">
-          <div className="stat__label">Billable hours</div>
-          <div className="stat__value mono">{formatDuration(d.period.billableSeconds)}</div>
-          <div className="stat__sub">{pct(d.billableShare)} of hours tracked</div>
+          <div className="stat__label">Client work</div>
+          <div className="stat__value">{pct(d.clientShare)}</div>
+          <div className="stat__sub">of hours logged (the rest is Internal)</div>
         </div>
         <div className="stat">
-          <div className="stat__label">Billable utilisation</div>
+          <div className="stat__label">Utilisation</div>
           <div className="stat__value">{pct(d.utilisation)}</div>
-          <div className="stat__sub">billable ÷ {formatDuration(d.capacitySeconds)} h capacity</div>
+          <div className="stat__sub">hours ÷ {formatDuration(d.capacitySeconds)} h capacity</div>
         </div>
-        {seesMoney && (
-          <div className="stat">
-            <div className="stat__label">Billable amount</div>
-            <div className="stat__value">{formatMoney(d.period.amount, settings.currency)}</div>
-            <div className="stat__sub">at the rates saved on each entry</div>
-          </div>
-        )}
       </div>
 
       <div className="report-grid">
@@ -109,15 +96,15 @@ export function Overview() {
             <p className="subtle">Choose a shorter period (up to two months) to see daily hours.</p>
           ) : (
             <StackedColumns
-              label="Hours per day, billable and non-billable"
+              label="Hours per day, client work and internal"
               series={[
-                { name: "Billable", color: "var(--chart-billable)" },
-                { name: "Non-billable", color: "var(--chart-other)" },
+                { name: "Client work", color: "var(--chart-client)" },
+                { name: "Internal", color: "var(--chart-other)" },
               ]}
               data={d.byDay.map((x) => ({
                 key: x.date,
                 label: d.byDay.length <= 7 ? DAY[dayOfWeek(x.date)]! : String(parseIsoDate(x.date).d),
-                values: [x.billableSeconds, x.otherSeconds],
+                values: [x.clientSeconds, x.internalSeconds],
                 tooltipTitle: `${DAY[dayOfWeek(x.date)]} ${x.date}`,
               }))}
             />
@@ -133,12 +120,24 @@ export function Overview() {
               value: t.sum.seconds,
             }))}
             format={(v) => formatDuration(v)}
-            emptyText="No time tracked in this period."
+            emptyText="No hours logged in this period."
           />
         </section>
       </div>
 
       <div className="report-grid">
+        <section className="card card__body stack">
+          <h2>Hours per client</h2>
+          <BarList
+            items={d.byClient.map((c) => ({
+              key: c.clientId,
+              label: c.client?.name ?? "Unknown client",
+              value: c.sum.seconds,
+            }))}
+            format={(v) => formatDuration(v)}
+            emptyText="No hours logged in this period."
+          />
+        </section>
         {me.user.role !== "member" && (
           <section className="card" style={{ overflow: "auto" }}>
             <div className="card__header">
@@ -149,7 +148,6 @@ export function Overview() {
                 <tr>
                   <th>Person</th>
                   <th className="num">Hours</th>
-                  <th className="num">Billable</th>
                   <th className="num">Capacity</th>
                   <th className="num">Utilisation</th>
                 </tr>
@@ -164,10 +162,9 @@ export function Overview() {
                       </div>
                     </td>
                     <td className="num mono">{formatDuration(p.sum.seconds)}</td>
-                    <td className="num mono">{formatDuration(p.sum.billableSeconds)}</td>
                     <td className="num mono">{formatDuration(p.capacitySeconds)}</td>
                     <td className="num">
-                      {p.capacitySeconds ? pct(p.sum.billableSeconds / p.capacitySeconds) : "—"}
+                      {p.capacitySeconds ? pct(p.sum.seconds / p.capacitySeconds) : "—"}
                     </td>
                   </tr>
                 ))}
@@ -175,36 +172,36 @@ export function Overview() {
             </table>
           </section>
         )}
-        <section className="card card__body stack">
-          <h2>Budget burn</h2>
-          {budgets.length === 0 && (
-            <p className="subtle">No projects have a budget yet. Set one on the Projects page.</p>
-          )}
-          {budgets.map(({ p, s, t }) => {
-            const ratio = Math.max(s.hoursRatio ?? 0, s.amountRatio ?? 0);
-            return (
-              <div key={p.id} className="stack stack--sm">
-                <div className="row row--between">
-                  <span className="truncate" style={{ fontWeight: 500 }}>
-                    <span className="dot" style={{ background: p.color, marginRight: 6 }} />
-                    {p.name}
-                  </span>
-                  <span className={`tnum tree-budget__label tree-budget__label--${s.level}`}>
-                    {pct(ratio)}
-                    {p.budgetMinutes
-                      ? ` · ${formatDuration(t?.seconds ?? 0)} / ${Math.round(p.budgetMinutes / 60)} h`
-                      : ""}
-                  </span>
-                </div>
-                <Progress value={ratio} label={`${p.name} budget used`} />
-                {s.level === "over" && <span className="field__error">Over budget</span>}
-              </div>
-            );
-          })}
-        </section>
       </div>
+
+      <section className="card card__body stack">
+        <h2>Budget burn</h2>
+        {budgets.length === 0 && (
+          <p className="subtle">No projects have an hours budget yet. Set one on the Projects page.</p>
+        )}
+        {budgets.map(({ p, s, t }) => {
+          const ratio = s.hoursRatio ?? 0;
+          return (
+            <div key={p.id} className="stack stack--sm">
+              <div className="row row--between">
+                <span className="truncate" style={{ fontWeight: 500 }}>
+                  <span className="dot" style={{ background: p.color, marginRight: 6 }} />
+                  {p.code ? `${p.code} ` : ""}
+                  {p.name}
+                </span>
+                <span className={`tnum tree-budget__label tree-budget__label--${s.level}`}>
+                  {pct(ratio)} · {formatDuration(t?.seconds ?? 0)} / {Math.round((p.budgetMinutes ?? 0) / 60)}{" "}
+                  h
+                </span>
+              </div>
+              <Progress value={ratio} label={`${p.name} budget used`} />
+              {s.level === "over" && <span className="field__error">Over budget</span>}
+            </div>
+          );
+        })}
+      </section>
       {me.user.role !== "member" && <MissingTimesheets />}
-      {d.period.entries === 0 && <Alert tone="info">No time has been tracked in this period yet.</Alert>}
+      {d.period.entries === 0 && <Alert tone="info">No hours have been logged in this period yet.</Alert>}
     </div>
   );
 }

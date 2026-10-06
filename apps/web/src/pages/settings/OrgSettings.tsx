@@ -3,8 +3,7 @@ import { ImageUp, Save, Trash2 } from "lucide-react";
 import { type ChangeEvent, useEffect, useState } from "react";
 import { useSession } from "../../app/session.tsx";
 import { api, errorMessage } from "../../lib/api.ts";
-import { moneyInputValue, parseMoneyInput } from "../../lib/format.ts";
-import { CURRENCIES, timeZones, WEEKDAYS } from "../../lib/locale.ts";
+import { timeZones, WEEKDAYS } from "../../lib/locale.ts";
 import { Button } from "../../ui/Button.tsx";
 import { Field, Input, Select, Switch, Textarea } from "../../ui/Field.tsx";
 import { Alert } from "../../ui/misc.tsx";
@@ -16,7 +15,6 @@ export function OrgSettingsPage() {
   const [org, setOrg] = useState<Organization | null>(null);
   const [name, setName] = useState("");
   const [s, setS] = useState<Settings | null>(null);
-  const [rate, setRate] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -27,7 +25,6 @@ export function OrgSettingsPage() {
         setOrg(o);
         setName(o.name);
         setS(o.settings);
-        setRate(moneyInputValue(o.settings.defaultRate));
       })
       .catch((e) => setError(errorMessage(e)));
   }, []);
@@ -44,7 +41,7 @@ export function OrgSettingsPage() {
     try {
       const updated = await api.patch<Organization>("/org", {
         name,
-        settings: { ...s, defaultRate: parseMoneyInput(rate) ?? 0 },
+        settings: s,
       });
       setOrg(updated);
       setS(updated.settings);
@@ -145,12 +142,6 @@ export function OrgSettingsPage() {
                     onChange={(e) => set("pdf", { ...s.pdf, registration: e.target.value })}
                   />
                 </Field>
-                <Field label="VAT no.">
-                  <Input
-                    value={s.pdf.vatNumber}
-                    onChange={(e) => set("pdf", { ...s.pdf, vatNumber: e.target.value })}
-                  />
-                </Field>
               </div>
               <div className="stack">
                 <Field label="PDF accent colour">
@@ -175,18 +166,9 @@ export function OrgSettingsPage() {
         <section className="form-section">
           <div className="form-section__intro">
             <h2>Regional</h2>
-            <p>How dates, times and money are shown.</p>
+            <p>How dates and times are shown.</p>
           </div>
           <div className="form-grid">
-            <Field label="Currency">
-              <Select value={s.currency} onChange={(e) => set("currency", e.target.value)}>
-                {CURRENCIES.map((c) => (
-                  <option key={c.code} value={c.code}>
-                    {c.code} — {c.name}
-                  </option>
-                ))}
-              </Select>
-            </Field>
             <Field label="Time zone">
               <Select value={s.timezone} onChange={(e) => set("timezone", e.target.value)}>
                 {timeZones().map((z) => (
@@ -289,66 +271,6 @@ export function OrgSettingsPage() {
                 ))}
               </div>
             </fieldset>
-            <div className="form-grid">
-              <Field label="Round billed time" hint="Stored times stay exact; rounding applies in reports.">
-                <Select
-                  value={s.rounding.mode}
-                  onChange={(e) =>
-                    set("rounding", { ...s.rounding, mode: e.target.value as Settings["rounding"]["mode"] })
-                  }
-                >
-                  <option value="none">Don't round</option>
-                  <option value="up">Round up</option>
-                  <option value="nearest">Round to nearest</option>
-                  <option value="down">Round down</option>
-                </Select>
-              </Field>
-              <Field label="to the nearest">
-                <Select
-                  value={s.rounding.minutes}
-                  disabled={s.rounding.mode === "none"}
-                  onChange={(e) =>
-                    set("rounding", {
-                      ...s.rounding,
-                      minutes: Number(e.target.value) as Settings["rounding"]["minutes"],
-                    })
-                  }
-                >
-                  {[1, 5, 6, 10, 15, 30, 60].map((m) => (
-                    <option key={m} value={m}>
-                      {m} minutes
-                    </option>
-                  ))}
-                </Select>
-              </Field>
-            </div>
-          </div>
-        </section>
-
-        <section className="form-section">
-          <div className="form-section__intro">
-            <h2>Rates</h2>
-            <p>
-              The default hourly rate applies when no task, project, client or person rate is set. Rates are
-              saved on each time entry, so changing them never rewrites history.
-            </p>
-          </div>
-          <div className="stack">
-            <div className="form-grid">
-              <Field label={`Default hourly rate (${s.currency})`}>
-                <Input
-                  inputMode="decimal"
-                  value={rate}
-                  onChange={(e) => setRate(e.target.value)}
-                  placeholder="0.00"
-                />
-              </Field>
-            </div>
-            <Switch
-              checked={s.membersSeeOwnRates}
-              onChange={(v) => set("membersSeeOwnRates", v)}
-              label="Members can see their own rates and amounts"
-            />
           </div>
         </section>
 

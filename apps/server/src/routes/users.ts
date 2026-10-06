@@ -8,13 +8,12 @@ import { insertRow, TABLES, updateRow } from "../db/tables.ts";
 import { actorOf, body, clientIp, type HonoEnv } from "../http.ts";
 import { audit } from "../lib/audit.ts";
 import { badRequest, conflict, notFound } from "../lib/errors.ts";
-import { accessContext, invalidateAccessCache } from "../services/access.ts";
+import { invalidateAccessCache } from "../services/access.ts";
 import {
   activeAdminCount,
   bumpSyncEpoch,
   findUserByEmail,
   getUser,
-  shapeUser,
   visibleUsers,
 } from "../services/users.ts";
 
@@ -49,7 +48,7 @@ export function userRoutes(ctx: AppContext) {
 
   r.get("/", requireAuth, (c) => {
     const actor = actorOf(c);
-    return c.json(visibleUsers(ctx.db, actor, accessContext(ctx.db, actor)));
+    return c.json(visibleUsers(ctx.db, actor));
   });
 
   r.post("/", requireRole("admin"), async (c) => {
@@ -67,7 +66,6 @@ export function userRoutes(ctx: AppContext) {
         email: input.email,
         name: input.name,
         role: input.role,
-        rate: input.rate,
         weeklyCapacityMinutes: input.weeklyCapacityMinutes,
         color: input.color,
         active: true,
@@ -131,7 +129,7 @@ export function userRoutes(ctx: AppContext) {
       return u;
     })();
     invalidateAccessCache(ctx.db);
-    return c.json(shapeUser(after as never, actor, accessContext(ctx.db, actor)));
+    return c.json(after);
   });
 
   r.post("/:id/reset-password", requireRole("admin"), async (c) => {

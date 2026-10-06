@@ -9,7 +9,6 @@ import {
   useSensors,
 } from "@dnd-kit/core";
 import {
-  amountFor,
   budgetStatus,
   type Client,
   canCreateProject,
@@ -46,7 +45,7 @@ import { accessFromLocal } from "../../data/access.ts";
 import { useData } from "../../data/DataProvider.tsx";
 import { useClients, useMembers, useProjects, useProjectTree } from "../../data/hooks.ts";
 import { api, errorMessage } from "../../lib/api.ts";
-import { fmtHours, formatMoney } from "../../lib/format.ts";
+import { fmtHours } from "../../lib/format.ts";
 import { Button } from "../../ui/Button.tsx";
 import { Input, Switch } from "../../ui/Field.tsx";
 import { Badge, Dot, EmptyState, Progress } from "../../ui/misc.tsx";
@@ -76,8 +75,6 @@ export function ProjectsPage() {
   const [dialog, setDialog] = useState<DialogState>(null);
   const actor = { id: me.user.id, role: me.user.role };
   const access = useMemo(() => accessFromLocal(projects, members, me), [projects, members, me]);
-  const currency = me.organization?.settings.currency ?? "ZAR";
-  const seesMoney = me.permissions.seeRates;
 
   const totals = useMemo(() => {
     const own = new Map<string, Totals>();
@@ -86,8 +83,6 @@ export function ProjectsPage() {
       const t = own.get(e.projectId) ?? zeroTotals();
       own.set(e.projectId, {
         seconds: t.seconds + e.durationS,
-        billableSeconds: t.billableSeconds + (e.billable ? e.durationS : 0),
-        amount: t.amount + (e.billable ? amountFor(e.durationS, e.rateSnapshot) : 0),
         entries: t.entries + 1,
       });
     }
@@ -256,8 +251,6 @@ export function ProjectsPage() {
                         })
                       }
                       memberCount={members.filter((m) => m.projectId === node.id).length}
-                      currency={currency}
-                      seesMoney={seesMoney}
                       manage={manage}
                       onEdit={(tab) => setDialog({ kind: "edit", project: node, tab })}
                       onAddChild={() =>
@@ -350,7 +343,7 @@ function ClientGroup({
         <div className="row grow">
           <h2 style={{ fontSize: "var(--text-md)" }}>{client.name}</h2>
           {client.code && <Badge>{client.code}</Badge>}
-          {client.isInternal && <Badge tone="info">Internal · non-billable</Badge>}
+          {client.isInternal && <Badge tone="info">Internal</Badge>}
           {client.archivedAt && <Badge>Archived</Badge>}
         </div>
         {onAdd && (
@@ -374,8 +367,6 @@ function ProjectRow({
   collapsed,
   onToggle,
   memberCount,
-  currency,
-  seesMoney,
   manage,
   onEdit,
   onAddChild,
@@ -389,8 +380,6 @@ function ProjectRow({
   collapsed: boolean;
   onToggle: () => void;
   memberCount: number;
-  currency: string;
-  seesMoney: boolean;
   manage: boolean;
   onEdit: (tab?: Tab) => void;
   onAddChild: () => void;
@@ -402,7 +391,7 @@ function ProjectRow({
   const menuAnchor = useRef<HTMLButtonElement>(null);
   const [menu, setMenu] = useState(false);
   const budget = budgetStatus(project, totals);
-  const ratio = Math.max(budget.hoursRatio ?? 0, budget.amountRatio ?? 0);
+  const ratio = budget.hoursRatio ?? 0;
 
   return (
     <li
@@ -450,7 +439,6 @@ function ProjectRow({
         )}
       </button>
       <div className="tree-meta">
-        {!project.billableDefault && <Badge>Non-billable</Badge>}
         {project.visibility === "everyone" && <Badge tone="info">Everyone</Badge>}
         {project.kind && <Badge>{project.kind}</Badge>}
         {project.archivedAt && <Badge>{project.parentId ? "Done" : "Archived"}</Badge>}
@@ -472,7 +460,6 @@ function ProjectRow({
             <span className={`tnum tree-budget__label tree-budget__label--${budget.level}`}>
               {fmtHours(totals.seconds)}
               {project.budgetMinutes ? ` / ${Math.round(project.budgetMinutes / 60)} h` : ""}
-              {seesMoney && project.budgetAmount ? ` · ${Math.round(ratio * 100)}%` : ""}
             </span>
           </>
         ) : (
@@ -480,9 +467,6 @@ function ProjectRow({
             {totals.seconds ? fmtHours(totals.seconds) : ""}
           </span>
         )}
-      </div>
-      <div className="tree-amount tnum">
-        {seesMoney && totals.amount ? formatMoney(totals.amount, currency) : ""}
       </div>
       <div className="tree-actions">
         {manage && (

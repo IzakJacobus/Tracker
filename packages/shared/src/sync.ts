@@ -136,16 +136,7 @@ export function resolveRunningTimers(
 
 /** Fields each synced table accepts from clients. Everything else is server-owned. */
 export const SYNC_WRITABLE_FIELDS: Record<WritableSyncTable, readonly string[]> = {
-  timeEntries: [
-    "projectId",
-    "taskId",
-    "description",
-    "startedAt",
-    "durationS",
-    "billable",
-    "tagIds",
-    "source",
-  ],
+  timeEntries: ["projectId", "taskId", "description", "startedAt", "durationS", "tagIds", "source"],
   favorites: ["projectId", "taskId", "sortOrder"],
   tags: ["name", "color"],
 };

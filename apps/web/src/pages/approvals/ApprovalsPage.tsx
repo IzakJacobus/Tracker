@@ -51,13 +51,7 @@ export function ApprovalsPage() {
         (e) =>
           e.userId === t.userId && e.entryDate >= t.periodStart && e.entryDate <= t.periodEnd && !e.deletedAt,
       )
-      .reduce(
-        (acc, e) => ({
-          total: acc.total + (e.durationS ?? 0),
-          billable: acc.billable + (e.billable ? (e.durationS ?? 0) : 0),
-        }),
-        { total: 0, billable: 0 },
-      );
+      .reduce((acc, e) => ({ total: acc.total + (e.durationS ?? 0) }), { total: 0 });
   const mine = (t: Timesheet) => canApproveTimesheet(actor, t.userId, access);
   const waiting = sheets
     .filter((t) => t.status === "submitted" && mine(t))
@@ -94,7 +88,6 @@ export function ApprovalsPage() {
         </td>
         <td>{rangeLabel(t.periodStart, t.periodEnd)}</td>
         <td className="num mono">{formatDuration(h.total)}</td>
-        <td className="num mono">{formatDuration(h.billable)}</td>
         <td>
           {t.status === "approved" ? (
             <Badge tone="primary">Approved</Badge>
@@ -140,7 +133,6 @@ export function ApprovalsPage() {
                 <th>Person</th>
                 <th>Period</th>
                 <th className="num">Hours</th>
-                <th className="num">Billable</th>
                 <th>Status</th>
                 <th aria-label="Actions" />
               </tr>
@@ -196,7 +188,6 @@ export function ApprovalsPage() {
                 <th>Person</th>
                 <th>Period</th>
                 <th className="num">Hours</th>
-                <th className="num">Billable</th>
                 <th>Status</th>
                 <th aria-label="Actions" />
               </tr>
@@ -281,11 +272,10 @@ function ReviewDialog({
     [data, sheet],
   );
   const lines = m?.lines.filter((l) => l.date >= sheet.periodStart && l.date <= sheet.periodEnd) ?? [];
-  const byProject = new Map<string, { path: string; total: number; billable: number }>();
+  const byProject = new Map<string, { path: string; total: number }>();
   for (const l of lines) {
-    const p = byProject.get(l.entry.projectId) ?? { path: l.projectPath, total: 0, billable: 0 };
+    const p = byProject.get(l.entry.projectId) ?? { path: l.projectPath, total: 0 };
     p.total += l.seconds;
-    if (l.billable) p.billable += l.seconds;
     byProject.set(l.entry.projectId, p);
   }
   return (
@@ -309,9 +299,8 @@ function ReviewDialog({
       <table className="table">
         <thead>
           <tr>
-            <th>Project</th>
-            <th className="num">Billable</th>
-            <th className="num">Total</th>
+            <th>Worked on</th>
+            <th className="num">Hours</th>
           </tr>
         </thead>
         <tbody>
@@ -320,7 +309,6 @@ function ReviewDialog({
             .map((p) => (
               <tr key={p.path}>
                 <td>{p.path}</td>
-                <td className="num mono">{formatDuration(p.billable)}</td>
                 <td className="num mono">{formatDuration(p.total)}</td>
               </tr>
             ))}
@@ -328,9 +316,6 @@ function ReviewDialog({
         <tfoot>
           <tr>
             <td>Total</td>
-            <td className="num mono">
-              {formatDuration(lines.filter((l) => l.billable).reduce((s, l) => s + l.seconds, 0))}
-            </td>
             <td className="num mono">{formatDuration(lines.reduce((s, l) => s + l.seconds, 0))}</td>
           </tr>
         </tfoot>

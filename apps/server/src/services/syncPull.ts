@@ -6,7 +6,6 @@ import type {
   Favorite,
   Project,
   ProjectMember,
-  Task,
   TimeEntry,
   Timesheet,
   User,
@@ -16,20 +15,7 @@ import { getMeta } from "../lib/meta.ts";
 import { accessContext } from "./access.ts";
 import { allProjects } from "./catalog.ts";
 import { getOrganization } from "./org.ts";
-import {
-  entryVisible,
-  favoriteVisible,
-  memberVisible,
-  projectVisible,
-  shapeClient,
-  shapeEntry,
-  shapeMember,
-  shapeProject,
-  shapeTask,
-  taskVisible,
-  timesheetVisible,
-} from "./shape.ts";
-import { shapeUser } from "./users.ts";
+import { entryVisible, favoriteVisible, memberVisible, projectVisible, timesheetVisible } from "./shape.ts";
 
 /** Tables delivered by sync, in dependency order. */
 export const SYNC_TABLES: TableName[] = [
@@ -37,7 +23,6 @@ export const SYNC_TABLES: TableName[] = [
   "clients",
   "projects",
   "projectMembers",
-  "tasks",
   "tags",
   "timesheets",
   "timeEntries",
@@ -69,35 +54,31 @@ type Filter = (
 ) => Row | null;
 
 const FILTERS: Record<TableName, Filter> = {
-  users: (r, actor, access) => {
+  users: (r, actor) => {
     const u = r as unknown as User;
     if (actor.role === "member" && u.id !== actor.id) return null;
-    return shapeUser(u, actor, access) as unknown as Row;
+    return u as unknown as Row;
   },
   clients: (r, actor, _a, { visibleClientIds }) => {
     const c = r as unknown as Client;
     if (actor.role === "member" && !visibleClientIds.has(c.id)) return null;
-    return shapeClient(c, actor) as unknown as Row;
+    return c as unknown as Row;
   },
   projects: (r, actor, access) => {
     const p = r as unknown as Project;
     // Tombstones are always delivered so clients can drop the row.
     if (!p.deletedAt && !projectVisible(p, actor, access)) return null;
-    return shapeProject(p, actor) as unknown as Row;
+    return p as unknown as Row;
   },
   projectMembers: (r, actor, access) => {
     const m = r as unknown as ProjectMember;
-    return memberVisible(m, actor, access) ? (shapeMember(m, actor) as unknown as Row) : null;
-  },
-  tasks: (r, actor, access) => {
-    const t = r as unknown as Task;
-    return taskVisible(t, actor, access) ? (shapeTask(t, actor) as unknown as Row) : null;
+    return memberVisible(m, actor, access) ? (m as unknown as Row) : null;
   },
   tags: (r) => r,
   timesheets: (r, actor, access) => (timesheetVisible(r as unknown as Timesheet, actor, access) ? r : null),
   timeEntries: (r, actor, access) => {
     const e = r as unknown as TimeEntry;
-    return entryVisible(e, actor, access) ? (shapeEntry(e, actor, access) as unknown as Row) : null;
+    return entryVisible(e, actor, access) ? (e as unknown as Row) : null;
   },
   favorites: (r, actor) => (favoriteVisible(r as unknown as Favorite, actor) ? r : null),
 };

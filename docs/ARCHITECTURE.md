@@ -52,7 +52,7 @@ The phased build plan is in [ROADMAP.md](ROADMAP.md). Current status is in
   runner. Bun has built-in SQLite (`bun:sqlite`) and argon2id (`Bun.password`), so there are no
   native add-ons to ship. That was the main risk with Node single-executable apps. Bun also lets
   the server and client share one TypeScript codebase: the Zod schemas and the domain logic
-  (rates, rollups, rounding, conflict resolution) are written once in `packages/shared`.
+  (rollups, conflict resolution) are written once in `packages/shared`.
   Go or Rust would give smaller binaries, but we would have to write the schemas and business
   rules twice.
 * **Hono** is a small, fast, MIT-licensed web framework that runs natively on Bun. It has
@@ -105,65 +105,43 @@ trip, and they sort by creation time. Every table that syncs has these columns:
 
 ```
 organization (single row)
-  name, logo, currency (ZAR), default_rate, timezone (Africa/Johannesburg),
+  name, logo, timezone (Africa/Johannesburg),
   week_start (1 = Monday), date_format (YYYY-MM-DD), workday_hours (8),
-  working_days (Mon–Fri), rounding {mode: none|up|down|nearest, minutes},
-  approval_period (week|month), members_see_own_rates, reminder settings,
+  working_days (Mon–Fri), approval_period (week|month), reminder settings,
   brand colours for PDFs, backup settings, remote access settings
 
-user            id, email, name, role (admin|manager|member), rate, active,
+user            id, email, name, role (admin|manager|member), active,
                 password_hash, weekly_capacity_hours, color
-client          id, name, code, rate, archived, is_internal (one built-in "Internal" client)
+client          id, name, code, archived, is_internal (one built-in "Internal" client)
 project         id, client_id, parent_id (nullable: nesting to any depth), name, code,
                 kind (the firm's own label for an item: "Phase", "Task", ...), color,
-                billable_default, rate, budget_hours, budget_amount, archived (= "done"
+                budget_hours, archived (= "done"
                 for items under a project), notes. A top-level row is a project; every
                 row under it is an item. Hours go on items with nothing under them.
-project_member  project_id, user_id, role (member|manager), rate (per-person override)
+project_member  project_id, user_id, role (member|manager)
 task            (0.1 only; migration 0002 turned every task into an item and emptied it)
 tag             id, name, color, archived
 time_entry      id, user_id, project_id (the item), task_id (always null since 0.2),
                 description, started_at (orders entries within a day), duration_s, entry_date
-                (local YYYY-MM-DD in the org timezone), billable, rate_snapshot,
-                currency_snapshot, source (manual|grid|import; timer in 0.1), tag_ids (JSON)
+                (local YYYY-MM-DD in the org timezone), source (manual|grid|import; timer in 0.1), tag_ids (JSON)
 timesheet       id, user_id, period_start, period_end, status
                 (draft|submitted|approved|rejected), submitted_at, decided_by,
                 decided_at, comment
 favorite        user_id, project_id (an item)  (per user, synced)
 audit_log       id, at, actor_id, action (create|update|delete|approve|reject|unlock|
-                submit|rerate|restore|login…), entity, entity_id, before, after, reason
+                submit|restore|login…), entity, entity_id, before, after, reason
 session         token_hash, user_id, created_at, last_seen_at, expires_at, user_agent, ip
 sync_seq        single-row counter
 schema_migrations  version, name, checksum, applied_at
 ```
 
-### 3.2 Rate resolution (most specific wins)
-
-`project tree, nearest level first → client.rate → user.rate → organization.default_rate`
-
-At each level of the project tree (the entry's project first, then its parent, and so on up to
-the top), a **per-person project rate** (`project_member.rate`) is checked first, then that
-project's own rate. So a sub-project's rate beats a per-person rate set on its parent. This
-extends the brief's `task > project > client > user > organisation` order: consulting firms
-often bill one senior engineer at a special rate on one project. The resolved rate is
-**snapshotted** onto the time entry when the server accepts it. It is recomputed only when the
-entry's item or user changes, or when an admin runs the **Re-rate** tool (date range
-plus filters, recorded in the audit log). A rate of 0 is a real rate (pro-bono work). Only
-`null` means "not set". Implemented in `packages/shared/src/rates.ts` and unit-tested.
-
-### 3.3 Rollups
+### 3.2 Rollups
 
 Projects form a tree through `parent_id`. The total for a project is its own entries plus the
 totals of all its descendants. `packages/shared/src/rollup.ts` builds the tree once and sums
 bottom-up in O(n). It is unit-tested with deep, wide and archived subtrees. Budgets can be set
 on any node and are measured against the rolled-up total. Warnings appear at 80 % (amber) and
 100 % (red).
-
-### 3.4 Rounding
-
-Durations are always stored exactly. Rounding (`none`, or `up`/`down`/`nearest` to 1, 5, 6,
-10, 15, 30 or 60 minutes) is applied **per entry at report time**. It is also shown next to
-each entry, so people see what will be billed.
 
 ## 4. Sync design
 
@@ -206,8 +184,7 @@ For each change:
    A later edit does not revive a deleted row: once `deleted_at` is set, only an explicit
    restore from the admin UI clears it. This is the "delete wins" rule, so an entry someone
    deleted on purpose never comes back.
-6. **Derived fields and rules.** The server recomputes `rate_snapshot`, `currency_snapshot` and
-   `entry_date`. An entry needs hours (there is no timer), and a newly chosen item must have
+6. **Derived fields and rules.** The server recomputes `entry_date`. An entry needs hours (there is no timer), and a newly chosen item must have
    nothing under it and must not be done (or under a done item). Existing entries stay editable.
 7. Assign a new `server_seq` and write an **audit log** entry, in the same transaction.
 
@@ -220,9 +197,8 @@ is approved and locked — your edit was undone."
 ### 4.4 Pull — `GET /api/sync/pull?since=<seq>&limit=500`
 
 The server returns the rows with `server_seq > since` that the user may see, plus the new
-cursor and `hasMore`. Rows are **shaped per role**. For example, for a member the server
-removes rates, amounts and other people's entries, unless the organisation allows members to
-see their own rates.
+cursor and `hasMore`. Rows are **filtered per role**. For example, a member only receives
+their own entries and the projects they may log hours on.
 
 If a user's visibility changes (new project assignment, role change), the server increments
 `user.sync_epoch`. The client sees the new epoch in the response and does a full pull
@@ -270,8 +246,8 @@ entries, favourites and your own monthly timesheet PDF work offline.
   `packages/shared/src/permissions.ts` are unit-tested and **evaluated on the server**. The
   client uses the same functions only to hide buttons.
 * **Validation.** Every request body and query is parsed with Zod. Unknown keys are stripped.
-* **Audit log.** Every create, update or delete of time entries, timesheets, rates and
-  projects, and every approve, reject, unlock, re-rate and restore, is logged with before and
+* **Audit log.** Every create, update or delete of time entries, timesheets and
+  projects, and every approve, reject, unlock and restore, is logged with before and
   after snapshots and a reason where one applies.
 * **Security headers.** CSP, `X-Content-Type-Options`, `Referrer-Policy`, and
   `frame-ancestors 'none'`.
@@ -399,7 +375,7 @@ secrets are ever committed. Keys and certificates are generated at runtime.
 
 | Layer | Tool | What |
 | --- | --- | --- |
-| Domain unit | bun test | rate resolution, rollups, rounding, HLC, conflict merge, permissions, report builders |
+| Domain unit | bun test | rollups, HLC, conflict merge, permissions, report builders |
 | Server integration | bun test + in-memory SQLite | every API route: auth, RBAC, validation, sync push and pull, locking, audit |
 | Components | Vitest + Testing Library | grid, forms, sync status |
 | End to end | Playwright | login, log hours (drill down), done items, offline edit then sync, submit and approve, monthly PDF |

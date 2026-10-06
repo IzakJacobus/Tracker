@@ -7,7 +7,6 @@ import {
   localDate,
   type Project,
   readImportCsv,
-  resolveBillable,
   type User,
   uuidv7,
 } from "@stint/shared";
@@ -16,7 +15,7 @@ import { audit } from "../lib/audit.ts";
 import { invalidateAccessCache } from "./access.ts";
 import { PROJECT_COLORS } from "./catalog.ts";
 import { getOrgSettings } from "./org.ts";
-import { isPeriodLocked, snapshotRate } from "./syncPush.ts";
+import { isPeriodLocked } from "./syncPush.ts";
 import { bumpSyncEpoch } from "./users.ts";
 
 export interface ImportOptions {
@@ -145,10 +144,7 @@ export function importEntries(db: Database, opts: ImportOptions): ImportSummary 
             code: null,
             kind: depth === names.length - 1 ? lastKind : null,
             color: parent?.color ?? PROJECT_COLORS[projects.length % PROJECT_COLORS.length],
-            billableDefault: parent?.billableDefault ?? !client.isInternal,
-            rate: null,
             budgetMinutes: null,
-            budgetAmount: null,
             visibility: client.isInternal ? "everyone" : "members",
             notes: "",
             sortOrder: siblings.reduce((m, s) => Math.max(m, s.sortOrder), -1) + 1,
@@ -283,9 +279,6 @@ export function importEntries(db: Database, opts: ImportOptions): ImportSummary 
         startedAt,
         durationS: r.durationS,
         entryDate,
-        billable: r.billable ?? resolveBillable(null, project),
-        rateSnapshot: snapshotRate(db, entry, settings),
-        currency: settings.currency,
         source: "import",
         tagIds,
         createdAt: now,

@@ -27,7 +27,6 @@ import { insertRow, TABLES } from "../src/db/tables.ts";
 import { getMeta, setMeta } from "../src/lib/meta.ts";
 import { runSetup } from "../src/services/bootstrap.ts";
 import { getOrgSettings } from "../src/services/org.ts";
-import { snapshotRate } from "../src/services/syncPush.ts";
 
 const args = new Set(process.argv.slice(2));
 const dataDir = resolve(process.env.STINT_DATA_DIR ?? join(import.meta.dir, "..", "data"));
@@ -58,7 +57,6 @@ await runSetup(
   db,
   {
     organizationName: "Karoo Consulting Engineers",
-    currency: "ZAR",
     timezone: "Africa/Johannesburg",
     admin: { name: "Thandi Mokoena", email: "thandi@karoo.co.za", password: PASSWORD },
   },
@@ -67,13 +65,10 @@ await runSetup(
 );
 db.query("UPDATE organization SET settings = json_patch(settings, ?) WHERE id = 'org'").run(
   JSON.stringify({
-    defaultRate: 85000,
-    rounding: { mode: "up", minutes: 6 },
     pdf: {
       accentColor: "#1f5c4a",
       address: "14 Dorp Street\nStellenbosch 7600\nSouth Africa",
       registration: "2011/004217/07",
-      vatNumber: "4870261943",
       footer: "Karoo Consulting Engineers (Pty) Ltd",
     },
   }),
@@ -83,13 +78,11 @@ const tz = settings.timezone;
 const hash = await hashPassword(PASSWORD);
 
 const adminId = db.query<{ id: string }, []>("SELECT id FROM users WHERE role = 'admin'").get()!.id;
-db.query("UPDATE users SET rate = 145000 WHERE id = ?").run(adminId);
 
 function user(
   name: string,
   email: string,
   role: "admin" | "manager" | "member",
-  rate: number,
   color: string,
   managerId: string | null,
 ) {
@@ -99,7 +92,6 @@ function user(
     email,
     name,
     role,
-    rate,
     weeklyCapacityMinutes: 2400,
     color,
     active: true,
@@ -112,19 +104,18 @@ function user(
   db.query("UPDATE users SET password_hash = ? WHERE id = ?").run(hash, id);
   return id;
 }
-const pieter = user("Pieter van Wyk", "pieter@karoo.co.za", "manager", 120000, "#2463a6", null);
-const aisha = user("Aisha Patel", "aisha@karoo.co.za", "member", 95000, "#b86e12", pieter);
-const sipho = user("Sipho Dlamini", "sipho@karoo.co.za", "member", 80000, "#6d5bd0", pieter);
-const lerato = user("Lerato Nkosi", "lerato@karoo.co.za", "member", 70000, "#be185d", adminId);
+const pieter = user("Pieter van Wyk", "pieter@karoo.co.za", "manager", "#2463a6", null);
+const aisha = user("Aisha Patel", "aisha@karoo.co.za", "member", "#b86e12", pieter);
+const sipho = user("Sipho Dlamini", "sipho@karoo.co.za", "member", "#6d5bd0", pieter);
+const lerato = user("Lerato Nkosi", "lerato@karoo.co.za", "member", "#be185d", adminId);
 const people = [adminId, pieter, aisha, sipho, lerato];
 
-function client(name: string, code: string, rate: number | null) {
+function client(name: string, code: string) {
   const id = uuidv7();
   insertRow(db, TABLES.clients, {
     id,
     name,
     code,
-    rate,
     isInternal: false,
     notes: "",
     archivedAt: null,
@@ -150,10 +141,7 @@ function project(
     code: null,
     kind: null,
     color: "#1f5c4a",
-    billableDefault: true,
-    rate: null,
     budgetMinutes: null,
-    budgetAmount: null,
     visibility: "members",
     notes: "",
     sortOrder: sort++,
@@ -166,7 +154,7 @@ function project(
   return id;
 }
 /** An item of kind "Task" under a project (tasks are items in the project tree since 0.2). */
-function task(projectId: string, name: string, rate: number | null = null) {
+function task(projectId: string, name: string) {
   const parent = db
     .query<{ client_id: string; color: string; visibility: string }, [string]>(
       "SELECT client_id, color, visibility FROM projects WHERE id = ?",
@@ -176,44 +164,35 @@ function task(projectId: string, name: string, rate: number | null = null) {
     kind: "Task",
     color: parent.color,
     visibility: parent.visibility,
-    rate,
   });
 }
-function member(
-  projectId: string,
-  userId: string,
-  role: "member" | "manager" = "member",
-  rate: number | null = null,
-) {
+function member(projectId: string, userId: string, role: "member" | "manager" = "member") {
   insertRow(db, TABLES.projectMembers, {
     id: uuidv7(),
     projectId,
     userId,
     role,
-    rate,
     createdAt: now,
     updatedAt: now,
     deletedAt: null,
   });
 }
 
-const drakenstein = client("Drakenstein Municipality", "DRK", 95000);
-const winelands = client("Cape Winelands Water", "CWW", 110000);
-const stellies = client("Stellenbosch University", "SU", null);
-const ferrum = client("Ferrum Mining (Pty) Ltd", "FER", 125000);
+const drakenstein = client("Drakenstein Municipality", "DRK");
+const winelands = client("Cape Winelands Water", "CWW");
+const stellies = client("Stellenbosch University", "SU");
+const ferrum = client("Ferrum Mining (Pty) Ltd", "FER");
 
 const bridge = project(drakenstein, null, "Paarl bridge upgrade", {
   code: "2026-014",
   color: "#b3361f",
   budgetMinutes: 900 * 60,
-  budgetAmount: 95_000_000,
 });
 const design = project(drakenstein, bridge, "Detailed design", { color: "#b3361f", kind: "Phase" });
 const wp1 = project(drakenstein, design, "WP1 Structural", { color: "#b3361f", kind: "Work package" });
 const wp2 = project(drakenstein, design, "WP2 Geotechnical", {
   color: "#b3361f",
   kind: "Work package",
-  rate: 105000,
 });
 const monitoring = project(drakenstein, bridge, "Construction monitoring", {
   color: "#b3361f",
@@ -234,13 +213,11 @@ const eia = project(winelands, pipeline, "Environmental approvals", { color: "#2
 const lab = project(stellies, null, "Structures lab refurbishment", {
   code: "2026-031",
   color: "#0f766e",
-  rate: 90000,
 });
 const tailings = project(ferrum, null, "Tailings dam inspection", {
   code: "2026-017",
   color: "#6d5bd0",
   budgetMinutes: 120 * 60,
-  budgetAmount: 16_000_000,
 });
 
 const siteVisit = task(monitoring, "Site visit");
@@ -249,7 +226,7 @@ const reportWriting = task(bridge, "Report writing");
 const drawings = task(design, "Drawings & modelling");
 task(pipeline, "Meetings");
 const routeWork = task(pipeline, "Route & wayleaves");
-const tailingsSite = task(tailings, "Site inspection", 150000);
+const tailingsSite = task(tailings, "Site inspection");
 const stability = task(tailings, "Stability analysis");
 
 member(bridge, pieter, "manager");
@@ -258,7 +235,7 @@ member(bridge, sipho);
 member(roads, sipho);
 member(roads, lerato);
 member(pipeline, pieter, "manager");
-member(pipeline, aisha, "member", 105000);
+member(pipeline, aisha);
 member(pipeline, lerato);
 member(lab, lerato);
 member(lab, sipho);
@@ -334,7 +311,6 @@ const entrySql = (
   description: string,
   startedAt: number,
   durationS: number,
-  billable: boolean,
 ) => {
   const e = {
     id: uuidv7(startedAt),
@@ -346,25 +322,15 @@ const entrySql = (
     startedAt,
     durationS,
     entryDate: localDate(startedAt, tz),
-    billable,
-    rateSnapshot: 0,
-    currency: settings.currency,
     source: rnd() < 0.5 ? "grid" : "manual",
     tagIds: [],
     createdAt: startedAt,
     updatedAt: startedAt,
     deletedAt: null,
   };
-  e.rateSnapshot = snapshotRate(db, e, settings);
   insertRow(db, TABLES.timeEntries, e);
   entries++;
 };
-const projectBillable = new Map(
-  db
-    .query<{ id: string; b: number }, []>("SELECT id, billable_default AS b FROM projects")
-    .all()
-    .map((r) => [r.id, r.b === 1]),
-);
 
 db.transaction(() => {
   for (let d = start; d <= today; d = addDays(d, 1)) {
@@ -382,7 +348,6 @@ db.transaction(() => {
           "",
           zonedToInstant(d, "08:00", tz),
           8 * 3600,
-          false,
         );
         continue;
       }
@@ -393,7 +358,7 @@ db.transaction(() => {
       if (rnd() < 0.7) {
         const [p, tk, desc] = pick(internalExtras);
         const dur = pick([1800, 2700, 3600]);
-        entrySql(uid, p, tk, desc, t, dur, false);
+        entrySql(uid, p, tk, desc, t, dur);
         t += dur * 1000;
         remaining -= dur;
       }
@@ -402,7 +367,7 @@ db.transaction(() => {
       while (remaining > 1800) {
         const [p, tk, , descs] = options[pick(weights)]!;
         const dur = Math.min(remaining, pick([3600, 5400, 7200, 9000, 10800]) + Math.round(rnd() * 4) * 300);
-        entrySql(uid, p, tk, pick(descs), t, dur, projectBillable.get(p) ?? true);
+        entrySql(uid, p, tk, pick(descs), t, dur);
         t += dur * 1000 + (rnd() < 0.3 ? 45 * 60_000 : 0); // lunch
         remaining -= dur;
       }

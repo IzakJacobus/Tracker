@@ -20,7 +20,7 @@ import { audit } from "../lib/audit.ts";
 import { badRequest, forbidden, notFound } from "../lib/errors.ts";
 import { accessContext, invalidateAccessCache } from "../services/access.ts";
 import { allProjects, getClient, getProject, PROJECT_COLORS, projectTree } from "../services/catalog.ts";
-import { memberVisible, projectVisible, shapeMember, shapeProject } from "../services/shape.ts";
+import { memberVisible, projectVisible } from "../services/shape.ts";
 import { bumpGlobalSyncEpoch, bumpSyncEpoch, getUser } from "../services/users.ts";
 
 export function projectRoutes(ctx: AppContext) {
@@ -33,7 +33,7 @@ export function projectRoutes(ctx: AppContext) {
     return c.json(
       allProjects(ctx.db)
         .filter((p) => projectVisible(p, actor, access))
-        .map((p) => shapeProject(p, actor)),
+        .map((p) => p),
     );
   });
 
@@ -66,10 +66,7 @@ export function projectRoutes(ctx: AppContext) {
       kind: input.kind?.trim() || null,
       color:
         input.color ?? parent?.color ?? PROJECT_COLORS[allProjects(ctx.db).length % PROJECT_COLORS.length],
-      billableDefault: input.billableDefault ?? parent?.billableDefault ?? !client.isInternal,
-      rate: input.rate ?? null,
       budgetMinutes: input.budgetMinutes ?? null,
-      budgetAmount: input.budgetAmount ?? null,
       visibility: input.visibility ?? (client.isInternal ? "everyone" : "members"),
       notes: input.notes ?? "",
       sortOrder: siblings.reduce((m, s) => Math.max(m, s.sortOrder), -1) + 1,
@@ -87,7 +84,7 @@ export function projectRoutes(ctx: AppContext) {
       ip: clientIp(c),
     });
     invalidateAccessCache(ctx.db);
-    return c.json(shapeProject(row as Project, actor), 201);
+    return c.json(row as Project, 201);
   });
 
   r.patch("/:id", async (c) => {
@@ -111,7 +108,7 @@ export function projectRoutes(ctx: AppContext) {
       ip: clientIp(c),
     });
     invalidateAccessCache(ctx.db);
-    return c.json(shapeProject(after as Project, actor));
+    return c.json(after as Project);
   });
 
   /** Drag-and-drop re-parenting / reordering. */
@@ -174,7 +171,7 @@ export function projectRoutes(ctx: AppContext) {
       return after;
     })();
     invalidateAccessCache(ctx.db);
-    return c.json(shapeProject(moved as Project, actor));
+    return c.json(moved as Project);
   });
 
   for (const [path, archive] of [
@@ -196,7 +193,7 @@ export function projectRoutes(ctx: AppContext) {
         entityId: id,
         ip: clientIp(c),
       });
-      return c.json(shapeProject(after as Project, actor));
+      return c.json(after as Project);
     });
   }
 
@@ -209,7 +206,7 @@ export function projectRoutes(ctx: AppContext) {
     const rows = listRows(ctx.db, TABLES.projectMembers, "project_id = ? AND deleted_at IS NULL", [
       id,
     ]) as ProjectMember[];
-    return c.json(rows.filter((m) => memberVisible(m, actor, access)).map((m) => shapeMember(m, actor)));
+    return c.json(rows.filter((m) => memberVisible(m, actor, access)).map((m) => m));
   });
 
   r.put("/:id/members/:userId", async (c) => {
@@ -233,19 +230,12 @@ export function projectRoutes(ctx: AppContext) {
       .get(projectId, userId);
     const row = ctx.db.transaction(() => {
       const out = existing
-        ? updateRow(
-            ctx.db,
-            TABLES.projectMembers,
-            existing.id,
-            { role: input.role, rate: input.rate, deletedAt: null },
-            now,
-          )
+        ? updateRow(ctx.db, TABLES.projectMembers, existing.id, { role: input.role, deletedAt: null }, now)
         : insertRow(ctx.db, TABLES.projectMembers, {
             id: uuidv7(now),
             projectId,
             userId,
             role: input.role,
-            rate: input.rate,
             createdAt: now,
             updatedAt: now,
             deletedAt: null,
@@ -262,7 +252,7 @@ export function projectRoutes(ctx: AppContext) {
       return out;
     })();
     invalidateAccessCache(ctx.db);
-    return c.json(shapeMember(row as ProjectMember, actor));
+    return c.json(row as ProjectMember);
   });
 
   r.delete("/:id/members/:userId", (c) => {

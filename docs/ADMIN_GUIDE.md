@@ -36,8 +36,8 @@ Health page's Public-network and firewall checks are Windows-only.
 The wizard only runs on the server PC itself, so nobody else on the network can claim a new
 server.
 
-1. **Company**: name, currency, time zone, date format and the day weeks start on. South
-   African defaults are filled in.
+1. **Company**: name, time zone, date format and the day weeks start on. South African
+   defaults are filled in.
 2. **Your admin account**: your name, email and a password of at least 10 characters.
 3. **Clients and projects**: add a few to start with. The *Internal* client already has
    Administration, Business development, Training, Research & development and Leave.
@@ -47,15 +47,15 @@ server.
 
 ## 3. People and roles
 
-**Team → Add person.** Enter their name, email, role, line manager and (optionally) an hourly
-rate. Stint creates a temporary password for you to pass on, and asks them to change it the
+**Team → Add person.** Enter their name, email, role, line manager and expected hours per
+week. Stint creates a temporary password for you to pass on, and asks them to change it the
 first time they sign in.
 
 | Role | Can |
 | --- | --- |
-| **Member** | Track their own time, see their own reports, and submit timesheets. They see rates and amounts only if *Members see their own rates* is on. |
+| **Member** | Track their own time, see their own reports, and submit timesheets. |
 | **Manager** | Everything a member can. They also see the time of people they line-manage, approve or send back those people's timesheets, and manage projects where they are a project manager (items and members). |
-| **Admin** | Everything: people, clients, all projects, settings, backups, unlocking timesheets, re-rating, import and the audit log. |
+| **Admin** | Everything: people, clients, all projects, settings, backups, unlocking timesheets, import and the audit log. |
 
 Every rule is enforced by the server, not only hidden in the screens.
 
@@ -87,30 +87,8 @@ Every rule is enforced by the server, not only hidden in the screens.
 - **Mark items done** when their work is finished (the item's ⋯ menu, or the *Items* tab). A done
   item and everything under it disappear from the pickers but stay in reports; *Reopen* brings it
   back. Finished projects and clients are **archived** the same way.
-- **Budgets:** hours and/or an amount on any project or item. The Projects page and the reports
+- **Budgets:** hours on any project or item. The Projects page and the reports
   warn at 80 % and 100 %.
-
-### Rates
-
-When someone saves an entry, Stint picks the most specific rate that applies:
-
-1. the person's rate on that project (set on the project's *People* tab),
-2. the item's rate (or the nearest rate above it in the tree),
-3. the client's rate,
-4. the person's own rate,
-5. the firm's default rate (Settings → Organisation).
-
-That rate is **frozen on the entry**. Changing a rate later doesn't change past entries, so
-invoices you already sent stay correct. If you do want past entries repriced (a new rate was
-agreed from the start of the month, for example), use **Settings → Re-rate**. It shows a preview of
-the old and new amounts first, skips submitted and approved periods unless you tick the box,
-and records what it did in the audit log.
-
-### Rounding
-
-Settings → Organisation → *Rounding* rounds each entry's duration for billing (for example up
-to the next 15 minutes). Reports and exports show both the recorded hours and the *Billed*
-(rounded) hours. The time people recorded is never changed.
 
 ## 5. Timesheets and approvals
 
@@ -222,7 +200,7 @@ different name, share its address from the Health page (people need to sign in a
   Wi-Fi.
 - Setup only works on the server PC. The plain-HTTP admin address (`http://localhost:47601`)
   only works on the server PC too. From other PCs, plain HTTP only redirects to HTTPS.
-- Every change to time data, timesheet decision, unlock, re-rate, import, restore and settings
+- Every change to time data, timesheet decision, unlock, import, restore and settings
   change is in **Settings → Audit log**.
 - The only thing Stint sends to the internet is the once-a-day update check (just the version
   question, to GitHub). You can turn it off with `"updateCheck": false` in the configuration

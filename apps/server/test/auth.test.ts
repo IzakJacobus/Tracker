@@ -12,14 +12,14 @@ describe("setup", () => {
       user: { role: string; email: string };
       organization: {
         name: string;
-        settings: { currency: string; timezone: string; weekStart: number; dateFormat: string };
+        settings: { timezone: string; weekStart: number; dateFormat: string };
       };
     }>("GET", "/api/auth/me", { as: admin });
     expect(me.status).toBe(200);
     expect(me.body.user.role).toBe("admin");
     expect(me.body.organization.name).toBe("Karoo Consulting Engineers");
     // South African defaults
-    expect(me.body.organization.settings.currency).toBe("ZAR");
+    expect(me.body.organization.settings.timezone).toBe("Africa/Johannesburg");
     expect(me.body.organization.settings.timezone).toBe("Africa/Johannesburg");
     expect(me.body.organization.settings.weekStart).toBe(1);
     expect(me.body.organization.settings.dateFormat).toBe("YYYY-MM-DD");
@@ -33,12 +33,12 @@ describe("setup", () => {
       .all();
     expect(clients).toEqual([{ name: "Internal", is_internal: 1 }]);
     const projects = s.ctx.db
-      .query<{ name: string; billable_default: number; visibility: string }, []>(
-        "SELECT name, billable_default, visibility FROM projects ORDER BY sort_order",
+      .query<{ name: string; visibility: string }, []>(
+        "SELECT name, visibility FROM projects ORDER BY sort_order",
       )
       .all();
     expect(projects.map((p) => p.name)).toContain("Leave");
-    expect(projects.every((p) => p.billable_default === 0 && p.visibility === "everyone")).toBe(true);
+    expect(projects.every((p) => p.visibility === "everyone")).toBe(true);
   });
 
   test("is refused from another computer on the network", async () => {

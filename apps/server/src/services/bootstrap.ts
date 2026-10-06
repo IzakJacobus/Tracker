@@ -4,7 +4,7 @@ import { hashPassword } from "../auth/passwords.ts";
 import { insertRow, nextSeq, TABLES } from "../db/tables.ts";
 import { audit } from "../lib/audit.ts";
 
-/** Internal work every consulting firm has. Visible to everyone, non-billable. */
+/** Internal work every consulting firm has. Visible to everyone. */
 export const INTERNAL_PROJECTS: { name: string; color: string; tasks: string[] }[] = [
   { name: "Administration", color: "#64748b", tasks: ["Timesheets & admin", "Meetings", "IT & equipment"] },
   { name: "Business development", color: "#b7791f", tasks: ["Proposals", "Client meetings", "Marketing"] },
@@ -26,7 +26,7 @@ export async function runSetup(
   const passwordHash = await hashPassword(input.admin.password);
   const adminId = uuidv7(now);
   db.transaction(() => {
-    const settings = { ...defaultOrgSettings(), currency: input.currency, timezone: input.timezone };
+    const settings = { ...defaultOrgSettings(), timezone: input.timezone };
     const seq = nextSeq(db);
     db.query(
       "INSERT INTO organization (id, name, settings, created_at, updated_at, server_seq) VALUES ('org', ?, ?, ?, ?, ?)",
@@ -70,7 +70,7 @@ export function createInternalClient(db: Database, now: number): string {
     code: "INT",
     rate: null,
     isInternal: true,
-    notes: "Built-in client for the firm's own, non-billable work.",
+    notes: "Built-in client for the firm's own work (admin, training, leave).",
     archivedAt: null,
     createdAt: now,
     updatedAt: now,
@@ -86,7 +86,6 @@ export function createInternalClient(db: Database, now: number): string {
       code: null,
       kind: null,
       color: p.color,
-      billableDefault: false,
       rate: null,
       budgetMinutes: null,
       budgetAmount: null,
@@ -107,7 +106,6 @@ export function createInternalClient(db: Database, now: number): string {
         code: null,
         kind: "Task",
         color: p.color,
-        billableDefault: false,
         rate: null,
         budgetMinutes: null,
         budgetAmount: null,

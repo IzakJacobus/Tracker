@@ -6,7 +6,6 @@ const LINKS = [
   { to: "/settings/backups", label: "Backups" },
   { to: "/settings/remote", label: "Remote access" },
   { to: "/settings/import", label: "Import" },
-  { to: "/settings/rerate", label: "Re-rate" },
   { to: "/settings/audit", label: "Audit log" },
 ];
 

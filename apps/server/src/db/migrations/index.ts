@@ -1,5 +1,6 @@
 import m0001 from "./0001_initial.sql" with { type: "text" };
 import m0002 from "./0002_item_tree.sql" with { type: "text" };
+import m0003 from "./0003_remove_billing.sql" with { type: "text" };
 
 export interface Migration {
   version: number;
@@ -14,4 +15,5 @@ export interface Migration {
 export const migrations: Migration[] = [
   { version: 1, name: "initial", sql: m0001 },
   { version: 2, name: "item_tree", sql: m0002 },
+  { version: 3, name: "remove_billing", sql: m0003 },
 ];

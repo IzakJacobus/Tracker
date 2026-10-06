@@ -17,7 +17,6 @@ function setup() {
     clock,
     userId: "u1",
     timezone: "Africa/Johannesburg",
-    currency: "ZAR",
     now: () => now,
   });
   return { db, repo, clock, advance: (ms: number) => (now += ms), getNow: () => now };
@@ -46,20 +45,12 @@ describe("EntryRepo (optimistic, offline-first)", () => {
     expect(await db.timeEntries.get(e.id)).toMatchObject({
       description: "Late call",
       entryDate: "2026-09-30",
-      billable: true,
     });
     const out = await db.outbox.toArray();
     expect(out).toHaveLength(1);
     expect(out[0]).toMatchObject({ op: "create", table: "timeEntries", id: e.id });
     expect(out[0]!.patch).not.toHaveProperty("rateSnapshot");
     expect(out[0]!.patch).not.toHaveProperty("userId");
-  });
-
-  test("billable defaults come from the project (tasks are items since 0.2)", async () => {
-    const { db, repo } = setup();
-    await db.projects.put({ id: "p1", billableDefault: false } as never);
-    const e = await repo.create({ projectId: "p1", startedAt: Date.now(), durationS: 60 });
-    expect(e.billable).toBe(false);
   });
 
   test("there is no timer: entries always have hours", () => {

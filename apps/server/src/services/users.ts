@@ -1,5 +1,5 @@
 import type { Database } from "bun:sqlite";
-import { type AccessContext, type Actor, canSeeRates, type User } from "@stint/shared";
+import type { Actor, User } from "@stint/shared";
 import { getRow, listRows, TABLES } from "../db/tables.ts";
 import { getMeta, setMeta } from "../lib/meta.ts";
 
@@ -15,16 +15,10 @@ export function findUserByEmail(db: Database, email: string) {
     .get(email);
 }
 
-/** Removes fields the viewer may not see. */
-export function shapeUser(u: User, viewer: Actor, ctx: AccessContext): User {
-  return canSeeRates(viewer, u.id, ctx) ? u : { ...u, rate: null };
-}
-
 /** Users visible to `viewer`: everyone for admins/managers; members see themselves only. */
-export function visibleUsers(db: Database, viewer: Actor, ctx: AccessContext): User[] {
+export function visibleUsers(db: Database, viewer: Actor): User[] {
   const all = listRows(db, TABLES.users, "deleted_at IS NULL ORDER BY name COLLATE NOCASE") as User[];
-  const list = viewer.role === "member" ? all.filter((u) => u.id === viewer.id) : all;
-  return list.map((u) => shapeUser(u, viewer, ctx));
+  return viewer.role === "member" ? all.filter((u) => u.id === viewer.id) : all;
 }
 
 /**

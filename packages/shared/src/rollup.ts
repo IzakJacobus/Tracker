@@ -88,20 +88,13 @@ export function flattenTree<T extends TreeNode>(tree: Tree<T>): { node: T; depth
 
 export interface Totals {
   seconds: number;
-  billableSeconds: number;
-  amount: number;
   entries: number;
 }
 
-export const zeroTotals = (): Totals => ({ seconds: 0, billableSeconds: 0, amount: 0, entries: 0 });
+export const zeroTotals = (): Totals => ({ seconds: 0, entries: 0 });
 
 export function addTotals(a: Totals, b: Totals): Totals {
-  return {
-    seconds: a.seconds + b.seconds,
-    billableSeconds: a.billableSeconds + b.billableSeconds,
-    amount: a.amount + b.amount,
-    entries: a.entries + b.entries,
-  };
+  return { seconds: a.seconds + b.seconds, entries: a.entries + b.entries };
 }
 
 /**
@@ -133,18 +126,16 @@ export type BudgetLevel = "none" | "ok" | "warning" | "over";
 
 export interface BudgetStatus {
   hoursRatio: number | null;
-  amountRatio: number | null;
   level: BudgetLevel;
 }
 
-/** Budget progress: warning at 80 %, over at 100 % (of either hours or money). */
+/** Budget progress in hours: warning at 80 %, over at 100 %. */
 export function budgetStatus(
-  budget: { budgetMinutes: number | null; budgetAmount: number | null },
-  totals: Pick<Totals, "seconds" | "amount">,
+  budget: { budgetMinutes: number | null },
+  totals: Pick<Totals, "seconds">,
 ): BudgetStatus {
   const hoursRatio = budget.budgetMinutes ? totals.seconds / (budget.budgetMinutes * 60) : null;
-  const amountRatio = budget.budgetAmount ? totals.amount / budget.budgetAmount : null;
-  const worst = Math.max(hoursRatio ?? -1, amountRatio ?? -1);
-  const level: BudgetLevel = worst < 0 ? "none" : worst >= 1 ? "over" : worst >= 0.8 ? "warning" : "ok";
-  return { hoursRatio, amountRatio, level };
+  const level: BudgetLevel =
+    hoursRatio === null ? "none" : hoursRatio >= 1 ? "over" : hoursRatio >= 0.8 ? "warning" : "ok";
+  return { hoursRatio, level };
 }

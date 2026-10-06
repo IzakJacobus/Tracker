@@ -69,13 +69,12 @@ describe("readImportCsv", () => {
       project: ["Paarl bridge upgrade"],
       task: "Site visit",
       description: "Inspection, east abutment",
-      billable: true,
       tags: ["site", "travel"],
       date: "2026-09-28",
       time: "08:30:00",
       durationS: 5400,
     });
-    expect(r.rows[1]).toMatchObject({ client: "", project: ["Admin"], billable: false, tags: [] });
+    expect(r.rows[1]).toMatchObject({ client: "", project: ["Admin"], tags: [] });
   });
 
   test("reads Stint's own CSV export (project paths, totals row, formula guard)", () => {
@@ -114,7 +113,6 @@ describe("readImportCsv", () => {
       person: "Sipho Dlamini",
       project: ["Paarl bridge upgrade", "Detailed design"],
       description: "-ve moment check",
-      billable: false,
       durationS: 9000,
       time: null,
     });

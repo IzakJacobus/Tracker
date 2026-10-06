@@ -8,7 +8,7 @@ import { audit } from "../lib/audit.ts";
 import { badRequest, notFound } from "../lib/errors.ts";
 import { accessContext } from "../services/access.ts";
 import { allProjects, getClient } from "../services/catalog.ts";
-import { projectVisible, shapeClient } from "../services/shape.ts";
+import { projectVisible } from "../services/shape.ts";
 
 export function clientRoutes(ctx: AppContext) {
   const r = new Hono<HonoEnv>();
@@ -20,15 +20,14 @@ export function clientRoutes(ctx: AppContext) {
       TABLES.clients,
       "deleted_at IS NULL ORDER BY is_internal DESC, name COLLATE NOCASE",
     ) as Client[];
-    if (actor.role === "admin" || actor.role === "manager")
-      return c.json(all.map((x) => shapeClient(x, actor)));
+    if (actor.role === "admin" || actor.role === "manager") return c.json(all.map((x) => x));
     const access = accessContext(ctx.db, actor);
     const visibleClientIds = new Set(
       allProjects(ctx.db)
         .filter((p) => projectVisible(p, actor, access))
         .map((p) => p.clientId),
     );
-    return c.json(all.filter((x) => visibleClientIds.has(x.id)).map((x) => shapeClient(x, actor)));
+    return c.json(all.filter((x) => visibleClientIds.has(x.id)).map((x) => x));
   });
 
   r.post("/", requireRole("admin"), async (c) => {
@@ -39,7 +38,6 @@ export function clientRoutes(ctx: AppContext) {
       id: input.id ?? uuidv7(now),
       name: input.name,
       code: input.code ?? null,
-      rate: input.rate ?? null,
       isInternal: false,
       notes: input.notes ?? "",
       archivedAt: null,

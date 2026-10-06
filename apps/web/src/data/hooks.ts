@@ -4,7 +4,6 @@ import {
   type Project,
   type ProjectMember,
   type Tag,
-  type Task,
   type Tree,
   type User,
 } from "@stint/shared";
@@ -22,11 +21,6 @@ export function useClients(): Client[] {
 export function useProjects(): Project[] {
   const { db } = useData();
   return useLiveQuery(() => db.projects.toArray(), [db]) ?? EMPTY;
-}
-
-export function useTasks(): Task[] {
-  const { db } = useData();
-  return useLiveQuery(() => db.tasks.toArray(), [db]) ?? EMPTY;
 }
 
 export function useTags(): Tag[] {

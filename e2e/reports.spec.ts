@@ -29,16 +29,14 @@ test("generate a monthly timesheet PDF", async ({ page }) => {
   expect(bytes.length).toBeGreaterThan(2000);
 });
 
-test("members cannot see money in reports", async ({ page }) => {
-  await login(page, "member");
-  await page.getByRole("link", { name: "Reports" }).click();
-  await expect(page.locator(".stat__label", { hasText: "Hours tracked" })).toBeVisible();
-  await expect(page.getByText("Billable amount")).toHaveCount(0);
-});
-
-test("admins see the company overview with amounts", async ({ page }) => {
-  await login(page, "admin");
-  await page.getByRole("link", { name: "Reports" }).click();
-  await expect(page.getByText("Billable amount")).toBeVisible();
-  await expect(page.getByRole("heading", { name: "People" })).toBeVisible();
+test("reports are hours only, for members and admins alike", async ({ browser }) => {
+  for (const who of ["member", "admin"] as const) {
+    const page = await (await browser.newContext()).newPage();
+    await login(page, who);
+    await page.getByRole("link", { name: "Reports" }).click();
+    await expect(page.locator(".stat__label", { hasText: "Hours logged" })).toBeVisible();
+    const text = await page.locator("main").innerText();
+    expect(text).not.toMatch(/billable|amount|invoice|hourly rate|R ?[0-9]+,[0-9][0-9]/i);
+    if (who === "admin") await expect(page.getByRole("heading", { name: "People" })).toBeVisible();
+  }
 });

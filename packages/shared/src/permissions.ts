@@ -20,7 +20,6 @@ export interface AccessContext {
   memberships: ReadonlyMap<string, "member" | "manager">;
   /** user id → their line manager's user id */
   userManager: ReadonlyMap<string, string | null>;
-  membersSeeOwnRates: boolean;
   /**
    * Managers only: projects that people they line-manage are members of. Lets a manager see
    * the projects their team's time is on (to read it, not to track on them).
@@ -94,7 +93,6 @@ export const canManageOrganization = isAdmin;
 export const canViewAuditLog = isAdmin;
 export const canManageBackups = isAdmin;
 export const canUnlockTimesheet = isAdmin;
-export const canRerate = isAdmin;
 export const canManageTags = isManagerOrAdmin;
 export const canCreateTag = (_a: Actor) => true;
 
@@ -126,12 +124,6 @@ export function canEditEntry(actor: Actor, entry: { userId: string }): boolean {
   return actor.id === entry.userId || isAdmin(actor);
 }
 
-/** Rates and money amounts. */
-export function canSeeRates(actor: Actor, subjectUserId: string | null, ctx: AccessContext): boolean {
-  if (isManagerOrAdmin(actor)) return true;
-  return ctx.membersSeeOwnRates && subjectUserId === actor.id;
-}
-
 export function canApproveTimesheet(actor: Actor, userId: string, ctx: AccessContext): boolean {
   if (isAdmin(actor)) return true;
   if (actor.role !== "manager" || actor.id === userId) return false;
@@ -148,6 +140,5 @@ export function emptyAccessContext(): AccessContext {
     projectVisibility: new Map(),
     memberships: new Map(),
     userManager: new Map(),
-    membersSeeOwnRates: false,
   };
 }

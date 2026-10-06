@@ -7,7 +7,6 @@ import {
   canEditEntry,
   canManageClients,
   canManageProject,
-  canSeeRates,
   canTrackOnProject,
   canUnlockTimesheet,
   canViewEntry,
@@ -50,7 +49,6 @@ function ctxFor(actor: Actor, extra: Partial<AccessContext> = {}): AccessContext
       ["bob", null],
       ["mgr", null],
     ]),
-    membersSeeOwnRates: false,
     ...extra,
   };
 }
@@ -148,22 +146,6 @@ describe("time visibility", () => {
     expect(canEditEntry(alice, { userId: "alice" })).toBe(true);
     expect(canEditEntry(mgr, { userId: "alice" })).toBe(false);
     expect(canEditEntry(admin, { userId: "alice" })).toBe(true);
-  });
-});
-
-describe("rates", () => {
-  test("members do not see rates by default", () => {
-    expect(canSeeRates(alice, "alice", ctxFor(alice))).toBe(false);
-  });
-  test("members may see their own rates when the organisation allows it", () => {
-    const ctx = ctxFor(alice, { membersSeeOwnRates: true });
-    expect(canSeeRates(alice, "alice", ctx)).toBe(true);
-    expect(canSeeRates(alice, "bob", ctx)).toBe(false);
-    expect(canSeeRates(alice, null, ctx)).toBe(false);
-  });
-  test("managers and admins see rates", () => {
-    expect(canSeeRates(mgr, "bob", ctxFor(mgr))).toBe(true);
-    expect(canSeeRates(admin, null, ctxFor(admin))).toBe(true);
   });
 });
 

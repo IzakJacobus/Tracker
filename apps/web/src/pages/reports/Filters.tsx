@@ -1,4 +1,4 @@
-import type { BillableFilter, ReportData, ReportFilter } from "@stint/shared";
+import type { ReportData, ReportFilter } from "@stint/shared";
 import { useMe } from "../../app/session.tsx";
 import { useSettings } from "../../tracking/hooks.ts";
 import { Field, Input, Select } from "../../ui/Field.tsx";
@@ -12,7 +12,6 @@ export interface FilterState {
   projectId: string;
   userId: string;
   tagId: string;
-  billable: BillableFilter;
 }
 
 export function initialFilter(today: string, weekStart: number, preset: Preset = "this-month"): FilterState {
@@ -23,7 +22,6 @@ export function initialFilter(today: string, weekStart: number, preset: Preset =
     projectId: "",
     userId: "",
     tagId: "",
-    billable: "all",
   };
 }
 
@@ -35,7 +33,6 @@ export function toReportFilter(f: FilterState): ReportFilter {
     projectIds: f.projectId ? [f.projectId] : undefined,
     userIds: f.userId ? [f.userId] : undefined,
     tagIds: f.tagId ? [f.tagId] : undefined,
-    billable: f.billable,
   };
 }
 
@@ -55,12 +52,12 @@ export function Filters({
   value,
   onChange,
   data,
-  show = { client: true, project: true, user: true, tag: true, billable: true },
+  show = { client: true, project: true, user: true, tag: true },
 }: {
   value: FilterState;
   onChange: (f: FilterState) => void;
   data: ReportData;
-  show?: Partial<Record<"client" | "project" | "user" | "tag" | "billable", boolean>>;
+  show?: Partial<Record<"client" | "project" | "user" | "tag", boolean>>;
 }) {
   const me = useMe();
   const settings = useSettings();
@@ -144,18 +141,6 @@ export function Filters({
                 {t.name}
               </option>
             ))}
-          </Select>
-        </Field>
-      )}
-      {show.billable !== false && (
-        <Field label="Billable">
-          <Select
-            value={value.billable}
-            onChange={(e) => set({ billable: e.target.value as BillableFilter })}
-          >
-            <option value="all">All time</option>
-            <option value="billable">Billable only</option>
-            <option value="nonbillable">Non-billable only</option>
           </Select>
         </Field>
       )}

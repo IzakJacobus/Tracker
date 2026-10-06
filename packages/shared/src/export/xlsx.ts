@@ -3,7 +3,7 @@ import { type CellValue, decimalHours, type ExportColumn, type ExportTable } fro
 
 /**
  * Minimal, dependency-light XLSX (Office Open XML) writer: inline strings,
- * numbers with formats (hours 0.00, money #,##0.00), bold header and totals.
+ * numbers with formats (hours 0.00), bold header and totals.
  */
 export interface Sheet {
   name: string;
@@ -36,8 +36,6 @@ function cellXml(ref: string, col: ExportColumn, v: CellValue, bold: boolean): s
   if (typeof v === "number") {
     if (col.kind === "hours")
       return `<c r="${ref}" s="${bold ? S.hoursBold : S.hours}"><v>${decimalHours(v)}</v></c>`;
-    if (col.kind === "money")
-      return `<c r="${ref}" s="${bold ? S.moneyBold : S.money}"><v>${v / 100}</v></c>`;
     if (col.kind === "decimal") return `<c r="${ref}" s="${bold ? S.hoursBold : S.hours}"><v>${v}</v></c>`;
     return `<c r="${ref}" s="${bold ? S.intBold : S.int}"><v>${v}</v></c>`;
   }

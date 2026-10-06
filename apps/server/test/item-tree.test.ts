@@ -64,7 +64,7 @@ describe("0.2 item tree migration", () => {
   test("turns every task into an item under its project and moves its hours with it", () => {
     const db = v01();
     const before = db.query<{ seq: number }, []>("SELECT seq FROM sync_counter").get()!.seq;
-    expect(migrate(db, migrations).applied).toEqual([2]);
+    expect(migrate(db, migrations.slice(0, 2)).applied).toEqual([2]);
 
     const items = db
       .query<
@@ -161,5 +161,53 @@ describe("0.2 item tree migration", () => {
         .get()!.n,
     ).toBe(2);
     expect(closeRunningTimers(db, T + 100 * 60_000)).toBe(0);
+  });
+});
+
+describe("0.2 billing removal migration", () => {
+  test("drops every rate, billable flag, money budget and billing setting, and keeps the hours", () => {
+    const db = v01();
+    db.query("UPDATE users SET rate = 145000").run();
+    db.query("UPDATE clients SET rate = 95000").run();
+    db.query("UPDATE projects SET rate = 100000, billable_default = 0, budget_amount = 5000000").run();
+    db.query("UPDATE time_entries SET billable = 0, rate_snapshot = 100000, currency = 'ZAR'").run();
+    db.query(
+      "INSERT INTO organization (id, name, settings, created_at, updated_at) VALUES ('org', 'Acme Eng', ?, 0, 0)",
+    ).run(
+      JSON.stringify({
+        currency: "ZAR",
+        defaultRate: 85000,
+        rounding: { mode: "up", minutes: 6 },
+        membersSeeOwnRates: true,
+        idleMinutes: 10,
+        timezone: "Africa/Johannesburg",
+        pdf: { vatNumber: "4870261943", registration: "2011/004217/07" },
+      }),
+    );
+    const hours = () =>
+      db
+        .query<{ s: number }, []>("SELECT SUM(duration_s) AS s FROM time_entries WHERE deleted_at IS NULL")
+        .get()!.s;
+    const before = hours();
+    expect(migrate(db, migrations).applied).toEqual([2, 3]);
+
+    const billing = /^(rate|billable|billable_default|budget_amount|rate_snapshot|currency)$/;
+    for (const table of ["users", "clients", "projects", "project_members", "tasks", "time_entries"]) {
+      const cols = db
+        .query<{ name: string }, []>(`PRAGMA table_info(${table})`)
+        .all()
+        .map((c) => c.name);
+      expect(cols.filter((c) => billing.test(c))).toEqual([]);
+    }
+    const settings = JSON.parse(
+      db.query<{ settings: string }, []>("SELECT settings FROM organization").get()!.settings,
+    );
+    expect(settings).toEqual({
+      timezone: "Africa/Johannesburg",
+      pdf: { registration: "2011/004217/07" },
+    });
+    expect(hours()).toBe(before);
+    expect(db.query("SELECT value FROM app_meta WHERE key = 'sync_epoch'").get()).toEqual({ value: "2" });
+    expect(db.query("PRAGMA foreign_key_check").all()).toEqual([]);
   });
 });

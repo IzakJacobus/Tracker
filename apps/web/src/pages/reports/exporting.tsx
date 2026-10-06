@@ -20,7 +20,7 @@ import { useToast } from "../../ui/Toast.tsx";
 export function useDocOptions(tags: Tag[]) {
   const me = useMe();
   const org = useOrganization() ?? me.organization!;
-  return { organization: org, showMoney: me.permissions.seeRates, tags };
+  return { organization: org, tags };
 }
 
 /** PDF, Excel and CSV buttons for a report. */

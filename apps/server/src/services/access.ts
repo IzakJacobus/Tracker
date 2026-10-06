@@ -1,7 +1,6 @@
 import type { Database } from "bun:sqlite";
 import type { AccessContext, Actor } from "@stint/shared";
 import { currentSeq } from "../db/tables.ts";
-import { getOrgSettings } from "./org.ts";
 
 interface Snapshot {
   seq: number;
@@ -9,7 +8,6 @@ interface Snapshot {
   projectVisibility: Map<string, "members" | "everyone">;
   memberships: Map<string, Map<string, "member" | "manager">>;
   userManager: Map<string, string | null>;
-  membersSeeOwnRates: boolean;
 }
 
 const cache = new WeakMap<Database, Snapshot>();
@@ -53,7 +51,6 @@ function load(db: Database): Snapshot {
     projectVisibility,
     memberships,
     userManager,
-    membersSeeOwnRates: getOrgSettings(db).membersSeeOwnRates,
   };
   cache.set(db, snap);
   return snap;
@@ -76,7 +73,6 @@ export function accessContext(db: Database, actor: Actor): AccessContext {
     projectVisibility: s.projectVisibility,
     memberships: s.memberships.get(actor.id) ?? new Map(),
     userManager: s.userManager,
-    membersSeeOwnRates: s.membersSeeOwnRates,
   };
 }
 

@@ -24,10 +24,10 @@ describe("demo seed", () => {
           "SELECT COUNT(*) n FROM time_entries e JOIN tasks t ON t.id = e.task_id WHERE t.project_id != e.project_id",
         ),
       ).toBe(0);
-      // every entry has a rate snapshot and lies within 24 h
-      expect(
-        one("SELECT COUNT(*) n FROM time_entries WHERE rate_snapshot IS NULL OR duration_s > 86400"),
-      ).toBe(0);
+      // every entry lies within 24 h
+      expect(one("SELECT COUNT(*) n FROM time_entries WHERE duration_s IS NULL OR duration_s > 86400")).toBe(
+        0,
+      );
       // three months of history, with approved timesheets
       expect(
         one("SELECT COUNT(DISTINCT substr(entry_date, 1, 7)) n FROM time_entries"),
