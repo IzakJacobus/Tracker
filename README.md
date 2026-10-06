@@ -1,6 +1,6 @@
 # Stint
 
-**Time tracking for firms that bill by the hour, running on your own office PC.**
+**Hours tracking for engineering and consulting firms, running on your own office PC.**
 
 Stint is a free, self-hosted time tracker for small engineering and consulting firms. One office
 computer runs **Stint Server**. Everyone else opens Stint in their **web browser** (on Windows,
@@ -36,10 +36,7 @@ don't need the cloud, a subscription or an IT department.
   design › WP1*), each with a type your firm chooses (Phase, Task, Work package…). Totals roll up,
   and a drag-and-drop tree editor keeps it tidy.
 - Mark items **done** when finished: they can't take new hours but stay in reports.
-- Tags. Budgets in hours or rand, with warnings at 80 % and 100 %.
-- Rates per person on a project, per project or item, per client, per person or for the whole
-  firm; the most specific one wins. The rate is frozen on each entry, so changing a rate never
-  rewrites past invoices. A re-rate tool exists for when you really do want to reprice.
+- Tags. Budgets in hours, with warnings at 80 % and 100 %.
 
 **Timesheets and approvals**
 - Admin, Manager and Member roles, enforced on the server.
@@ -59,7 +56,7 @@ don't need the cloud, a subscription or an IT department.
 - A **Health** page in plain language, with one-click fixes.
 - Update notices from GitHub Releases. CSV import, including **Toggl Track** exports.
 
-South African defaults: ZAR, Africa/Johannesburg, YYYY-MM-DD dates and weeks that start on
+South African defaults: Africa/Johannesburg, YYYY-MM-DD dates and weeks that start on
 Monday. All of these can be changed in Settings.
 
 ## Quick start (no technical knowledge needed)
@@ -172,7 +169,7 @@ with nothing exposed to the internet. Its free plan covers up to 6 users. Step-b
 - [Install guide](docs/INSTALL.md): the short version, for whoever sets Stint up
 - [How to open Stint](docs/OPENING_STINT.md): opening it in a browser, installing it as an app, working offline (for staff)
 - [User guide](docs/USER_GUIDE.md): for everyone who tracks time
-- [Admin guide](docs/ADMIN_GUIDE.md): setting up the firm, people, rates, approvals, backups
+- [Admin guide](docs/ADMIN_GUIDE.md): setting up the firm, people, approvals, backups
 - [Remote access](docs/REMOTE_ACCESS.md): Tailscale (recommended) or Cloudflare Tunnel
 - [Architecture](docs/ARCHITECTURE.md): how it works, sync, security and networking
 - [Install test](docs/INSTALL_TEST.md): clean-Windows install checklist and results

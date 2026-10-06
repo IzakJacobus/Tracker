@@ -70,7 +70,6 @@ export function EntryDialog({ entry, date, durationS, combo, onClose }: EntryDia
             settings.workdayStart,
             tz,
           );
-    const billable = await entries.billableFor(f.combo.projectId, null);
     if (entry) {
       await entries.update(entry.id, {
         projectId: f.combo.projectId,
@@ -79,7 +78,6 @@ export function EntryDialog({ entry, date, durationS, combo, onClose }: EntryDia
         startedAt,
         durationS: secs,
         tagIds: f.tagIds,
-        ...(entry.projectId !== f.combo.projectId ? { billable } : {}),
       });
       toast.success("Entry saved.");
     } else {
@@ -90,7 +88,6 @@ export function EntryDialog({ entry, date, durationS, combo, onClose }: EntryDia
         startedAt,
         durationS: secs,
         tagIds: f.tagIds,
-        billable,
         source: "manual",
       });
       toast.success(`Logged ${formatDuration(secs)}.`);

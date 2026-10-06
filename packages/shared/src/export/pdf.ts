@@ -1,12 +1,5 @@
 import { PDFDocument, type PDFFont, type PDFImage, type PDFPage, rgb, StandardFonts } from "pdf-lib";
-import {
-  type CellValue,
-  decimalHours,
-  type ExportColumn,
-  type ExportDoc,
-  formatMoneyPlain,
-  hm,
-} from "./model.ts";
+import { type CellValue, decimalHours, type ExportColumn, type ExportDoc, hm } from "./model.ts";
 
 const A4 = { w: 595.28, h: 841.89 };
 const M = { top: 40, bottom: 48, left: 40, right: 40 };
@@ -63,11 +56,10 @@ function fit(text: string, font: PDFFont, size: number, width: number): string {
   return `${text.slice(0, lo)}…`;
 }
 
-function display(col: ExportColumn, v: CellValue, currency: string): string {
+function display(col: ExportColumn, v: CellValue): string {
   if (v === null || v === undefined) return "";
   if (typeof v === "number") {
     if (col.kind === "hours") return hm(v);
-    if (col.kind === "money") return formatMoneyPlain(v, currency);
     if (col.kind === "decimal") return v.toFixed(2);
     return String(v);
   }
@@ -140,10 +132,7 @@ export async function toPdf(doc: ExportDoc): Promise<Uint8Array> {
         ry -= 11;
         textRight(line, right, ry, 8, regular, MUTED);
       }
-      const ids = [
-        doc.organization.registration && `Reg. ${doc.organization.registration}`,
-        doc.organization.vatNumber && `VAT ${doc.organization.vatNumber}`,
-      ]
+      const ids = [doc.organization.registration && `Reg. ${doc.organization.registration}`]
         .filter(Boolean)
         .join("   ");
       if (ids) {
@@ -203,7 +192,7 @@ export async function toPdf(doc: ExportDoc): Promise<Uint8Array> {
   // tables
   for (const table of doc.tables) {
     // Fixed minimums for dates and numbers; text columns share what's left by weight.
-    const MIN: Record<string, number> = { date: 56, hours: 38, decimal: 38, int: 30, money: 62, text: 44 };
+    const MIN: Record<string, number> = { date: 56, hours: 38, decimal: 38, int: 30, text: 44 };
     const weights = table.columns.map((c) => c.width ?? (c.kind === "text" ? 3 : 1.2));
     const sum = weights.reduce((a, b) => a + b, 0);
     let widths = weights.map((w, i) => Math.max(MIN[table.columns[i]!.kind] ?? 40, (w / sum) * contentW));
@@ -245,7 +234,7 @@ export async function toPdf(doc: ExportDoc): Promise<Uint8Array> {
       if (ri % 2 === 1)
         page.drawRectangle({ x: M.left, y: y - 5, width: contentW, height: rowH, color: ZEBRA });
       table.columns.forEach((c, i) => {
-        const v = fit(safe(display(c, row[c.key] ?? null, doc.currency)), regular, 8, widths[i]! - pad * 2);
+        const v = fit(safe(display(c, row[c.key] ?? null)), regular, 8, widths[i]! - pad * 2);
         if (isNumeric(c)) textRight(v, xs[i]! + widths[i]! - pad, y, 8);
         else text(v, xs[i]! + pad, y, 8);
       });
@@ -264,12 +253,7 @@ export async function toPdf(doc: ExportDoc): Promise<Uint8Array> {
         color: INK,
       });
       table.columns.forEach((c, i) => {
-        const v = fit(
-          safe(display(c, table.totals![c.key] ?? null, doc.currency)),
-          bold,
-          8.5,
-          widths[i]! - pad * 2,
-        );
+        const v = fit(safe(display(c, table.totals![c.key] ?? null)), bold, 8.5, widths[i]! - pad * 2);
         if (isNumeric(c)) textRight(v, xs[i]! + widths[i]! - pad, y, 8.5, bold);
         else text(v, xs[i]! + pad, y, 8.5, bold);
       });

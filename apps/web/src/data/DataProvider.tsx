@@ -22,7 +22,6 @@ export function DataProvider({ children }: { children: ReactNode }) {
   const me = useMe();
   const toast = useToast();
   const timezone = me.organization?.settings.timezone ?? "Africa/Johannesburg";
-  const currency = me.organization?.settings.currency ?? "ZAR";
   const value = useMemo<DataApi>(() => {
     const db = new StintDB(dbName(me.serverId, me.user.id));
     const clock = createClock();
@@ -32,7 +31,6 @@ export function DataProvider({ children }: { children: ReactNode }) {
       clock,
       userId: me.user.id,
       timezone,
-      currency,
       onChange: () => void engine.notifyLocalChange(),
     });
     return {
@@ -45,7 +43,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
         return out;
       },
     };
-  }, [me.serverId, me.user.id, timezone, currency]);
+  }, [me.serverId, me.user.id, timezone]);
 
   useEffect(() => {
     value.engine.onRejected = (m) => toast.error(m);

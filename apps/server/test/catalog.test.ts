@@ -15,13 +15,13 @@ async function world() {
   const client = (
     await s.json<Client>("POST", "/api/clients", {
       as: admin,
-      body: { name: "Drakenstein Municipality", rate: 90000 },
+      body: { name: "Drakenstein Municipality" },
     })
   ).body;
   const root = (
     await s.json<Project>("POST", "/api/projects", {
       as: admin,
-      body: { clientId: client.id, name: "Paarl bridge", rate: 100000 },
+      body: { clientId: client.id, name: "Paarl bridge" },
     })
   ).body;
   const sub = (
@@ -54,15 +54,13 @@ describe("clients", () => {
     expect((await s.json("POST", `/api/clients/${internal.id}/archive`, { as: admin })).status).toBe(400);
   });
 
-  test("members see only clients of projects they can track on, without rates", async () => {
+  test("members see only clients of projects they can track on", async () => {
     const { s, admin, alice, client, root } = await world();
     let list = await s.json<Client[]>("GET", "/api/clients", { as: alice.agent });
     expect(list.body.map((c) => c.name)).toEqual(["Internal"]);
     await s.json("PUT", `/api/projects/${root.id}/members/${alice.id}`, { as: admin, body: {} });
     list = await s.json<Client[]>("GET", "/api/clients", { as: alice.agent });
-    const drk = list.body.find((c) => c.id === client.id)!;
-    expect(drk).toBeDefined();
-    expect(drk.rate).toBeNull();
+    expect(list.body.find((c) => c.id === client.id)).toBeDefined();
   });
 });
 
@@ -74,7 +72,7 @@ describe("projects", () => {
     expect(sub.color).toBe(root.color);
   });
 
-  test("internal projects default to non-billable and visible to everyone", async () => {
+  test("internal projects are open to everyone by default", async () => {
     const { s, admin } = await world();
     const clients = await s.json<Client[]>("GET", "/api/clients", { as: admin });
     const internal = clients.body.find((c) => c.isInternal)!;
@@ -82,7 +80,6 @@ describe("projects", () => {
       as: admin,
       body: { clientId: internal.id, name: "ISO 9001" },
     });
-    expect(p.body.billableDefault).toBe(false);
     expect(p.body.visibility).toBe("everyone");
   });
 
@@ -148,17 +145,14 @@ describe("projects", () => {
     ).toBe(403);
   });
 
-  test("members only see projects they're assigned to, plus 'everyone' projects; no money", async () => {
+  test("members only see projects they're assigned to, plus 'everyone' projects", async () => {
     const { s, admin, alice, root, sub } = await world();
-    await s.json("PATCH", `/api/projects/${root.id}`, { as: admin, body: { budgetAmount: 5_000_000 } });
     let list = await s.json<Project[]>("GET", "/api/projects", { as: alice.agent });
     expect(list.body.some((p) => p.id === root.id)).toBe(false);
     expect(list.body.some((p) => p.name === "Leave")).toBe(true);
     await s.json("PUT", `/api/projects/${root.id}/members/${alice.id}`, { as: admin, body: {} });
     list = await s.json<Project[]>("GET", "/api/projects", { as: alice.agent });
-    const r = list.body.find((p) => p.id === root.id)!;
-    expect(r.rate).toBeNull();
-    expect(r.budgetAmount).toBeNull();
+    expect(list.body.some((p) => p.id === root.id)).toBe(true);
     expect(list.body.some((p) => p.id === sub.id)).toBe(true);
   });
 
@@ -173,10 +167,7 @@ describe("projects", () => {
 
   test("membership can be removed and re-added", async () => {
     const { s, admin, alice, root } = await world();
-    await s.json("PUT", `/api/projects/${root.id}/members/${alice.id}`, {
-      as: admin,
-      body: { rate: 120000 },
-    });
+    await s.json("PUT", `/api/projects/${root.id}/members/${alice.id}`, { as: admin, body: {} });
     expect(
       (await s.json("DELETE", `/api/projects/${root.id}/members/${alice.id}`, { as: admin })).status,
     ).toBe(200);
@@ -185,7 +176,6 @@ describe("projects", () => {
     await s.json("PUT", `/api/projects/${root.id}/members/${alice.id}`, { as: admin, body: {} });
     members = await s.json<ProjectMember[]>("GET", `/api/projects/${root.id}/members`, { as: admin });
     expect(members.body.length).toBe(1);
-    expect(members.body[0]!.rate).toBeNull();
   });
 
   test("changes are audited", async () => {

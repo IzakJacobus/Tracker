@@ -12,7 +12,6 @@ export type AuditAction =
   | "reject"
   | "unlock"
   | "withdraw"
-  | "rerate"
   | "import"
   | "login"
   | "login_failed"

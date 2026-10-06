@@ -37,7 +37,6 @@ const TONES: Record<string, "primary" | "danger" | "warning" | "info" | undefine
   unlock: "warning",
   reject: "warning",
   approve: "primary",
-  rerate: "warning",
   login_failed: "danger",
   backup_restore: "warning",
 };

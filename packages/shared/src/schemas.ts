@@ -16,8 +16,6 @@ export const IsoDate = z
   .refine(isValidIsoDate, { message: "That date doesn't exist." });
 export const Clock = z.string().regex(/^([01]\d|2[0-3]):[0-5]\d$/, { message: "Use HH:MM" });
 export const Color = z.string().regex(/^#[0-9a-fA-F]{6}$/, { message: "Use a #rrggbb colour" });
-/** Money in minor units (cents). Rates are minor units per hour. */
-export const Money = z.number().int().min(0).max(1_000_000_000);
 export const Email = z.string().trim().toLowerCase().email().max(254);
 export const Name = z.string().trim().min(1, "Required").max(200);
 export const Role = z.enum(["admin", "manager", "member"]);
@@ -27,39 +25,15 @@ export type Role = z.infer<typeof Role>;
 /* Organisation                                                        */
 /* ------------------------------------------------------------------ */
 
-export const RoundingMode = z.enum(["none", "up", "down", "nearest"]);
-export type RoundingMode = z.infer<typeof RoundingMode>;
-
-export const Rounding = z.object({
-  mode: RoundingMode.default("none"),
-  minutes: z
-    .union([
-      z.literal(1),
-      z.literal(5),
-      z.literal(6),
-      z.literal(10),
-      z.literal(15),
-      z.literal(30),
-      z.literal(60),
-    ])
-    .default(15),
-});
-export type Rounding = z.infer<typeof Rounding>;
-
 export const DateFormat = z.enum(["YYYY-MM-DD", "DD/MM/YYYY", "MM/DD/YYYY", "D MMM YYYY"]);
 export type DateFormat = z.infer<typeof DateFormat>;
 
 export const OrgSettings = z.object({
-  currency: z
-    .string()
-    .regex(/^[A-Z]{3}$/)
-    .default("ZAR"),
   locale: z.string().min(2).max(20).default("en-ZA"),
   timezone: z.string().min(1).max(64).default("Africa/Johannesburg"),
   weekStart: z.number().int().min(0).max(6).default(1),
   dateFormat: DateFormat.default("YYYY-MM-DD"),
   timeFormat: z.enum(["24h", "12h"]).default("24h"),
-  defaultRate: Money.default(0),
   workdayMinutes: z
     .number()
     .int()
@@ -68,9 +42,7 @@ export const OrgSettings = z.object({
     .default(480),
   workingDays: z.array(z.number().int().min(0).max(6)).max(7).default([1, 2, 3, 4, 5]),
   workdayStart: Clock.default("08:00"),
-  rounding: Rounding.default({ mode: "none", minutes: 15 }),
   approvalPeriod: z.enum(["week", "month"]).default("month"),
-  membersSeeOwnRates: z.boolean().default(false),
   reminders: z
     .object({
       enabled: z.boolean().default(true),
@@ -83,16 +55,14 @@ export const OrgSettings = z.object({
         .default(420),
     })
     .default({ enabled: true, time: "16:30", minMinutes: 420 }),
-  idleMinutes: z.number().int().min(0).max(240).default(10),
   pdf: z
     .object({
       accentColor: Color.default("#1f5c4a"),
       address: z.string().max(500).default(""),
       registration: z.string().max(120).default(""),
-      vatNumber: z.string().max(60).default(""),
       footer: z.string().max(300).default(""),
     })
-    .default({ accentColor: "#1f5c4a", address: "", registration: "", vatNumber: "", footer: "" }),
+    .default({ accentColor: "#1f5c4a", address: "", registration: "", footer: "" }),
   backup: z
     .object({
       folder: z.string().max(1000).nullable().default(null),
@@ -148,7 +118,6 @@ export const User = z.object({
   email: Email,
   name: Name,
   role: Role,
-  rate: Money.nullable(),
   weeklyCapacityMinutes: z
     .number()
     .int()
@@ -165,7 +134,6 @@ export const Client = z.object({
   ...syncMeta,
   name: Name,
   code: z.string().max(40).nullable(),
-  rate: Money.nullable(),
   isInternal: z.boolean(),
   notes: z.string().max(5000),
   archivedAt: z.number().nullable(),
@@ -182,10 +150,7 @@ export const Project = z.object({
   /** What the firm calls this item ("Phase", "Task", ...). Only a label: every item behaves the same. */
   kind: z.string().max(40).nullable().default(null),
   color: Color,
-  billableDefault: z.boolean(),
-  rate: Money.nullable(),
   budgetMinutes: z.number().int().min(0).nullable(),
-  budgetAmount: Money.nullable(),
   visibility: ProjectVisibility,
   notes: z.string().max(5000),
   sortOrder: z.number(),
@@ -198,20 +163,8 @@ export const ProjectMember = z.object({
   projectId: Id,
   userId: Id,
   role: z.enum(["member", "manager"]),
-  rate: Money.nullable(),
 });
 export type ProjectMember = z.infer<typeof ProjectMember>;
-
-export const Task = z.object({
-  ...syncMeta,
-  projectId: Id,
-  name: Name,
-  rate: Money.nullable(),
-  billable: z.boolean().nullable(),
-  sortOrder: z.number(),
-  archivedAt: z.number().nullable(),
-});
-export type Task = z.infer<typeof Task>;
 
 export const Tag = z.object({
   ...syncMeta,
@@ -221,6 +174,7 @@ export const Tag = z.object({
 });
 export type Tag = z.infer<typeof Tag>;
 
+/** "timer" only on entries from 0.1, which had a timer. */
 export const EntrySource = z.enum(["timer", "manual", "grid", "import"]);
 export const MAX_ENTRY_SECONDS = 24 * 3600;
 
@@ -228,16 +182,14 @@ export const TimeEntry = z.object({
   ...syncMeta,
   userId: Id,
   projectId: Id,
+  /** Always null since 0.2: tasks are items in the project tree. */
   taskId: Id.nullable(),
   description: z.string().max(2000),
+  /** Orders entries within a day; people only enter the date and hours. */
   startedAt: z.number().int(),
-  /** null while the timer is running */
+  /** Hours worked, in seconds (null only for timers left running in 0.1). */
   durationS: z.number().int().min(0).max(MAX_ENTRY_SECONDS).nullable(),
   entryDate: IsoDate,
-  billable: z.boolean(),
-  /** server-assigned; hidden (null) for members unless allowed */
-  rateSnapshot: Money.nullable(),
-  currency: z.string().nullable(),
   source: EntrySource,
   tagIds: z.array(Id).max(20),
 });
@@ -280,10 +232,6 @@ export const LoginInput = z.object({
 
 export const SetupInput = z.object({
   organizationName: Name,
-  currency: z
-    .string()
-    .regex(/^[A-Z]{3}$/)
-    .default("ZAR"),
   timezone: z.string().min(1).max(64).default("Africa/Johannesburg"),
   admin: z.object({ name: Name, email: Email, password: Password }),
 });
@@ -300,7 +248,6 @@ export const CreateUserInput = z.object({
   name: Name,
   role: Role.default("member"),
   password: Password,
-  rate: Money.nullable().default(null),
   weeklyCapacityMinutes: z
     .number()
     .int()
@@ -316,7 +263,6 @@ export const UpdateUserInput = z
     email: Email,
     name: Name,
     role: Role,
-    rate: Money.nullable(),
     weeklyCapacityMinutes: z
       .number()
       .int()
@@ -331,7 +277,7 @@ export const UpdateUserInput = z
 export const ResetPasswordInput = z.object({ password: Password });
 
 /* ------------------------------------------------------------------ */
-/* Clients, projects, tasks, tags, members                            */
+/* Clients, projects (and their items), tags, members                 */
 /* ------------------------------------------------------------------ */
 
 const optionalCode = z.string().trim().max(40).nullable().optional();
@@ -340,7 +286,6 @@ export const CreateClientInput = z.object({
   id: Id.optional(),
   name: Name,
   code: optionalCode,
-  rate: Money.nullable().optional(),
   notes: z.string().max(5000).optional(),
 });
 export const UpdateClientInput = CreateClientInput.omit({ id: true }).partial();
@@ -353,10 +298,7 @@ export const CreateProjectInput = z.object({
   code: optionalCode,
   kind: z.string().trim().max(40).nullable().optional(),
   color: Color.optional(),
-  billableDefault: z.boolean().optional(),
-  rate: Money.nullable().optional(),
   budgetMinutes: z.number().int().min(0).max(10_000_000).nullable().optional(),
-  budgetAmount: Money.nullable().optional(),
   visibility: ProjectVisibility.optional(),
   notes: z.string().max(5000).optional(),
 });
@@ -373,17 +315,6 @@ export const MoveProjectInput = z.object({
   sortOrder: z.number().optional(),
 });
 
-export const CreateTaskInput = z.object({
-  id: Id.optional(),
-  projectId: Id,
-  name: Name,
-  rate: Money.nullable().optional(),
-  billable: z.boolean().nullable().optional(),
-});
-export const UpdateTaskInput = CreateTaskInput.omit({ id: true, projectId: true })
-  .partial()
-  .extend({ sortOrder: z.number().optional() });
-
 export const CreateTagInput = z.object({
   id: Id.optional(),
   name: z.string().trim().min(1).max(60),
@@ -393,5 +324,4 @@ export const UpdateTagInput = CreateTagInput.omit({ id: true }).partial();
 
 export const SetMemberInput = z.object({
   role: z.enum(["member", "manager"]).default("member"),
-  rate: Money.nullable().default(null),
 });

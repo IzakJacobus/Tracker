@@ -5,19 +5,19 @@ describe("organisation settings", () => {
   test("admins update settings; values are validated and merged", async () => {
     const s = createTestServer();
     const admin = await s.setup();
-    const r = await s.json<{ settings: { currency: string; weekStart: number; rounding: { mode: string } } }>(
-      "PATCH",
-      "/api/org",
-      {
-        as: admin,
-        body: { settings: { currency: "USD", rounding: { mode: "up", minutes: 15 } } },
-      },
-    );
+    const r = await s.json<{
+      settings: Record<string, unknown> & { approvalPeriod: string; weekStart: number };
+    }>("PATCH", "/api/org", {
+      as: admin,
+      // Billing settings from 0.1 are ignored: Stint has no billing.
+      body: { settings: { approvalPeriod: "week", currency: "USD", defaultRate: 1 } },
+    });
     expect(r.status).toBe(200);
-    expect(r.body.settings.currency).toBe("USD");
+    expect(r.body.settings.approvalPeriod).toBe("week");
     expect(r.body.settings.weekStart).toBe(1);
-    expect(r.body.settings.rounding.mode).toBe("up");
-    const bad = await s.json("PATCH", "/api/org", { as: admin, body: { settings: { currency: "rand" } } });
+    expect(r.body.settings).not.toHaveProperty("currency");
+    expect(r.body.settings).not.toHaveProperty("defaultRate");
+    const bad = await s.json("PATCH", "/api/org", { as: admin, body: { settings: { weekStart: 9 } } });
     expect(bad.status).toBe(422);
   });
 
@@ -52,20 +52,16 @@ describe("users", () => {
         email: "lerato@example.co.za",
         name: "Lerato",
         role: "manager",
-        rate: 95000,
         password: "temporary pw 1",
       },
     });
     expect(created.status).toBe(201);
     const agent = await s.login("lerato@example.co.za", "temporary pw 1");
-    const me = await s.json<{ user: { mustChangePassword: boolean; role: string; rate: number } }>(
-      "GET",
-      "/api/auth/me",
-      { as: agent },
-    );
+    const me = await s.json<{ user: { mustChangePassword: boolean; role: string } }>("GET", "/api/auth/me", {
+      as: agent,
+    });
     expect(me.body.user.mustChangePassword).toBe(true);
     expect(me.body.user.role).toBe("manager");
-    expect(me.body.user.rate).toBe(95000);
 
     // The server, not just the app's screen, blocks everything else until they choose a password.
     for (const [method, path] of [
@@ -99,17 +95,14 @@ describe("users", () => {
     expect(r.status).toBe(409);
   });
 
-  test("members see only themselves and never their rate by default", async () => {
+  test("members see only themselves", async () => {
     const s = createTestServer();
     const admin = await s.setup();
     await s.createUser(admin, { email: "other@example.com", name: "Other" });
-    const { agent, id } = await s.createUser(admin, { email: "m@example.com", name: "Member", rate: 50000 });
-    const list = await s.json<{ id: string; rate: number | null }[]>("GET", "/api/users", { as: agent });
+    const { agent, id } = await s.createUser(admin, { email: "m@example.com", name: "Member" });
+    const list = await s.json<{ id: string }[]>("GET", "/api/users", { as: agent });
     expect(list.body.map((u) => u.id)).toEqual([id]);
-    expect(list.body[0]!.rate).toBeNull();
-    await s.json("PATCH", "/api/org", { as: admin, body: { settings: { membersSeeOwnRates: true } } });
-    const list2 = await s.json<{ rate: number | null }[]>("GET", "/api/users", { as: agent });
-    expect(list2.body[0]!.rate).toBe(50000);
+    expect(Object.keys(list.body[0]!)).not.toContain("rate");
   });
 
   test("members and managers cannot create users (server-side check)", async () => {

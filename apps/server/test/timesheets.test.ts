@@ -12,9 +12,7 @@ async function world() {
   const mgr = await s.createUser(admin, { email: "mgr@example.com", name: "Pieter", role: "manager" });
   const alice = await s.createUser(admin, { email: "alice@example.com", name: "Alice", managerId: mgr.id });
   const bob = await s.createUser(admin, { email: "bob@example.com", name: "Bob" }); // no manager
-  const client = (
-    await s.json<Client>("POST", "/api/clients", { as: admin, body: { name: "Acme", rate: 100000 } })
-  ).body;
+  const client = (await s.json<Client>("POST", "/api/clients", { as: admin, body: { name: "Acme" } })).body;
   const project = (
     await s.json<Project>("POST", "/api/projects", {
       as: admin,
@@ -347,61 +345,5 @@ describe("admin tools", () => {
       { as: w.admin },
     );
     expect(second.body.rows[0]!.id).toBeLessThan(first.body.rows[2]!.id);
-  });
-
-  test("re-rate: dry run first, then apply; locked periods are skipped unless asked", async () => {
-    const w = await world();
-    await w.addEntry(w.alice.agent, "2026-09-10", 60);
-    await w.addEntry(w.alice.agent, "2026-08-10", 60);
-    const aug = (
-      await w.s.json<Timesheet>("POST", "/api/timesheets/submit", {
-        as: w.alice.agent,
-        body: { date: "2026-08-10" },
-      })
-    ).body;
-    await w.s.json("POST", `/api/timesheets/${aug.id}/approve`, { as: w.mgr.agent, body: {} });
-    await w.s.json("PATCH", `/api/projects/${w.project.id}`, { as: w.admin, body: { rate: 150000 } });
-
-    const dry = await w.s.json<{
-      matched: number;
-      changed: number;
-      skippedLocked: number;
-      amountBefore: number;
-      amountAfter: number;
-    }>("POST", "/api/admin/rerate", { as: w.admin, body: { from: "2026-08-01", to: "2026-09-30" } });
-    expect(dry.body).toMatchObject({
-      matched: 2,
-      changed: 1,
-      skippedLocked: 1,
-      amountBefore: 100000,
-      amountAfter: 150000,
-    });
-    let rates = w.s.ctx.db
-      .query<{ r: number }, []>("SELECT rate_snapshot AS r FROM time_entries ORDER BY entry_date")
-      .all();
-    expect(rates.map((x) => x.r)).toEqual([100000, 100000]);
-
-    await w.s.json("POST", "/api/admin/rerate", {
-      as: w.admin,
-      body: { from: "2026-08-01", to: "2026-09-30", dryRun: false, reason: "New 2026 rates" },
-    });
-    rates = w.s.ctx.db
-      .query<{ r: number }, []>("SELECT rate_snapshot AS r FROM time_entries ORDER BY entry_date")
-      .all();
-    expect(rates.map((x) => x.r)).toEqual([100000, 150000]);
-    const log = await w.s.json<{ rows: { action: string; reason: string }[] }>(
-      "GET",
-      "/api/admin/audit?action=rerate",
-      { as: w.admin },
-    );
-    expect(log.body.rows[0]!.reason).toBe("New 2026 rates");
-    expect(
-      (
-        await w.s.json("POST", "/api/admin/rerate", {
-          as: w.mgr.agent,
-          body: { from: "2026-08-01", to: "2026-09-30" },
-        })
-      ).status,
-    ).toBe(403);
   });
 });

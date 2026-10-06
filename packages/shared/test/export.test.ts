@@ -10,14 +10,14 @@ const table: ExportTable = {
   columns: [
     { key: "name", header: "Name", kind: "text" },
     { key: "hours", header: "Hours", kind: "hours" },
-    { key: "amount", header: "Amount", kind: "money" },
+    { key: "entries", header: "Entries", kind: "int" },
   ],
   rows: [
-    { name: 'Sipho "Sparky" Dlamini', hours: 5400, amount: 142_500 },
-    { name: "=HYPERLINK(evil)", hours: 60, amount: null },
-    { name: "Zoë, Ødegaard", hours: 0, amount: 0 },
+    { name: 'Sipho "Sparky" Dlamini', hours: 5400, entries: 3 },
+    { name: "=HYPERLINK(evil)", hours: 60, entries: null },
+    { name: "Zoë, Ødegaard", hours: 0, entries: 0 },
   ],
-  totals: { name: "Total", hours: 5460, amount: 142_500 },
+  totals: { name: "Total", hours: 5460, entries: 3 },
 };
 
 const org: Organization = {
@@ -36,17 +36,17 @@ describe("CSV", () => {
   const csv = toCsv(table);
   test("starts with a BOM and uses CRLF", () => {
     expect(csv.charCodeAt(0)).toBe(0xfeff);
-    expect(csv.split("\r\n")[0]).toBe("﻿Name,Hours,Amount");
+    expect(csv.split("\r\n")[0]).toBe("﻿Name,Hours,Entries");
   });
-  test("quotes and escapes, decimal hours, major-unit money", () => {
-    expect(csv).toContain('"Sipho ""Sparky"" Dlamini",1.50,1425.00');
-    expect(csv).toContain('"Zoë, Ødegaard",0.00,0.00');
+  test("quotes and escapes, decimal hours", () => {
+    expect(csv).toContain('"Sipho ""Sparky"" Dlamini",1.50,3');
+    expect(csv).toContain('"Zoë, Ødegaard",0.00,0');
   });
   test("neutralises spreadsheet formulas", () => {
     expect(csv).toContain(`"'=HYPERLINK(evil)"`);
   });
   test("includes totals", () => {
-    expect(csv).toContain("Total,1.52,1425.00");
+    expect(csv).toContain("Total,1.52,3");
   });
 });
 
@@ -69,7 +69,7 @@ describe("XLSX", () => {
   test("stores numbers as numbers and escapes text", () => {
     const sheet = strFromU8(files["xl/worksheets/sheet1.xml"]!);
     expect(sheet).toContain("<v>1.5</v>");
-    expect(sheet).toContain("<v>1425</v>");
+    expect(sheet).toContain("<v>3</v>");
     expect(sheet).toContain("Sipho &quot;Sparky&quot; Dlamini");
     expect(sheet).toContain('<autoFilter ref="A4:C7"/>');
   });
@@ -82,7 +82,6 @@ describe("PDF", () => {
         entries: [],
         projects: [],
         clients: [],
-        tasks: [],
         users: [],
         tags: [],
         settings: org.settings,
@@ -90,7 +89,7 @@ describe("PDF", () => {
       "nobody",
       "2026-09",
     );
-    const doc = monthlyTimesheetDoc(m, { organization: org, showMoney: false, generatedAt: 0 });
+    const doc = monthlyTimesheetDoc(m, { organization: org, generatedAt: 0 });
     const bytes = await toPdf(doc);
     expect(new TextDecoder().decode(bytes.slice(0, 5))).toBe("%PDF-");
     const parsed = await PDFDocument.load(bytes);
@@ -102,19 +101,16 @@ describe("PDF", () => {
     const rows = Array.from({ length: 120 }, (_, i) => ({
       name: `Ngubane ✓ 日本 row ${i}`,
       hours: 3600,
-      amount: 1000,
     }));
     const bytes = await toPdf({
       title: "Stress",
       meta: [],
       tables: [{ ...table, rows }],
-      currency: "ZAR",
       organization: {
         name: "Org",
         logo: null,
         address: "",
         registration: "",
-        vatNumber: "",
         footer: "Confidential",
         accentColor: "#1f5c4a",
       },
@@ -132,13 +128,11 @@ describe("PDF", () => {
       title: "Logo",
       meta: [],
       tables: [],
-      currency: "ZAR",
       organization: {
         name: "Org",
         logo: png,
         address: "",
         registration: "",
-        vatNumber: "",
         footer: "",
         accentColor: "#1f5c4a",
       },

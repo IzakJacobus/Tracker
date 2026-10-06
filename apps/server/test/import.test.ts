@@ -85,13 +85,12 @@ describe("CSV import", () => {
           user_id: string;
           started_at: number;
           duration_s: number;
-          billable: number;
           source: string;
           entry_date: string;
         },
         []
       >(
-        "SELECT user_id, started_at, duration_s, billable, source, entry_date FROM time_entries ORDER BY started_at, user_id",
+        "SELECT user_id, started_at, duration_s, source, entry_date FROM time_entries ORDER BY started_at, user_id",
       )
       .all();
     expect(rows).toHaveLength(3);
@@ -100,7 +99,6 @@ describe("CSV import", () => {
       user_id: aisha.id,
       started_at: Date.UTC(2026, 8, 28, 6, 30),
       duration_s: 5400,
-      billable: 1,
     });
     expect(rows.every((x) => x.source === "import" && x.entry_date === "2026-09-28")).toBe(true);
     // "Admin" without a client lands under Internal.

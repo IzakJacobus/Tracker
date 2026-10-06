@@ -3,7 +3,7 @@ import { type FormEvent, useState } from "react";
 import { useNavigate } from "react-router";
 import { useSession } from "../../app/session.tsx";
 import { ApiError, api, errorMessage } from "../../lib/api.ts";
-import { CURRENCIES, timeZones } from "../../lib/locale.ts";
+import { timeZones } from "../../lib/locale.ts";
 import { Button } from "../../ui/Button.tsx";
 import { Field, Input, Select } from "../../ui/Field.tsx";
 import { Alert, Logo } from "../../ui/misc.tsx";
@@ -30,7 +30,6 @@ export function Setup({ fromServerPc }: { fromServerPc: boolean }) {
   const [step, setStep] = useState<Step>("welcome");
   const [company, setCompany] = useState({
     organizationName: "",
-    currency: "ZAR",
     timezone: "Africa/Johannesburg",
   });
   const [admin, setAdmin] = useState({ name: "", email: "", password: "", confirm: "" });
@@ -143,18 +142,6 @@ export function Setup({ fromServerPc }: { fromServerPc: boolean }) {
             />
           </Field>
           <div className="grid-2">
-            <Field label="Currency">
-              <Select
-                value={company.currency}
-                onChange={(e) => setCompany({ ...company, currency: e.target.value })}
-              >
-                {CURRENCIES.map((c) => (
-                  <option key={c.code} value={c.code}>
-                    {c.code} — {c.name}
-                  </option>
-                ))}
-              </Select>
-            </Field>
             <Field label="Time zone">
               <Select
                 value={company.timezone}

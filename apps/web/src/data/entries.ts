@@ -3,9 +3,7 @@ import {
   localDate,
   MAX_ENTRY_SECONDS,
   type Project,
-  resolveBillable,
   SYNC_WRITABLE_FIELDS,
-  type Task,
   type TimeEntry,
   uuidv7,
   zonedToInstant,
@@ -18,7 +16,6 @@ export interface EntryDraft {
   description?: string;
   startedAt: number;
   durationS: number | null;
-  billable?: boolean;
   tagIds?: string[];
   source?: TimeEntry["source"];
 }
@@ -28,7 +25,6 @@ export interface RepoContext {
   clock: HlcClock;
   userId: string;
   timezone: string;
-  currency: string;
   now?: () => number;
   /** called after every local write so the sync engine can push soon */
   onChange?: () => void;
@@ -73,11 +69,6 @@ export class EntryRepo {
     this.ctx.onChange?.();
   }
 
-  async billableFor(projectId: string, _taskId: string | null = null): Promise<boolean> {
-    const project = await this.ctx.db.projects.get(projectId);
-    return project ? resolveBillable(null, project) : true;
-  }
-
   async create(draft: EntryDraft): Promise<TimeEntry> {
     const now = this.now();
     const taskId = draft.taskId ?? null;
@@ -90,9 +81,6 @@ export class EntryRepo {
       startedAt: draft.startedAt,
       durationS: draft.durationS === null ? null : clampDuration(draft.durationS),
       entryDate: localDate(draft.startedAt, this.ctx.timezone),
-      billable: draft.billable ?? (await this.billableFor(draft.projectId, taskId)),
-      rateSnapshot: null,
-      currency: this.ctx.currency,
       source: draft.source ?? "manual",
       tagIds: draft.tagIds ?? [],
       createdAt: now,
@@ -116,10 +104,7 @@ export class EntryRepo {
   async update(
     id: string,
     patch: Partial<
-      Pick<
-        TimeEntry,
-        "projectId" | "taskId" | "description" | "startedAt" | "durationS" | "billable" | "tagIds"
-      >
+      Pick<TimeEntry, "projectId" | "taskId" | "description" | "startedAt" | "durationS" | "tagIds">
     >,
   ) {
     const clean = pickWritable("timeEntries", patch as Record<string, unknown>);
@@ -161,7 +146,6 @@ export class EntryRepo {
       description: e.description,
       startedAt: e.startedAt + (e.durationS ?? 0) * 1000,
       durationS: e.durationS ?? 0,
-      billable: e.billable,
       tagIds: e.tagIds,
       source: "manual",
     });
@@ -277,4 +261,4 @@ export function planCellChange(
   return out;
 }
 
-export type { Project, Task };
+export type { Project };

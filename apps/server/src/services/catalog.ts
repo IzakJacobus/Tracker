@@ -1,5 +1,5 @@
 import type { Database } from "bun:sqlite";
-import { buildTree, type Client, type Project, type Task, type Tree } from "@stint/shared";
+import { buildTree, type Client, type Project, type Tree } from "@stint/shared";
 import { getRow, listRows, TABLES } from "../db/tables.ts";
 
 export function getClient(db: Database, id: string): Client | null {
@@ -7,9 +7,6 @@ export function getClient(db: Database, id: string): Client | null {
 }
 export function getProject(db: Database, id: string): Project | null {
   return getRow(db, TABLES.projects, id) as Project | null;
-}
-export function getTask(db: Database, id: string): Task | null {
-  return getRow(db, TABLES.tasks, id) as Task | null;
 }
 
 export function allProjects(db: Database): Project[] {

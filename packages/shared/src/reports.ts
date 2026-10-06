@@ -1,79 +1,53 @@
 /**
  * Report builders: pure functions over entries and reference data. The same
  * code runs in the browser (reports work offline from the local copy) and on
- * the server. Durations are exact seconds; `billed*` fields apply the
- * organisation's rounding rule per entry, as invoices do.
+ * the server. Everything is hours: durations are exact seconds.
  */
 import { dateRange, dayOfWeek, endOfMonth, isWithin, startOfMonth } from "./dates.ts";
-import { amountFor } from "./rates.ts";
 import { buildTree, subtreeIds, type Tree } from "./rollup.ts";
-import { roundSeconds } from "./rounding.ts";
-import type { Client, OrgSettings, Project, Tag, Task, TimeEntry, User } from "./schemas.ts";
+import type { Client, OrgSettings, Project, Tag, TimeEntry, User } from "./schemas.ts";
 
 export interface ReportData {
   entries: TimeEntry[];
   projects: Project[];
   clients: Client[];
-  tasks: Task[];
   users: User[];
   tags: Tag[];
   settings: OrgSettings;
 }
 
-export type BillableFilter = "all" | "billable" | "nonbillable";
-
 export interface ReportFilter {
   from: string;
   to: string;
   clientIds?: string[];
-  /** includes the whole subtree of each project */
+  /** includes everything under each project or item */
   projectIds?: string[];
   userIds?: string[];
   tagIds?: string[];
-  billable?: BillableFilter;
 }
 
 export interface Line {
   entry: TimeEntry;
   date: string;
   user: User | undefined;
+  /** The item the hours were logged on (a project, or anything under one). */
   project: Project | undefined;
+  /** Its top-level project. */
+  root: Project | undefined;
   projectPath: string;
   client: Client | undefined;
-  task: Task | undefined;
   seconds: number;
-  billedSeconds: number;
-  billable: boolean;
-  rate: number | null;
-  amount: number;
 }
 
 export interface Sum {
   seconds: number;
-  billedSeconds: number;
-  billableSeconds: number;
-  billableBilledSeconds: number;
-  amount: number;
   entries: number;
 }
 
-export const emptySum = (): Sum => ({
-  seconds: 0,
-  billedSeconds: 0,
-  billableSeconds: 0,
-  billableBilledSeconds: 0,
-  amount: 0,
-  entries: 0,
-});
+export const emptySum = (): Sum => ({ seconds: 0, entries: 0 });
 
 function add(s: Sum, l: Line): void {
   s.seconds += l.seconds;
-  s.billedSeconds += l.billedSeconds;
-  if (l.billable) {
-    s.billableSeconds += l.seconds;
-    s.billableBilledSeconds += l.billedSeconds;
-  }
-  s.amount += l.amount;
   s.entries += 1;
 }
 
@@ -81,27 +55,33 @@ export interface Context {
   tree: Tree<Project>;
   projects: Map<string, Project>;
   clients: Map<string, Client>;
-  tasks: Map<string, Task>;
   users: Map<string, User>;
   path: (projectId: string) => string;
+  root: (projectId: string) => Project | undefined;
 }
 
-export function makeContext(d: Pick<ReportData, "projects" | "clients" | "tasks" | "users">): Context {
+export function makeContext(d: Pick<ReportData, "projects" | "clients" | "users">): Context {
   const tree = buildTree(d.projects);
   const projects = new Map(d.projects.map((p) => [p.id, p]));
   const cache = new Map<string, string>();
-  const path = (id: string): string => {
-    const hit = cache.get(id);
-    if (hit !== undefined) return hit;
-    const names: string[] = [];
+  const lineage = (id: string): Project[] => {
+    const out: Project[] = [];
     const seen = new Set<string>();
     let cur = projects.get(id);
     while (cur && !seen.has(cur.id)) {
       seen.add(cur.id);
-      names.unshift(cur.name);
+      out.unshift(cur);
       cur = cur.parentId ? projects.get(cur.parentId) : undefined;
     }
-    const out = names.join(" › ") || "(deleted project)";
+    return out;
+  };
+  const path = (id: string): string => {
+    const hit = cache.get(id);
+    if (hit !== undefined) return hit;
+    const out =
+      lineage(id)
+        .map((p) => p.name)
+        .join(" › ") || "(deleted project)";
     cache.set(id, out);
     return out;
   };
@@ -109,13 +89,13 @@ export function makeContext(d: Pick<ReportData, "projects" | "clients" | "tasks"
     tree,
     projects,
     clients: new Map(d.clients.map((c) => [c.id, c])),
-    tasks: new Map(d.tasks.map((t) => [t.id, t])),
     users: new Map(d.users.map((u) => [u.id, u])),
     path,
+    root: (id) => lineage(id)[0],
   };
 }
 
-/** Filters entries and turns them into report lines (finished entries only). */
+/** Filters entries and turns them into report lines (entries with hours only). */
 export function buildLines(d: ReportData, f: ReportFilter, ctx: Context = makeContext(d)): Line[] {
   const projectSet = f.projectIds?.length
     ? new Set(f.projectIds.flatMap((id) => subtreeIds(ctx.tree, id)))
@@ -132,22 +112,15 @@ export function buildLines(d: ReportData, f: ReportFilter, ctx: Context = makeCo
     const project = ctx.projects.get(e.projectId);
     if (clientSet && (!project || !clientSet.has(project.clientId))) continue;
     if (tagSet && !e.tagIds.some((t) => tagSet.has(t))) continue;
-    if (f.billable === "billable" && !e.billable) continue;
-    if (f.billable === "nonbillable" && e.billable) continue;
-    const billed = roundSeconds(e.durationS, d.settings.rounding);
     out.push({
       entry: e,
       date: e.entryDate,
       user: ctx.users.get(e.userId),
       project,
+      root: ctx.root(e.projectId),
       projectPath: ctx.path(e.projectId),
       client: project ? ctx.clients.get(project.clientId) : undefined,
-      task: e.taskId ? ctx.tasks.get(e.taskId) : undefined,
       seconds: e.durationS,
-      billedSeconds: billed,
-      billable: e.billable,
-      rate: e.rateSnapshot,
-      amount: e.billable ? amountFor(billed, e.rateSnapshot) : 0,
     });
   }
   return out.sort((a, b) => a.date.localeCompare(b.date) || a.entry.startedAt - b.entry.startedAt);
@@ -175,7 +148,7 @@ export function total(lines: Line[]): Sum {
 }
 
 /* ------------------------------------------------------------------ */
-/* Project timesheet                                                   */
+/* Project report                                                      */
 /* ------------------------------------------------------------------ */
 
 export interface ProjectReport {
@@ -184,13 +157,13 @@ export interface ProjectReport {
   client: Client | undefined;
   total: Sum;
   byPerson: { user: User | undefined; userId: string; sum: Sum }[];
-  byTask: { task: Task | undefined; taskId: string | null; sum: Sum }[];
-  bySubproject: { projectId: string; path: string; sum: Sum }[];
+  /** Hours per item they were logged on (the project itself or anything under it). */
+  byItem: { projectId: string; path: string; sum: Sum }[];
   byDate: { date: string; sum: Sum }[];
   lines: Line[];
 }
 
-/** All hours on a project including its sub-projects, grouped by person, task and date. */
+/** All hours on a project or item including everything under it, by person, item and date. */
 export function projectReport(
   d: ReportData,
   projectId: string,
@@ -208,10 +181,7 @@ export function projectReport(
     byPerson: [...groupBy(lines, (l) => l.entry.userId)]
       .map(([userId, g]) => ({ userId, user: ctx.users.get(userId), sum: g.sum }))
       .sort(bySort),
-    byTask: [...groupBy(lines, (l) => l.entry.taskId)]
-      .map(([taskId, g]) => ({ taskId, task: taskId ? ctx.tasks.get(taskId) : undefined, sum: g.sum }))
-      .sort(bySort),
-    bySubproject: [...groupBy(lines, (l) => l.entry.projectId)]
+    byItem: [...groupBy(lines, (l) => l.entry.projectId)]
       .map(([id, g]) => ({ projectId: id, path: ctx.path(id), sum: g.sum }))
       .sort((a, b) => a.path.localeCompare(b.path)),
     byDate: [...groupBy(lines, (l) => l.date)]
@@ -289,7 +259,7 @@ export function monthlyTimesheet(d: ReportData, userId: string, month: string): 
 }
 
 /* ------------------------------------------------------------------ */
-/* Client summary (for invoicing)                                      */
+/* Client summary                                                      */
 /* ------------------------------------------------------------------ */
 
 export interface ClientSummary {
@@ -302,10 +272,10 @@ export interface ClientSummary {
   total: Sum;
 }
 
-/** Billable hours and amounts per client and project. Internal work is excluded. */
+/** Hours per client and item. The firm's own (Internal) work is listed last. */
 export function clientSummary(d: ReportData, f: ReportFilter): ClientSummary {
   const ctx = makeContext(d);
-  const lines = buildLines(d, { ...f, billable: "billable" }, ctx).filter((l) => !l.client?.isInternal);
+  const lines = buildLines(d, f, ctx);
   const byClient = groupBy(lines, (l) => l.client?.id ?? "");
   return {
     clients: [...byClient]
@@ -317,7 +287,11 @@ export function clientSummary(d: ReportData, f: ReportFilter): ClientSummary {
           .sort((a, b) => a.path.localeCompare(b.path)),
         sum: g.sum,
       }))
-      .sort((a, b) => (a.client?.name ?? "").localeCompare(b.client?.name ?? "")),
+      .sort(
+        (a, b) =>
+          Number(a.client?.isInternal ?? false) - Number(b.client?.isInternal ?? false) ||
+          (a.client?.name ?? "").localeCompare(b.client?.name ?? ""),
+      ),
     total: total(lines),
   };
 }
@@ -329,12 +303,13 @@ export function clientSummary(d: ReportData, f: ReportFilter): ClientSummary {
 export interface Dashboard {
   period: Sum;
   capacitySeconds: number;
-  /** billable hours ÷ capacity */
+  /** hours logged ÷ capacity */
   utilisation: number;
-  /** billable hours ÷ hours worked */
-  billableShare: number;
-  byDay: { date: string; billableSeconds: number; otherSeconds: number }[];
+  /** hours on client work (not Internal) ÷ hours logged */
+  clientShare: number;
+  byDay: { date: string; clientSeconds: number; internalSeconds: number }[];
   topProjects: { projectId: string; path: string; client: Client | undefined; sum: Sum }[];
+  byClient: { clientId: string; client: Client | undefined; sum: Sum }[];
   byPerson: { user: User | undefined; userId: string; sum: Sum; capacitySeconds: number }[];
 }
 
@@ -349,17 +324,21 @@ export function dashboard(d: ReportData, f: ReportFilter, people: User[]): Dashb
   const active = people.filter((u) => u.active);
   const capacitySeconds = active.reduce((s, u) => s + capacityFor(u), 0);
   const t = total(lines);
+  const clientSeconds = (ls: Line[]) =>
+    ls.filter((l) => !l.client?.isInternal).reduce((s, l) => s + l.seconds, 0);
   const byDate = groupBy(lines, (l) => l.date);
   return {
     period: t,
     capacitySeconds,
-    utilisation: capacitySeconds ? t.billableSeconds / capacitySeconds : 0,
-    billableShare: t.seconds ? t.billableSeconds / t.seconds : 0,
+    utilisation: capacitySeconds ? t.seconds / capacitySeconds : 0,
+    clientShare: t.seconds ? clientSeconds(lines) / t.seconds : 0,
     byDay: dateRange(f.from, f.to).map((date) => {
-      const s = byDate.get(date)?.sum ?? emptySum();
-      return { date, billableSeconds: s.billableSeconds, otherSeconds: s.seconds - s.billableSeconds };
+      const g = byDate.get(date);
+      const all = g?.sum.seconds ?? 0;
+      const client = g ? clientSeconds(g.lines) : 0;
+      return { date, clientSeconds: client, internalSeconds: all - client };
     }),
-    topProjects: [...groupBy(lines, (l) => l.entry.projectId)]
+    topProjects: [...groupBy(lines, (l) => l.root?.id ?? l.entry.projectId)]
       .map(([projectId, g]) => ({
         projectId,
         path: ctx.path(projectId),
@@ -368,6 +347,9 @@ export function dashboard(d: ReportData, f: ReportFilter, people: User[]): Dashb
       }))
       .sort((a, b) => b.sum.seconds - a.sum.seconds)
       .slice(0, 8),
+    byClient: [...groupBy(lines, (l) => l.client?.id ?? "")]
+      .map(([clientId, g]) => ({ clientId, client: ctx.clients.get(clientId), sum: g.sum }))
+      .sort((a, b) => b.sum.seconds - a.sum.seconds),
     byPerson: active
       .map((u) => ({
         userId: u.id,

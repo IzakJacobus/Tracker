@@ -88,10 +88,10 @@ your manager to send it back. If it's already approved, ask an administrator to 
 
 **Reports** shows your own time. Managers see their team's time, and admins see everyone's.
 
-- **Overview**: hours, billable share and top projects for a period.
+- **Overview**: hours logged, client work versus internal work, top projects and hours per client.
 - **Monthly timesheet**: one person's month, by project and by day, ready to sign.
-- **Project timesheet**: everything on a project and its sub-projects.
-- **Client summary**: hours per client and project, for invoicing.
+- **Project timesheet**: everything on a project and the items under it.
+- **Client summary**: hours per client and item.
 
 Every report has **PDF**, **Excel** and **CSV** buttons. Reports are worked out on your own
 computer, so they work offline too.

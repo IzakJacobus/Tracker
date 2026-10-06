@@ -51,7 +51,6 @@ export interface ImportRow {
   project: string[];
   task: string;
   description: string;
-  billable: boolean | null;
   tags: string[];
   date: string;
   /** HH:MM:SS local time, or null when the file only has dates. */
@@ -72,7 +71,6 @@ const ALIASES: Record<string, string[]> = {
   project: ["project"],
   task: ["task"],
   description: ["description", "notes", "note"],
-  billable: ["billable"],
   date: ["start date", "date", "day"],
   time: ["start time", "start"],
   endTime: ["end time", "end"],
@@ -136,13 +134,6 @@ export function parseImportDuration(s: string): number | null {
   if (m) return Number(m[1]) * 3600 + Number(m[2]) * 60 + Number(m[3] ?? 0);
   m = /^(\d+(?:[.,]\d+)?)$/.exec(t);
   if (m) return Math.round(Number(m[1]!.replace(",", ".")) * 3600);
-  return null;
-}
-
-function parseBool(s: string): boolean | null {
-  const t = s.trim().toLowerCase();
-  if (["yes", "y", "true", "1", "billable"].includes(t)) return true;
-  if (["no", "n", "false", "0", "non-billable"].includes(t)) return false;
   return null;
 }
 
@@ -210,7 +201,6 @@ export function readImportCsv(text: string): ParsedImport {
       project,
       task: get(r, "task"),
       description: get(r, "description").slice(0, 2000),
-      billable: col.billable === undefined ? null : parseBool(get(r, "billable")),
       tags: tagsRaw
         ? [
             ...new Set(

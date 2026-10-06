@@ -10,7 +10,7 @@ function cell(v: CellValue): string {
 
 /**
  * RFC 4180 CSV with a UTF-8 byte-order mark (so Excel shows accented names
- * correctly). Hours are decimal hours, money is major units with 2 decimals.
+ * correctly). Hours are decimal hours.
  * Cells starting with = + - @ are prefixed with ' to prevent formula injection.
  */
 export function toCsv(table: ExportTable): string {
@@ -19,7 +19,6 @@ export function toCsv(table: ExportTable): string {
   const fmt = (kind: string, v: CellValue): CellValue => {
     if (typeof v !== "number") return v;
     if (kind === "hours") return decimalHours(v).toFixed(2);
-    if (kind === "money") return (v / 100).toFixed(2);
     if (kind === "decimal") return v.toFixed(2);
     return v;
   };

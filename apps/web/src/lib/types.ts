@@ -4,7 +4,6 @@ export interface Me {
   serverId: string;
   user: User;
   organization: Organization | null;
-  permissions: { seeRates: boolean };
 }
 
 export interface ServerInfo {

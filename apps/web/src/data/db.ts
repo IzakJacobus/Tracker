@@ -5,7 +5,6 @@ import type {
   Project,
   ProjectMember,
   Tag,
-  Task,
   TimeEntry,
   Timesheet,
   User,
@@ -17,7 +16,6 @@ export type SyncTable =
   | "clients"
   | "projects"
   | "projectMembers"
-  | "tasks"
   | "tags"
   | "timesheets"
   | "timeEntries"
@@ -28,7 +26,6 @@ export const SYNC_TABLES: SyncTable[] = [
   "clients",
   "projects",
   "projectMembers",
-  "tasks",
   "tags",
   "timesheets",
   "timeEntries",
@@ -62,7 +59,6 @@ export class StintDB extends Dexie {
   clients!: Table<Client, string>;
   projects!: Table<Project, string>;
   projectMembers!: Table<ProjectMember, string>;
-  tasks!: Table<Task, string>;
   tags!: Table<Tag, string>;
   timesheets!: Table<Timesheet, string>;
   timeEntries!: Table<TimeEntry, string>;
@@ -85,6 +81,8 @@ export class StintDB extends Dexie {
       outbox: "++seq, changeId, table, [table+id]",
       meta: "key",
     });
+    // 0.2: tasks became items in the project tree; the old store is dropped.
+    this.version(2).stores({ tasks: null });
   }
 
   async getMeta<T>(key: string): Promise<T | undefined> {

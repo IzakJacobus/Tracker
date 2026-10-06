@@ -17,15 +17,14 @@ export function useReportData(): ReportData | null {
   const { db } = useData();
   const settings = useSettings();
   const raw = useLiveQuery(async () => {
-    const [entries, projects, clients, tasks, users, tags] = await Promise.all([
+    const [entries, projects, clients, users, tags] = await Promise.all([
       db.timeEntries.toArray(),
       db.projects.toArray(),
       db.clients.toArray(),
-      db.tasks.toArray(),
       db.users.toArray(),
       db.tags.toArray(),
     ]);
-    return { entries, projects, clients, tasks, users, tags };
+    return { entries, projects, clients, users, tags };
   }, [db]);
   return useMemo(() => (raw ? { ...raw, settings } : null), [raw, settings]);
 }

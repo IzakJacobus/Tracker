@@ -3,7 +3,6 @@ import { KeyRound, Pencil, UserPlus, Users } from "lucide-react";
 import { type FormEvent, useCallback, useEffect, useState } from "react";
 import { useMe } from "../../app/session.tsx";
 import { ApiError, api, errorMessage } from "../../lib/api.ts";
-import { formatMoney, moneyInputValue, parseMoneyInput } from "../../lib/format.ts";
 import { Button } from "../../ui/Button.tsx";
 import { Dialog } from "../../ui/Dialog.tsx";
 import { Field, Input, Select, Switch } from "../../ui/Field.tsx";
@@ -50,7 +49,6 @@ export function TeamPage() {
   const [editing, setEditing] = useState<User | "new" | null>(null);
   const [resetFor, setResetFor] = useState<User | null>(null);
   const isAdmin = me.user.role === "admin";
-  const currency = me.organization?.settings.currency ?? "ZAR";
 
   const load = useCallback(() => {
     api
@@ -94,7 +92,6 @@ export function TeamPage() {
                 <th>Role</th>
                 <th>Manager</th>
                 <th className="num">Hours / week</th>
-                {me.permissions.seeRates && <th className="num">Rate</th>}
                 <th>Status</th>
                 {isAdmin && <th aria-label="Actions" />}
               </tr>
@@ -118,15 +115,6 @@ export function TeamPage() {
                     {u.managerId ? (byId.get(u.managerId)?.name ?? "—") : <span className="subtle">—</span>}
                   </td>
                   <td className="num tnum">{(u.weeklyCapacityMinutes / 60).toFixed(1)}</td>
-                  {me.permissions.seeRates && (
-                    <td className="num tnum">
-                      {u.rate === null ? (
-                        <span className="subtle">default</span>
-                      ) : (
-                        formatMoney(u.rate, currency)
-                      )}
-                    </td>
-                  )}
                   <td>
                     {u.active ? (
                       u.mustChangePassword ? (
@@ -168,7 +156,6 @@ export function TeamPage() {
         <UserDialog
           user={editing === "new" ? null : editing}
           users={users ?? []}
-          currency={currency}
           onClose={() => setEditing(null)}
           onSaved={(msg) => {
             setEditing(null);
@@ -185,13 +172,11 @@ export function TeamPage() {
 function UserDialog({
   user,
   users,
-  currency,
   onClose,
   onSaved,
 }: {
   user: User | null;
   users: User[];
-  currency: string;
   onClose: () => void;
   onSaved: (msg: string) => void;
 }) {
@@ -201,7 +186,6 @@ function UserDialog({
     role: user?.role ?? ("member" as User["role"]),
     managerId: user?.managerId ?? "",
     hours: String((user?.weeklyCapacityMinutes ?? 2400) / 60),
-    rate: moneyInputValue(user?.rate ?? null),
     color: user?.color ?? COLORS[users.length % COLORS.length]!,
     active: user?.active ?? true,
   });
@@ -222,7 +206,6 @@ function UserDialog({
       role: f.role,
       managerId: f.managerId || null,
       weeklyCapacityMinutes: Math.round(Number(f.hours) * 60),
-      rate: f.rate.trim() ? parseMoneyInput(f.rate) : null,
       color: f.color,
     };
     try {
@@ -298,7 +281,7 @@ function UserDialog({
               f.role === "admin"
                 ? "Can do everything, including settings and backups."
                 : f.role === "manager"
-                  ? "Manages assigned projects, approves their team's timesheets, sees rates."
+                  ? "Manages assigned projects and approves their team's timesheets."
                   : "Tracks their own time and sees their own reports."
             }
           >
@@ -326,17 +309,6 @@ function UserDialog({
               step={0.5}
               value={f.hours}
               onChange={(e) => setF({ ...f, hours: e.target.value })}
-            />
-          </Field>
-          <Field
-            label={`Hourly rate (${currency})`}
-            hint="Leave empty to use project, client or company rates."
-          >
-            <Input
-              inputMode="decimal"
-              value={f.rate}
-              onChange={(e) => setF({ ...f, rate: e.target.value })}
-              placeholder="default"
             />
           </Field>
         </div>

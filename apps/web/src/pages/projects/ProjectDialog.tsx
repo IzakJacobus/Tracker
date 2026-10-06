@@ -5,10 +5,9 @@ import { useMe } from "../../app/session.tsx";
 import { useData } from "../../data/DataProvider.tsx";
 import { useClients, useMembers, useProjects, useUsers } from "../../data/hooks.ts";
 import { ApiError, api, errorMessage } from "../../lib/api.ts";
-import { moneyInputValue, parseMoneyInput } from "../../lib/format.ts";
 import { Button } from "../../ui/Button.tsx";
 import { Dialog } from "../../ui/Dialog.tsx";
-import { Field, Input, Select, Switch, Textarea } from "../../ui/Field.tsx";
+import { Field, Input, Select, Textarea } from "../../ui/Field.tsx";
 import { Alert, Avatar, Badge } from "../../ui/misc.tsx";
 import { useToast } from "../../ui/Toast.tsx";
 
@@ -122,8 +121,6 @@ function DetailsForm({
   const clients = useClients().filter((c) => !c.archivedAt);
   const projects = useProjects();
   const parent = parentId ? projects.find((p) => p.id === parentId) : null;
-  const currency = me.organization?.settings.currency ?? "ZAR";
-  const seesMoney = me.permissions.seeRates;
   const defaultClient =
     parent?.clientId ?? clientId ?? clients.find((c) => !c.isInternal)?.id ?? clients[0]?.id ?? "";
   const clientIsInternal = useCallback(
@@ -138,11 +135,8 @@ function DetailsForm({
     code: project?.code ?? "",
     kind: project?.kind ?? "",
     color: project?.color ?? parent?.color ?? COLORS[projects.length % COLORS.length]!,
-    billableDefault: project?.billableDefault ?? parent?.billableDefault ?? !clientIsInternal(defaultClient),
     visibility: project?.visibility ?? (clientIsInternal(defaultClient) ? "everyone" : "members"),
-    rate: moneyInputValue(project?.rate ?? null),
     budgetHours: project?.budgetMinutes ? String(project.budgetMinutes / 60) : "",
-    budgetAmount: moneyInputValue(project?.budgetAmount ?? null),
     notes: project?.notes ?? "",
   });
   const [fields, setFields] = useState<Record<string, string>>({});
@@ -163,7 +157,6 @@ function DetailsForm({
           : {
               ...cur,
               clientId: defaultClient,
-              billableDefault: !internal,
               visibility: internal ? "everyone" : "members",
             },
       );
@@ -180,16 +173,9 @@ function DetailsForm({
       code: f.code.trim() || null,
       kind: f.kind.trim() || null,
       color: f.color,
-      billableDefault: f.billableDefault,
       visibility: f.visibility,
       budgetMinutes: f.budgetHours.trim() ? Math.round(Number(f.budgetHours) * 60) : null,
       notes: f.notes,
-      ...(seesMoney
-        ? {
-            rate: f.rate.trim() ? parseMoneyInput(f.rate) : null,
-            budgetAmount: f.budgetAmount.trim() ? parseMoneyInput(f.budgetAmount) : null,
-          }
-        : {}),
     };
     try {
       if (project) {
@@ -248,7 +234,6 @@ function DetailsForm({
                 setF({
                   ...f,
                   clientId: e.target.value,
-                  billableDefault: !internal,
                   visibility: internal ? "everyone" : "members",
                 });
               }}
@@ -312,35 +297,7 @@ function DetailsForm({
             placeholder="none"
           />
         </Field>
-        {seesMoney && (
-          <>
-            <Field label={`Budget (${currency})`}>
-              <Input
-                inputMode="decimal"
-                value={f.budgetAmount}
-                onChange={(e) => setF({ ...f, budgetAmount: e.target.value })}
-                placeholder="none"
-              />
-            </Field>
-            <Field
-              label={`Hourly rate (${currency})`}
-              hint="Leave empty to inherit from the parent project or client."
-            >
-              <Input
-                inputMode="decimal"
-                value={f.rate}
-                onChange={(e) => setF({ ...f, rate: e.target.value })}
-                placeholder="inherit"
-              />
-            </Field>
-          </>
-        )}
       </div>
-      <Switch
-        checked={f.billableDefault}
-        onChange={(v) => setF({ ...f, billableDefault: v })}
-        label="Time on this project is billable by default"
-      />
       <fieldset className="stack stack--sm" style={{ border: 0, padding: 0, margin: 0 }}>
         <legend className="field__label" style={{ marginBottom: 6 }}>
           Colour
@@ -513,27 +470,20 @@ function ItemsPanel({ project }: { project: Project }) {
 }
 
 function TeamPanel({ project }: { project: Project }) {
-  const me = useMe();
+  const _me = useMe();
   const { mutate } = useData();
   const toast = useToast();
   const users = useUsers().filter((u) => u.active);
   const members = useMembers().filter((m) => m.projectId === project.id);
   const [adding, setAdding] = useState("");
-  const seesMoney = me.permissions.seeRates;
-  const currency = me.organization?.settings.currency ?? "ZAR";
   const byUser = new Map(users.map((u) => [u.id, u]));
   const available = users.filter((u) => !members.some((m) => m.userId === u.id));
 
-  async function set(
-    user: User,
-    body: Partial<Pick<ProjectMember, "role" | "rate">>,
-    current?: ProjectMember,
-  ) {
+  async function set(user: User, body: Partial<Pick<ProjectMember, "role">>, current?: ProjectMember) {
     try {
       await mutate(() =>
         api.put(`/projects/${project.id}/members/${user.id}`, {
           role: current?.role ?? "member",
-          rate: current?.rate ?? null,
           ...body,
         }),
       );
@@ -546,12 +496,12 @@ function TeamPanel({ project }: { project: Project }) {
     <div className="stack">
       {project.visibility === "everyone" ? (
         <Alert tone="info">
-          Everyone in the company can track time on this project. Add people here to make them project
-          managers or give them a special rate.
+          Everyone in the company can log hours on this project. Add people here to make them project
+          managers.
         </Alert>
       ) : (
         <p className="muted">
-          Only the people added here (and admins) can track time on this project and its sub-projects.
+          Only the people added here (and admins) can log hours on this project and everything under it.
         </p>
       )}
       <div className="row">
@@ -581,7 +531,6 @@ function TeamPanel({ project }: { project: Project }) {
             <tr>
               <th>Person</th>
               <th>Role on project</th>
-              {seesMoney && <th className="num">Rate on this project ({currency})</th>}
               <th aria-label="Actions" />
             </tr>
           </thead>
@@ -610,22 +559,6 @@ function TeamPanel({ project }: { project: Project }) {
                       </option>
                     </Select>
                   </td>
-                  {seesMoney && (
-                    <td className="num">
-                      <Input
-                        className="input--bare"
-                        style={{ textAlign: "right", width: 120 }}
-                        inputMode="decimal"
-                        defaultValue={moneyInputValue(m.rate)}
-                        placeholder="standard"
-                        aria-label={`Rate for ${u.name}`}
-                        onBlur={(e) => {
-                          const v = e.target.value.trim() ? parseMoneyInput(e.target.value) : null;
-                          if (v !== m.rate) void set(u, { rate: v }, m);
-                        }}
-                      />
-                    </td>
-                  )}
                   <td style={{ textAlign: "right" }}>
                     <Button
                       size="sm"

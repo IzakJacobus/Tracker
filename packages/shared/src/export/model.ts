@@ -1,5 +1,5 @@
 /** A small, format-neutral description of an exported document. */
-export type CellKind = "text" | "hours" | "decimal" | "money" | "date" | "int";
+export type CellKind = "text" | "hours" | "decimal" | "date" | "int";
 export type CellValue = string | number | null;
 
 export interface ExportColumn {
@@ -28,13 +28,11 @@ export interface ExportDoc {
   /** signature lines (monthly timesheets) */
   signatures?: string[];
   notes?: string;
-  currency: string;
   organization: {
     name: string;
     logo: string | null;
     address: string;
     registration: string;
-    vatNumber: string;
     footer: string;
     accentColor: string;
   };
@@ -50,12 +48,6 @@ export function hm(seconds: number): string {
 }
 
 export const decimalHours = (seconds: number) => Math.round((seconds / 3600) * 100) / 100;
-
-export function formatMoneyPlain(minor: number, currency: string): string {
-  const v = (minor / 100).toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, " ");
-  const symbol = currency === "ZAR" ? "R" : currency;
-  return `${symbol} ${v}`;
-}
 
 export function safeFileName(s: string): string {
   return s

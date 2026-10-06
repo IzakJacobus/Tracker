@@ -5,7 +5,6 @@ import { useMe } from "../../app/session.tsx";
 import { useData } from "../../data/DataProvider.tsx";
 import { useClients, useProjects } from "../../data/hooks.ts";
 import { ApiError, api, errorMessage } from "../../lib/api.ts";
-import { formatMoney, moneyInputValue, parseMoneyInput } from "../../lib/format.ts";
 import { Button } from "../../ui/Button.tsx";
 import { Dialog } from "../../ui/Dialog.tsx";
 import { Field, Input, Switch, Textarea } from "../../ui/Field.tsx";
@@ -13,14 +12,13 @@ import { Alert, Badge, EmptyState } from "../../ui/misc.tsx";
 import { useToast } from "../../ui/Toast.tsx";
 
 export function ClientsPage() {
-  const me = useMe();
+  const _me = useMe();
   const { mutate } = useData();
   const toast = useToast();
   const clients = useClients();
   const projects = useProjects();
   const [showArchived, setShowArchived] = useState(false);
   const [editing, setEditing] = useState<Client | "new" | null>(null);
-  const currency = me.organization?.settings.currency ?? "ZAR";
   const list = clients
     .filter((c) => showArchived || !c.archivedAt)
     .sort((a, b) => Number(b.isInternal) - Number(a.isInternal) || a.name.localeCompare(b.name));
@@ -53,7 +51,6 @@ export function ClientsPage() {
                 <th>Client</th>
                 <th>Code</th>
                 <th className="num">Projects</th>
-                <th className="num">Rate</th>
                 <th aria-label="Actions" />
               </tr>
             </thead>
@@ -70,13 +67,6 @@ export function ClientsPage() {
                   <td className="mono subtle">{c.code ?? ""}</td>
                   <td className="num tnum">
                     {projects.filter((p) => p.clientId === c.id && !p.archivedAt).length}
-                  </td>
-                  <td className="num tnum">
-                    {c.rate === null ? (
-                      <span className="subtle">default</span>
-                    ) : (
-                      formatMoney(c.rate, currency)
-                    )}
                   </td>
                   <td style={{ textAlign: "right", whiteSpace: "nowrap" }}>
                     <Button
@@ -118,31 +108,18 @@ export function ClientsPage() {
         </div>
       )}
       {editing && (
-        <ClientDialog
-          client={editing === "new" ? null : editing}
-          currency={currency}
-          onClose={() => setEditing(null)}
-        />
+        <ClientDialog client={editing === "new" ? null : editing} onClose={() => setEditing(null)} />
       )}
     </div>
   );
 }
 
-function ClientDialog({
-  client,
-  currency,
-  onClose,
-}: {
-  client: Client | null;
-  currency: string;
-  onClose: () => void;
-}) {
+function ClientDialog({ client, onClose }: { client: Client | null; onClose: () => void }) {
   const { mutate } = useData();
   const toast = useToast();
   const [f, setF] = useState({
     name: client?.name ?? "",
     code: client?.code ?? "",
-    rate: moneyInputValue(client?.rate ?? null),
     notes: client?.notes ?? "",
   });
   const [fields, setFields] = useState<Record<string, string>>({});
@@ -156,7 +133,6 @@ function ClientDialog({
     const payload = {
       name: f.name,
       code: f.code.trim() || null,
-      rate: f.rate.trim() ? parseMoneyInput(f.rate) : null,
       notes: f.notes,
     };
     try {
@@ -191,19 +167,9 @@ function ClientDialog({
         <Field label="Name" error={fields.name}>
           <Input value={f.name} onChange={(e) => setF({ ...f, name: e.target.value })} autoFocus />
         </Field>
-        <div className="grid-2">
-          <Field label="Code" hint="Optional, e.g. an accounting code.">
-            <Input value={f.code} onChange={(e) => setF({ ...f, code: e.target.value })} />
-          </Field>
-          <Field label={`Hourly rate (${currency})`} hint="Used when a project has no rate of its own.">
-            <Input
-              inputMode="decimal"
-              value={f.rate}
-              onChange={(e) => setF({ ...f, rate: e.target.value })}
-              placeholder="default"
-            />
-          </Field>
-        </div>
+        <Field label="Code" hint="Optional short reference for the client.">
+          <Input value={f.code} onChange={(e) => setF({ ...f, code: e.target.value })} />
+        </Field>
         <Field label="Notes">
           <Textarea rows={3} value={f.notes} onChange={(e) => setF({ ...f, notes: e.target.value })} />
         </Field>

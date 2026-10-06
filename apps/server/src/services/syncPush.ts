@@ -12,8 +12,6 @@ import {
   MAX_ENTRY_SECONDS,
   mergeChange,
   type OrgSettings,
-  resolveBillable,
-  resolveRate,
   SYNC_WRITABLE_FIELDS,
   type TimeEntry,
   type WritableSyncTable,
@@ -23,9 +21,9 @@ import { getFieldClock, getRow, insertRow, type Row, TABLES, updateRow } from ".
 import { audit } from "../lib/audit.ts";
 import type { Logger } from "../lib/log.ts";
 import { accessContext } from "./access.ts";
-import { allProjects, ancestorsNearestFirst, getClient, getProject, getTask } from "./catalog.ts";
+import { allProjects, getProject } from "./catalog.ts";
 import { getOrgSettings } from "./org.ts";
-import { entryVisible, shapeEntry } from "./shape.ts";
+import { entryVisible } from "./shape.ts";
 import { getUser } from "./users.ts";
 
 export const PushChange = z.object({
@@ -80,36 +78,6 @@ export function isPeriodLocked(db: Database, userId: string, date: string): bool
   );
 }
 
-/* ---------------- rates ---------------- */
-
-export function snapshotRate(
-  db: Database,
-  entry: { userId: string; projectId: string; taskId: string | null },
-  settings: OrgSettings,
-): number {
-  const project = getProject(db, entry.projectId);
-  const user = getUser(db, entry.userId);
-  const chain = project ? [project, ...ancestorsNearestFirst(db, project.id)] : [];
-  const memberRates = new Map<string, number | null>(
-    db
-      .query<{ project_id: string; rate: number | null }, [string]>(
-        "SELECT project_id, rate FROM project_members WHERE user_id = ? AND deleted_at IS NULL",
-      )
-      .all(entry.userId)
-      .map((m) => [m.project_id, m.rate]),
-  );
-  const task = entry.taskId ? getTask(db, entry.taskId) : null;
-  const client = project ? getClient(db, project.clientId) : null;
-  return resolveRate({
-    organizationDefault: settings.defaultRate,
-    user: { id: entry.userId, rate: user?.rate ?? null },
-    client: client ? { id: client.id, rate: client.rate } : null,
-    projectChain: chain.map((p) => ({ id: p.id, rate: p.rate })),
-    memberRates,
-    task: task ? { id: task.id, rate: task.rate } : null,
-  }).rate;
-}
-
 /* ---------------- validation ---------------- */
 
 const MIN_TIME = Date.UTC(2000, 0, 1);
@@ -140,7 +108,6 @@ function validateEntry(p: PushCtx, e: TimeEntry): void {
   }
   if (typeof e.description !== "string" || e.description.length > 2000)
     throw new Reject("invalid", "The description is too long.");
-  if (typeof e.billable !== "boolean") throw new Reject("invalid", "Billable must be yes or no.");
   if (!Array.isArray(e.tagIds) || e.tagIds.length > 20 || e.tagIds.some((t) => typeof t !== "string")) {
     throw new Reject("invalid", "Invalid tags.");
   }
@@ -223,8 +190,6 @@ function pushEntry(p: PushCtx, c: IncomingChange): PushResult {
 
   if (result.kind === "insert") {
     const r = result.row as Partial<TimeEntry>;
-    const project = typeof r.projectId === "string" ? getProject(p.db, r.projectId) : null;
-    const task = typeof r.taskId === "string" ? getTask(p.db, r.taskId) : null;
     const entry: TimeEntry = {
       id: c.id,
       userId: ownerId,
@@ -234,9 +199,6 @@ function pushEntry(p: PushCtx, c: IncomingChange): PushResult {
       startedAt: r.startedAt as number,
       durationS: r.durationS === undefined ? null : r.durationS,
       entryDate: typeof r.startedAt === "number" ? localDate(r.startedAt, p.settings.timezone) : "",
-      billable: r.billable ?? (project ? resolveBillable(task, project) : true),
-      rateSnapshot: null,
-      currency: p.settings.currency,
       source: r.source ?? "manual",
       tagIds: r.tagIds ?? [],
       createdAt: p.now,
@@ -247,7 +209,6 @@ function pushEntry(p: PushCtx, c: IncomingChange): PushResult {
     validateEntry(p, entry);
     checkLoggable(p, entry.projectId);
     checkEntryTags(p, entry.tagIds, []);
-    entry.rateSnapshot = snapshotRate(p.db, entry, p.settings);
     const inserted = insertRow(p.db, spec, entry as unknown as Row, result.fieldClock);
     audit(p.db, p.now, {
       actorId: p.actor.id,
@@ -270,13 +231,7 @@ function pushEntry(p: PushCtx, c: IncomingChange): PushResult {
     if ("tagIds" in result.patch) checkEntryTags(p, next.tagIds, before!.tagIds);
   }
   const derived: Record<string, unknown> = { ...result.patch };
-  if (!result.patch.deletedAt) {
-    derived.entryDate = next.entryDate;
-    if ("projectId" in result.patch || "taskId" in result.patch) {
-      derived.rateSnapshot = snapshotRate(p.db, next, p.settings);
-      derived.currency = p.settings.currency;
-    }
-  }
+  if (!result.patch.deletedAt) derived.entryDate = next.entryDate;
   const after = updateRow(p.db, spec, c.id, derived, p.now, result.fieldClock);
   audit(p.db, p.now, {
     actorId: p.actor.id,
@@ -415,7 +370,7 @@ function currentRow(p: PushCtx, table: WritableSyncTable, id: string): Row | nul
   if (!row) return null;
   if (table === "timeEntries") {
     const e = row as unknown as TimeEntry;
-    return entryVisible(e, p.actor, p.access) ? (shapeEntry(e, p.actor, p.access) as unknown as Row) : null;
+    return entryVisible(e, p.actor, p.access) ? (e as unknown as Row) : null;
   }
   if (table === "favorites") return row.userId === p.actor.id ? row : null;
   return row;

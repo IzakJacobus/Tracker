@@ -24,7 +24,6 @@ import { HealthPage } from "./pages/settings/Health.tsx";
 import { ImportPage } from "./pages/settings/Import.tsx";
 import { OrgSettingsPage } from "./pages/settings/OrgSettings.tsx";
 import { RemoteAccessPage } from "./pages/settings/RemoteAccess.tsx";
-import { ReratePage } from "./pages/settings/Rerate.tsx";
 import { SettingsLayout } from "./pages/settings/SettingsLayout.tsx";
 import { TeamPage } from "./pages/team/Team.tsx";
 import { TrackPage } from "./pages/track/TrackPage.tsx";
@@ -131,7 +130,6 @@ const appRouter = () =>
           children: [
             { index: true, element: <OrgSettingsPage /> },
             { path: "audit", element: <AuditLogPage /> },
-            { path: "rerate", element: <ReratePage /> },
             { path: "health", element: <HealthPage /> },
             { path: "backups", element: <BackupsPage /> },
             { path: "remote", element: <RemoteAccessPage /> },

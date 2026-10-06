@@ -1,14 +1,13 @@
 import { existsSync } from "node:fs";
 import { join } from "node:path";
-import { Id, IsoDate, subtreeIds, type TimeEntry } from "@stint/shared";
+import { Id } from "@stint/shared";
 import { Hono } from "hono";
 import { z } from "zod";
 import { requireRole } from "../auth/middleware.ts";
 import type { AppContext } from "../context.ts";
-import { listRows, TABLES, updateRow } from "../db/tables.ts";
 import { actorOf, body, clientIp, type HonoEnv, query } from "../http.ts";
 import { audit } from "../lib/audit.ts";
-import { ApiError, badRequest, conflict, notFound } from "../lib/errors.ts";
+import { ApiError, conflict, notFound } from "../lib/errors.ts";
 import {
   backupFolder,
   browseFolders,
@@ -17,11 +16,8 @@ import {
   restoreBackup,
   runBackup,
 } from "../services/backup.ts";
-import { projectTree } from "../services/catalog.ts";
 import { healthReport } from "../services/health.ts";
 import { importEntries } from "../services/importer.ts";
-import { getOrgSettings } from "../services/org.ts";
-import { isPeriodLocked, snapshotRate } from "../services/syncPush.ts";
 import { checkForUpdate, storedUpdateInfo } from "../services/updates.ts";
 
 const AuditQuery = z.object({
@@ -31,16 +27,6 @@ const AuditQuery = z.object({
   action: z.string().max(40).optional(),
   before: z.coerce.number().int().optional(),
   limit: z.coerce.number().int().min(1).max(500).default(100),
-});
-
-const RerateInput = z.object({
-  from: IsoDate,
-  to: IsoDate,
-  projectId: Id.optional(),
-  userId: Id.optional(),
-  includeLocked: z.boolean().default(false),
-  dryRun: z.boolean().default(true),
-  reason: z.string().trim().max(500).default(""),
 });
 
 const BackupName = z.object({ name: z.string().regex(/^stint-[\w-]+\.db$/, "Pick a backup from the list.") });
@@ -103,84 +89,6 @@ export function adminRoutes(ctx: AppContext) {
         ip: a.ip,
       }));
     return c.json({ rows, next: rows.length === q.limit ? rows[rows.length - 1]!.id : null });
-  });
-
-  /**
-   * Deliberately re-price entries with today's rates. Rates are otherwise frozen
-   * on each entry so later rate changes never rewrite history.
-   */
-  r.post("/rerate", async (c) => {
-    const actor = actorOf(c);
-    const input = await body(c, RerateInput);
-    if (input.from > input.to) throw badRequest("The start date must be before the end date.");
-    const settings = getOrgSettings(ctx.db);
-    const where = ["deleted_at IS NULL", "duration_s IS NOT NULL", "entry_date BETWEEN ? AND ?"];
-    const params: string[] = [input.from, input.to];
-    if (input.userId) {
-      where.push("user_id = ?");
-      params.push(input.userId);
-    }
-    let entries = listRows(ctx.db, TABLES.timeEntries, where.join(" AND "), params) as TimeEntry[];
-    if (input.projectId) {
-      const ids = new Set(subtreeIds(projectTree(ctx.db), input.projectId));
-      entries = entries.filter((e) => ids.has(e.projectId));
-    }
-    let skippedLocked = 0;
-    const changes: { entry: TimeEntry; rate: number }[] = [];
-    for (const e of entries) {
-      if (!input.includeLocked && isPeriodLocked(ctx.db, e.userId, e.entryDate)) {
-        skippedLocked++;
-        continue;
-      }
-      const rate = snapshotRate(ctx.db, e, settings);
-      if (rate !== e.rateSnapshot) changes.push({ entry: e, rate });
-    }
-    const amount = (list: { seconds: number; rate: number | null }[]) =>
-      list.reduce((s, x) => s + Math.round((x.seconds * (x.rate ?? 0)) / 3600), 0);
-    const summary = {
-      matched: entries.length,
-      changed: changes.length,
-      skippedLocked,
-      amountBefore: amount(
-        changes.map((x) => ({ seconds: x.entry.durationS ?? 0, rate: x.entry.rateSnapshot })),
-      ),
-      amountAfter: amount(changes.map((x) => ({ seconds: x.entry.durationS ?? 0, rate: x.rate }))),
-      dryRun: input.dryRun,
-    };
-    if (!input.dryRun && changes.length) {
-      const now = ctx.now();
-      ctx.db.transaction(() => {
-        for (const ch of changes)
-          updateRow(
-            ctx.db,
-            TABLES.timeEntries,
-            ch.entry.id,
-            { rateSnapshot: ch.rate, currency: settings.currency },
-            now,
-          );
-        audit(ctx.db, now, {
-          actorId: actor.id,
-          action: "rerate",
-          entity: "time_entry",
-          entityId: null,
-          before: {
-            from: input.from,
-            to: input.to,
-            projectId: input.projectId,
-            userId: input.userId,
-            amount: summary.amountBefore,
-          },
-          after: {
-            changed: changes.length,
-            amount: summary.amountAfter,
-            ids: changes.map((x) => x.entry.id),
-          },
-          reason: input.reason,
-          ip: clientIp(c),
-        });
-      })();
-    }
-    return c.json(summary);
   });
 
   /** CSV import (Toggl Track detailed export, Stint export, or simple columns). Dry run by default. */

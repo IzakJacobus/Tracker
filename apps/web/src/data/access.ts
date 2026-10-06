@@ -13,6 +13,5 @@ export function accessFromLocal(projects: Project[], members: ProjectMember[], m
     projectVisibility: new Map(projects.map((p) => [p.id, p.visibility])),
     memberships,
     userManager: new Map(),
-    membersSeeOwnRates: me.organization?.settings.membersSeeOwnRates ?? false,
   };
 }

@@ -27,6 +27,12 @@ All notable changes to Stint are documented here. The format follows
   a QR code for phones, and a link to Stint's certificate.
 
 ### Removed
+- **Billing, completely.** Stint tracks hours only. Gone: hourly rates (per person, project,
+  client and company), billable flags, money budgets, rate snapshots on entries, the currency,
+  hour rounding, the VAT number, "members see their own rates", the **Re-rate** tool, and every
+  amount in reports, PDFs, Excel and CSV exports. The upgrade deletes this data from the
+  database (the automatic backup made just before keeps it). Reports now show hours per client,
+  per project and item, per person and per day, and client work versus internal work.
 - The timer (the bar at the bottom, the <kbd>S</kbd> shortcut and "Continue") and the Day
   calendar view. A timer still running when the server is upgraded is stopped with the time it
   ran (at most 24 hours). Press <kbd>N</kbd> to log hours.
