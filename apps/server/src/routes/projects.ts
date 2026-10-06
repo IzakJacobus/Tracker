@@ -20,6 +20,7 @@ import { audit } from "../lib/audit.ts";
 import { badRequest, forbidden, notFound } from "../lib/errors.ts";
 import { accessContext, invalidateAccessCache } from "../services/access.ts";
 import { allProjects, getClient, getProject, PROJECT_COLORS, projectTree } from "../services/catalog.ts";
+import { assertCodeFree, CODE_REQUIRED, fieldError } from "../services/codes.ts";
 import { memberVisible, projectVisible } from "../services/shape.ts";
 import { bumpGlobalSyncEpoch, bumpSyncEpoch, getUser } from "../services/users.ts";
 
@@ -54,6 +55,10 @@ export function projectRoutes(ctx: AppContext) {
     if (!clientId) throw badRequest("Choose a client for the project.");
     const client = getClient(ctx.db, clientId);
     if (!client || client.deletedAt) throw notFound("Client");
+    // Every project needs a code (the firm's own reference); items under it may have one.
+    const code = input.code?.trim() || null;
+    if (!parentId && !code) throw fieldError("code", CODE_REQUIRED);
+    if (code) assertCodeFree(ctx.db, clientId, code);
     const now = ctx.now();
     const siblings = allProjects(ctx.db).filter((p) => p.parentId === parentId && p.clientId === clientId);
     const parent = parentId ? getProject(ctx.db, parentId) : null;
@@ -62,7 +67,7 @@ export function projectRoutes(ctx: AppContext) {
       clientId,
       parentId,
       name: input.name,
-      code: input.code ?? null,
+      code,
       kind: input.kind?.trim() || null,
       color:
         input.color ?? parent?.color ?? PROJECT_COLORS[allProjects(ctx.db).length % PROJECT_COLORS.length],
@@ -94,8 +99,17 @@ export function projectRoutes(ctx: AppContext) {
     if (!before || before.deletedAt) throw notFound("Project");
     if (!canManageProject(actor, id, accessContext(ctx.db, actor))) throw forbidden();
     const input = await body(c, UpdateProjectInput);
+    const nextCode = "code" in input ? input.code?.trim() || null : before.code;
+    if (!before.parentId && !nextCode) throw fieldError("code", CODE_REQUIRED);
+    if (nextCode && nextCode !== before.code) assertCodeFree(ctx.db, before.clientId, nextCode, [id]);
     const now = ctx.now();
-    const after = updateRow(ctx.db, TABLES.projects, id, input, now);
+    const after = updateRow(
+      ctx.db,
+      TABLES.projects,
+      id,
+      { ...input, ...("code" in input ? { code: nextCode } : {}) },
+      now,
+    );
     // Items underneath didn't change, so incremental sync wouldn't deliver (or retract) them.
     if (input.visibility !== undefined && input.visibility !== before.visibility) bumpGlobalSyncEpoch(ctx.db);
     audit(ctx.db, now, {
@@ -136,6 +150,17 @@ export function projectRoutes(ctx: AppContext) {
       if (actor.role !== "admin") throw forbidden("Only admins can move projects to another client.");
       const client = getClient(ctx.db, clientId);
       if (!client || client.deletedAt) throw notFound("Client");
+    }
+    // A top-level project needs a code, and codes stay unique within the client it lands in.
+    if (!input.parentId && !before.code?.trim()) {
+      throw fieldError("code", "Give “" + before.name + "” a code first: every top-level project has one.");
+    }
+    if (clientId !== before.clientId) {
+      const moving = subtreeIds(tree, id);
+      for (const mid of moving) {
+        const code = tree.byId.get(mid)?.code?.trim();
+        if (code) assertCodeFree(ctx.db, clientId, code, moving);
+      }
     }
     const now = ctx.now();
     const moved = ctx.db.transaction(() => {

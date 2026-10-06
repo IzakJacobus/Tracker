@@ -70,7 +70,10 @@ Every rule is enforced by the server, not only hidden in the screens.
 
 - **Clients** are the companies you do work for. The built-in *Internal* client (admin, training,
   leave…) can't be archived.
-- **Projects** belong to a client. Under a project you add **items**, and items under items, as
+- **Projects** belong to a client and each has a **code**: your own reference, in any numbering
+  you like (`2026-014`, `BRG/07`…), unique for that client. The New project form suggests the
+  next code in the client's pattern. Items under a project may have a code too.
+- Under a project you add **items**, and items under items, as
   deep as you need: *Paarl bridge upgrade › Detailed design › WP1 Structural › Pier design*. Give
   each item a **type** your firm uses (Phase, Task, Work package, …). It's only a name, so every
   firm can organise its work its own way; types you've used are suggested next time.

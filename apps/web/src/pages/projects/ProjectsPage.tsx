@@ -430,15 +430,25 @@ function ProjectRow({
       )}
       <button type="button" className="tree-name" onClick={() => onEdit("details")}>
         <Dot color={project.color} />
+        {depth === 0 && project.code && (
+          <span className="mono" style={{ fontSize: 12, fontWeight: 600 }}>
+            {project.code}
+          </span>
+        )}
         <span className="truncate">{project.name}</span>
         {depth > 0 && <span className="sr-only">(level {depth + 1})</span>}
-        {project.code && (
+        {depth > 0 && project.code && (
           <span className="subtle mono" style={{ fontSize: 12 }}>
             {project.code}
           </span>
         )}
       </button>
       <div className="tree-meta">
+        {!project.parentId && !project.code && (
+          <Badge tone="warning" title="Every project needs a code. Open it to add one.">
+            Code missing
+          </Badge>
+        )}
         {project.visibility === "everyone" && <Badge tone="info">Everyone</Badge>}
         {project.kind && <Badge>{project.kind}</Badge>}
         {project.archivedAt && <Badge>{project.parentId ? "Done" : "Archived"}</Badge>}

@@ -24,7 +24,6 @@ export default async function globalSetup() {
     ...PEOPLE.member,
     role: "member",
     managerId: mgr.id,
-    rate: 65000,
   });
   // new users must normally change their password first; do it for them here
   for (const [who, id] of [
@@ -46,11 +45,11 @@ export default async function globalSetup() {
   }
   const client = await call<{ id: string }>("POST", "/clients", {
     name: "Drakenstein Municipality",
-    rate: 95000,
   });
   const project = await call<{ id: string }>("POST", "/projects", {
     clientId: client.id,
     name: "Paarl bridge upgrade",
+    code: "2026-014",
     budgetMinutes: 6000,
   });
   await call("POST", "/projects", { parentId: project.id, name: "Detailed design" });

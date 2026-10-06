@@ -22,13 +22,13 @@ async function world() {
   const project = (
     await s.json<Project>("POST", "/api/projects", {
       as: admin,
-      body: { clientId: client.id, name: "Bridge" },
+      body: { clientId: client.id, name: "Bridge", code: "B-1" },
     })
   ).body;
   const other = (
     await s.json<Project>("POST", "/api/projects", {
       as: admin,
-      body: { clientId: client.id, name: "Secret" },
+      body: { clientId: client.id, name: "Secret", code: "S-1" },
     })
   ).body;
   await s.json("PUT", `/api/projects/${project.id}/members/${alice.id}`, { as: admin, body: {} });
