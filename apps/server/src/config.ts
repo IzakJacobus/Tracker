@@ -10,9 +10,6 @@ export const ConfigSchema = z.object({
   port: z.number().int().min(1).max(65535).default(47600),
   /** Preferred plain-HTTP port, bound to 127.0.0.1 only (setup wizard / admin on the server PC). */
   httpPort: z.number().int().min(1).max(65535).default(47601),
-  /** UDP port for the broadcast discovery fallback. */
-  discoveryPort: z.number().int().min(1).max(65535).default(47609),
-  discovery: z.boolean().default(true),
   sleepGuard: z.boolean().default(true),
   /** Open the admin page in a browser on first start (setup not complete). */
   openBrowser: z.boolean().default(true),
@@ -52,8 +49,6 @@ export function loadConfig(env: Record<string, string | undefined> = process.env
     Object.entries({
       port: int(env.STINT_PORT),
       httpPort: int(env.STINT_HTTP_PORT),
-      discoveryPort: int(env.STINT_DISCOVERY_PORT),
-      discovery: env.STINT_DISABLE_DISCOVERY !== undefined ? !bool(env.STINT_DISABLE_DISCOVERY) : undefined,
       sleepGuard:
         env.STINT_DISABLE_SLEEP_GUARD !== undefined ? !bool(env.STINT_DISABLE_SLEEP_GUARD) : undefined,
       openBrowser: bool(env.STINT_OPEN_BROWSER),

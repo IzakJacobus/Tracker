@@ -30,6 +30,7 @@ SetCompressor /SOLID lzma
 !define SERVICE "StintServer"
 !define UNINST_KEY "Software\Microsoft\Windows\CurrentVersion\Uninstall\StintServer"
 !define FW_TCP "Stint Server (TCP)"
+; Before 0.2 the server also answered LAN discovery over UDP; FirewallRemove deletes that old rule.
 !define FW_UDP "Stint Server (UDP discovery)"
 
 Name "${APP}"
@@ -138,8 +139,6 @@ Section "Stint Server" SecMain
   DetailPrint "Allowing Stint through Windows Firewall (Private and Domain networks)…"
   !insertmacro FirewallRemove
   nsExec::ExecToLog 'netsh advfirewall firewall add rule name="${FW_TCP}" dir=in action=allow program="$INSTDIR\stint-server.exe" enable=yes profile=private,domain protocol=TCP'
-  Pop $0
-  nsExec::ExecToLog 'netsh advfirewall firewall add rule name="${FW_UDP}" dir=in action=allow program="$INSTDIR\stint-server.exe" enable=yes profile=private,domain protocol=UDP'
   Pop $0
 
   ; Start menu

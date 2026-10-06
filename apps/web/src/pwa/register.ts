@@ -1,5 +1,3 @@
-import { tauri } from "../lib/transport.ts";
-
 type UpdateListener = (apply: () => void) => void;
 const listeners = new Set<UpdateListener>();
 
@@ -9,12 +7,9 @@ export function onAppUpdate(fn: UpdateListener): () => void {
   return () => listeners.delete(fn);
 }
 
-/**
- * Registers the service worker (browser/PWA only — the desktop app bundles its
- * files already). Needs a secure context: HTTPS on the LAN, or localhost.
- */
+/** Registers the service worker, for offline use and installing as an app. Needs a secure context: HTTPS on the LAN, or localhost. */
 export function registerServiceWorker(): void {
-  if (tauri() || !("serviceWorker" in navigator) || !window.isSecureContext || import.meta.env.DEV) return;
+  if (!("serviceWorker" in navigator) || !window.isSecureContext || import.meta.env.DEV) return;
   window.addEventListener("load", async () => {
     try {
       const reg = await navigator.serviceWorker.register("/sw.js");

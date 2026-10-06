@@ -12,11 +12,11 @@ people can track time offline and sync when they're back in the office.
 | Free plan | *Personal*: up to 6 users, unlimited devices | *Zero Trust Free*: up to 50 users. A payment card is required on the account |
 | You also need | The Tailscale app on the server PC and each laptop | A domain name on Cloudflare (a few hundred rand a year), plus Cloudflare Access rules |
 | Exposed to the internet | **No.** Only signed-in devices can connect | Yes: a public hostname, which you must protect with Cloudflare Access |
-| Stint desktop app | Works unchanged. It keeps pinning your server's certificate | Browser only. The desktop app's pinning doesn't apply to Cloudflare's certificate |
+| Certificate | Stint's own (already trusted on computers where you installed it) | Cloudflare's, trusted everywhere |
 | Setup time | About 10 minutes | About an hour |
 
 **We recommend Tailscale.** It needs no domain and no router changes. Nothing is reachable
-from the public internet, and the Stint desktop app keeps its strongest protection.
+from the public internet.
 
 > **Check current pricing.** These plan details were collected in September 2026 from
 > third-party summaries, because the vendors' own sites couldn't be reached while this guide
@@ -47,13 +47,10 @@ from the public internet, and the Stint desktop app keeps its strongest protecti
 
 1. Install Tailscale and sign in to the **same** tailnet. Either invite the person from the
    admin console (**Users → Invite**), or sign in with the firm's account.
-2. Open the Stint app **in the office** at least once after remote access is turned on. A paired
-   app learns the server's Tailscale address from the server (it checks every few hours), and
-   uses it whenever the office address doesn't answer. Nothing else to do.
-3. For a new laptop that has never been in the office: in the pairing screen choose **I have a
-   pairing code**, and use the code from the server's Health page. It works over Tailscale
-   too.
-4. In a browser, use the remote address shown in Settings → Remote access.
+2. In the browser, open the remote address shown in Settings → Remote access (for example
+   `https://office-pc.tail1234.ts.net:47600`) and install it as an app from the browser menu.
+   Use that address both in the office and away: offline copies belong to one address, so
+   switching between addresses means signing in on each.
 
 ### Limiting access (recommended)
 
@@ -95,9 +92,6 @@ people than Tailscale's free plan covers.
    Don't skip this: without it, the Stint sign-in page is on the open internet.
 5. People open `https://stint.yourfirm.co.za` in a browser and install it as an app from the
    browser menu.
-
-The Stint desktop app pins your server's own certificate, so it can't use the Cloudflare
-address. Remote desktop users would use the browser instead.
 
 ## What Stint does when remote access is on
 

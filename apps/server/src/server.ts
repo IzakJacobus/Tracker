@@ -13,7 +13,6 @@ import { openDatabase } from "./db/open.ts";
 import { createLogger, type Logger } from "./lib/log.ts";
 import { getMeta, setMeta } from "./lib/meta.ts";
 import { isLocalRequest, lanAddresses, machineName } from "./net/addresses.ts";
-import { startDiscovery } from "./net/discovery.ts";
 import { listenWithFallback } from "./net/listen.ts";
 import { ensureTls } from "./net/tls.ts";
 import { makeNetworkPrivate } from "./platform/network.ts";
@@ -183,20 +182,6 @@ export async function startServer(config: ServerConfig, opts: StartOptions): Pro
   const housekeeping = setInterval(() => pruneSessions(ctx.db, Date.now()), 3600_000);
   const stopBackups = startBackupScheduler(ctx);
   const stopUpdates = startUpdateChecks(ctx);
-  const discovery = config.discovery
-    ? startDiscovery(
-        () => ({
-          serverId: getMeta(ctx.db, "server_id") ?? "",
-          organizationName: getOrgRow(ctx.db)?.name ?? "",
-          version: opts.version,
-          port: https.port!,
-          caFingerprint: tls.caFingerprint,
-          addresses: () => ctx.runtime.addresses,
-        }),
-        config.discoveryPort,
-        log,
-      )
-    : null;
 
   return {
     ctx,
@@ -208,7 +193,6 @@ export async function startServer(config: ServerConfig, opts: StartOptions): Pro
       stopBackups();
       stopUpdates();
       platform.stop();
-      discovery?.stop();
       await https.stop(true);
       await http.stop(true);
       ctx.db.close();

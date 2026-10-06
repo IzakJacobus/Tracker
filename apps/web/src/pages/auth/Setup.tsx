@@ -8,7 +8,7 @@ import { Button } from "../../ui/Button.tsx";
 import { Field, Input, Select } from "../../ui/Field.tsx";
 import { Alert, Logo } from "../../ui/misc.tsx";
 import { AuthLayout } from "./AuthLayout.tsx";
-import { PairingPanel } from "./PairingPanel.tsx";
+import { ConnectPanel } from "./ConnectPanel.tsx";
 
 type Step = "welcome" | "company" | "admin" | "work" | "team" | "connect";
 const ORDER: Step[] = ["welcome", "company", "admin", "work", "team", "connect"];
@@ -243,13 +243,12 @@ export function Setup({ fromServerPc }: { fromServerPc: boolean }) {
       {step === "team" && <InviteStep onNext={() => setStep("connect")} />}
       {step === "connect" && (
         <div className="stack">
-          <h1>Connect the other computers</h1>
+          <h1>Open Stint on the other computers</h1>
           <p className="muted">
-            On each employee's computer, install the Stint app. It finds this server by itself — people just
-            pick <strong>{company.organizationName || "your company"}</strong> from the list and sign in. If
-            it isn't listed, they can type this pairing code instead:
+            There's nothing to install on employees' computers: they open Stint in their web browser and sign
+            in to <strong>{company.organizationName || "your company"}</strong>. Share this address with them:
           </p>
-          <PairingPanel />
+          <ConnectPanel />
           <div className="row" style={{ justifyContent: "flex-end" }}>
             <Button
               variant="primary"

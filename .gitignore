@@ -19,9 +19,6 @@ apps/server/data/
 playwright-report/
 test-results/
 e2e/.auth/
-# tauri / rust
-apps/desktop/src-tauri/target/
-apps/desktop/src-tauri/gen/
 # release outputs
 release/
 *.exe

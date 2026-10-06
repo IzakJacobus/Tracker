@@ -1,13 +1,6 @@
-import { tauri } from "./transport.ts";
-
-/** Saves a generated file: a download in the browser, a Save dialog in the desktop app. */
+/** Saves a generated file as a browser download. */
 export async function saveFile(name: string, data: Uint8Array | string, mime: string): Promise<void> {
   const bytes = typeof data === "string" ? new TextEncoder().encode(data) : data;
-  const t = tauri();
-  if (t) {
-    await t.invoke("save_file", { name, bytes: Array.from(bytes) });
-    return;
-  }
   const blob = new Blob([bytes as BlobPart], { type: mime });
   const url = URL.createObjectURL(blob);
   const a = document.createElement("a");

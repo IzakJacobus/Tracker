@@ -98,18 +98,19 @@ describe("login", () => {
     await s.login(ADMIN.email.toUpperCase(), ADMIN.password);
   });
 
-  test("desktop clients get a bearer token instead of a cookie", async () => {
+  test("sign-in always uses the secure cookie; tokens are never handed out or accepted as bearer", async () => {
     const s = createTestServer();
     await s.setup();
     const res = await s.request("POST", "/api/auth/login", {
       body: { email: ADMIN.email, password: ADMIN.password },
       headers: { "x-stint-client": "desktop" },
     });
-    const b = (await res.json()) as { token: string };
-    expect(res.headers.get("set-cookie")).toBeNull();
-    expect(b.token.length).toBeGreaterThan(30);
-    const me = await s.request("GET", "/api/auth/me", { headers: { authorization: `Bearer ${b.token}` } });
-    expect(me.status).toBe(200);
+    const cookie = res.headers.get("set-cookie") ?? "";
+    expect(cookie).toContain("HttpOnly");
+    expect(await res.json()).toEqual({ ok: true });
+    const token = cookie.split(";")[0]!.split("=")[1]!;
+    const me = await s.request("GET", "/api/auth/me", { headers: { authorization: `Bearer ${token}` } });
+    expect(me.status).toBe(401);
   });
 
   test("wrong password is rejected without revealing which part was wrong", async () => {

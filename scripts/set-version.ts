@@ -1,5 +1,5 @@
 /**
- * Sets the version everywhere it lives (package.json files, Tauri config, Cargo.toml).
+ * Sets the version in every package.json.
  *
  *   bun scripts/set-version.ts 1.2.0
  */
@@ -16,15 +16,11 @@ const jsonFiles = [
   "package.json",
   "apps/server/package.json",
   "apps/web/package.json",
-  "apps/desktop/package.json",
   "packages/shared/package.json",
-  "apps/desktop/src-tauri/tauri.conf.json",
 ];
 for (const f of jsonFiles) {
   const p = join(root, f);
   const text = readFileSync(p, "utf8");
   writeFileSync(p, text.replace(/"version":\s*"[^"]*"/, `"version": "${version}"`));
 }
-const cargo = join(root, "apps/desktop/src-tauri/Cargo.toml");
-writeFileSync(cargo, readFileSync(cargo, "utf8").replace(/^version = ".*"$/m, `version = "${version}"`));
-console.log(`Version set to ${version} in ${jsonFiles.length + 1} files.`);
+console.log(`Version set to ${version} in ${jsonFiles.length} files.`);

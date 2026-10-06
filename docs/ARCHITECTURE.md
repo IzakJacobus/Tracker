@@ -1,9 +1,9 @@
 # Stint — Architecture
 
 Stint is a self-hosted, local-first time tracker for small consulting and engineering firms.
-One office PC runs the **Stint Server**. Every employee runs the **Stint desktop app** (or opens
-Stint in a browser). Each client keeps a local copy of that person's data, so timers and edits
-are instant and keep working offline. Changes sync with the server when it can be reached.
+One office PC runs the **Stint Server**. Everyone else opens Stint in a **web browser** (it can be
+installed as an app from the browser). Each browser keeps a local copy of that person's data, so
+edits are instant and keep working offline. Changes sync with the server when it can be reached.
 
 This document covers the stack, the data model, the sync design, security, and installation.
 The phased build plan is in [ROADMAP.md](ROADMAP.md). Current status is in
@@ -15,10 +15,10 @@ The phased build plan is in [ROADMAP.md](ROADMAP.md). Current status is in
 
 | Constraint | How Stint meets it |
 | --- | --- |
-| Completely free, permissive licences | Bun (MIT), SQLite (public domain), Hono (MIT), React (MIT), Dexie (Apache-2.0), Tauri (MIT/Apache-2.0), NSIS (zlib), WinSW (MIT). No paid services. |
-| No network configuration | mDNS + UDP broadcast discovery, automatic port selection, the installer adds its own firewall rule, and the server makes its own TLS certificate. |
+| Completely free, permissive licences | Bun (MIT), SQLite (public domain), Hono (MIT), React (MIT), Dexie (Apache-2.0), NSIS (zlib), WinSW (MIT). No paid services. |
+| No network configuration | Automatic port selection, the installer adds its own firewall rule, the server makes its own TLS certificate, and setup shows the address (and a QR code) to share. |
 | No Docker needed | The server is one `.exe` with the database engine built in. A Dockerfile exists only as an optional extra. |
-| Non-technical installer | Double-click installer. The setup wizard opens in the browser by itself. Pairing is "pick your company from a list". |
+| Non-technical installer | Double-click installer for the server. The setup wizard opens in the browser by itself. Nothing to install on anyone else's computer. |
 | Local-first | IndexedDB on every client, an outbox of pending changes, incremental pulls, and a visible sync status. |
 | Server-side security | Every permission check runs on the server. The client is never trusted. |
 
@@ -31,20 +31,18 @@ The phased build plan is in [ROADMAP.md](ROADMAP.md). Current status is in
 │  ├─ Embedded web client (React build, served as a PWA)     │
 │  ├─ bun:sqlite  → data/stint.db (WAL)                      │
 │  ├─ TLS: self-generated local CA + leaf certificate        │
-│  ├─ mDNS advertiser (_stint._tcp) + UDP discovery responder│
 │  ├─ Scheduler: nightly backup, update check, sleep guard   │
 │  └─ Run as a Windows service by WinSW (auto-start at boot) │
 └────────────────────────────────────────────────────────────┘
-           ▲ HTTPS (pinned CA)                ▲ HTTPS
-           │                                  │
-┌──────────┴─────────────┐        ┌───────────┴───────────┐
-│ Stint desktop (Tauri)  │        │ Any browser (PWA)     │
-│ React UI (bundled)     │        │ Same React UI         │
-│ Rust: pinned HTTPS,    │        │ fetch + httpOnly      │
-│  discovery, tray timer,│        │  cookie session       │
-│  idle detection        │        │                       │
-│ IndexedDB local store  │        │ IndexedDB local store │
-└────────────────────────┘        └───────────────────────┘
+                         ▲ HTTPS
+                         │
+            ┌────────────┴────────────┐
+            │ Any browser (PWA)       │
+            │ Windows, Linux, Mac,    │
+            │ phones and tablets      │
+            │ fetch + httpOnly cookie │
+            │ IndexedDB local store   │
+            └─────────────────────────┘
 ```
 
 ### 2.1 Why these choices
@@ -65,13 +63,11 @@ The phased build plan is in [ROADMAP.md](ROADMAP.md). Current status is in
   people writes a few thousand rows a day, far below what SQLite handles. PostgreSQL would
   mean a second thing to install and look after. `VACUUM INTO` gives consistent online
   backups.
-* **React + TypeScript + Vite** for the client. The client is **one codebase** for both the
-  browser/PWA and the Tauri desktop app. Only the network transport differs (see §6.4).
+* **React + TypeScript + Vite** for the client, served by the server as an installable PWA.
+  A service worker keeps it working offline (see §6.3).
 * **Dexie (IndexedDB)** for local storage. It is mature and has reactive live queries, which
   drive the optimistic UI: the UI reads from IndexedDB, and writes go to IndexedDB first.
   SQLite-WASM would add 1 MB+ and OPFS quirks for no real gain at this data size.
-* **Tauri 2** for the desktop app. It is small (it uses the system WebView2), and its Rust side
-  gives us a certificate-pinning HTTP client, mDNS, a system tray and OS idle APIs.
 * **Biome** for linting and formatting (one fast tool) and `tsc --noEmit` in strict mode for
   type-checking. Tests use **bun test** for the server and shared code, **Vitest** for React
   components, and **Playwright** for end-to-end tests.
@@ -82,9 +78,8 @@ The phased build plan is in [ROADMAP.md](ROADMAP.md). Current status is in
 
 ```
 apps/
-  server/        Bun + Hono API, migrations, discovery, backups, TLS, scheduler
-  web/           React client (PWA); also the UI inside the desktop app
-  desktop/       Tauri 2 wrapper (src-tauri: Rust)
+  server/        Bun + Hono API, migrations, backups, TLS, scheduler
+  web/           React client (PWA)
 packages/
   shared/        Zod schemas, types, domain logic, sync merge, reports, exporters
 e2e/             Playwright end-to-end tests
@@ -253,21 +248,18 @@ entries, timers, favourites and your own monthly timesheet PDF work offline.
   (ECDSA P-256, valid 10 years) and a leaf certificate signed by it. The leaf covers
   `localhost`, the PC name, `<pcname>.local` and every current LAN IP address. The leaf is
   re-issued automatically when the IP addresses change, and the CA stays the same. The CA's
-  private key is stored in the database, so a backup restored on a new PC keeps existing
-  pairings working.
-* **Pinning.** During pairing the desktop app stores the SHA-256 hash of the CA's public key
-  (SPKI). Its Rust HTTP client accepts only certificate chains that end in that CA, so there
-  are no browser warnings and no way to impersonate the server. Browser users can install the
-  CA certificate with one click from the server's "Trust this server" page, or accept the
-  browser warning once.
+  private key is stored in the database, so a backup restored on a new PC keeps the certificate
+  that browsers already trust.
+* **Trusting the CA.** Browsers warn about the certificate until the CA is installed as a trusted
+  root. The setup wizard and the Health page link to `/stint-ca.crt` for that; it is also served
+  over plain HTTP on the LAN (port 47601), which otherwise only redirects to HTTPS.
 * **Loopback HTTP.** On the server PC itself the setup wizard and admin pages open at
   `http://localhost:<port>`. That is served on 127.0.0.1 only, which browsers treat as secure,
   so the person installing never sees a certificate warning.
 * **Passwords.** argon2id (`Bun.password`, m=64 MiB, t=2).
 * **Sessions.** 256-bit random token. Only its SHA-256 hash is stored. Browsers get it in a
-  `Secure; HttpOnly; SameSite=Strict` cookie. The desktop app keeps it in the Rust process and
-  sends it as a bearer token, so web content never sees it. Sessions expire after 30 days
-  (sliding) and can be revoked.
+  `Secure; HttpOnly; SameSite=Strict` cookie, so page scripts never see it. Bearer tokens are not
+  accepted. Sessions expire after 30 days (sliding) and can be revoked.
 * **CSRF.** SameSite=Strict, plus a required `X-Stint-Request: 1` header on every request that
   changes data.
 * **Login rate limit.** 5 failed attempts per username+IP within 15 minutes locks that pair out
@@ -282,49 +274,36 @@ entries, timers, favourites and your own monthly timesheet PDF work offline.
 * **Security headers.** CSP, `X-Content-Type-Options`, `Referrer-Policy`, and
   `frame-ancestors 'none'`.
 
-## 6. Networking, discovery and pairing
+## 6. Networking
 
-### 6.1 Ports
+### 6.1 Ports and addresses
 
-The default is TCP 47600 for HTTPS (LAN) and 47601 for HTTP (loopback, plus a small
-"trust/pair" page on the LAN that only redirects). If a port is taken, the server tries the
-next ones (47602, 47604, …). The chosen port is saved in `<data folder>/run/runtime.json` and advertised
-through discovery, so nobody ever types it.
+The default is TCP 47600 for HTTPS (LAN) and 47601 for HTTP (loopback, plus certificate download
+and a redirect to HTTPS on the LAN). If a port is taken, the server tries the next ones (47602,
+47604, …). The chosen port is saved in `<data folder>/run/runtime.json`.
 
-### 6.2 Discovery
+People reach the server at `https://<pc-name>.local:<port>` (the operating system resolves
+`.local` names on the LAN) or at one of its IP addresses. `GET /api/connect` returns these
+addresses and a QR code (with an IP address, because phones often can't resolve `.local`); the
+setup wizard and the Health page show them. Before 0.2 a desktop app found the server by mDNS
+and UDP broadcast and paired with a code; that is gone.
 
-* **mDNS / DNS-SD**. The service is `_stint._tcp.local`. Its TXT records carry `id` (server
-  UUID), `org` (company name), `v` (version), `fp` (CA SPKI hash, base64url) and the port.
-* **UDP broadcast fallback** on port 47609. The client sends `STINT?`. The server replies with
-  the same information as JSON. This works on networks where multicast is filtered but
-  broadcast is not (common on cheap routers and some mesh WiFi).
-* **Pairing code** as a last resort. A 24-character code such as `R2M0-255S-Y1YK-82FK-HRZT-A9AB`, in
-  Crockford base32, packs the server's IPv4 address, its port, and 72 bits of the CA
-  fingerprint. (The full fingerprint is public, so a shorter prefix could be forged by
-  generating keys until one matches; 32 bits, the first design, would take hours.) The client connects straight to that address and checks the fingerprint
-  prefix before trusting it. It is also shown as a QR code for phones.
-* **Rediscovery.** The client remembers the server's `id` and pin. If the saved address stops
-  answering (for example, DHCP handed out a new IP), it rediscovers the server by `id` and
-  accepts the new address only if the certificate still matches the pin.
+### 6.2 Firewall and the Public network trap
 
-### 6.3 Firewall and the Public network trap
+The installer adds a program-based Windows Firewall rule (TCP) for `stint-server.exe`
+with `profile=private,domain`, never public, under one UAC prompt. Uninstalling removes it, and
+upgrading removes the UDP rule older versions added. A rule based on the program rather than the
+port keeps working if the server has to pick another port. The server checks the network
+category (`Get-NetConnectionProfile`) every few minutes. If the network is **Public**, it shows a
+clear warning in the wizard and on the Health page, with a one-click "This is my office network —
+mark it as Private" button. The service runs with enough rights to make that change.
 
-The installer adds program-based Windows Firewall rules (TCP and UDP) for `stint-server.exe`
-with `profile=private,domain`, never public, under one UAC prompt. Uninstalling removes them.
-A rule based on the program rather than the port keeps working if the server has to pick
-another port. The server checks the network category (`Get-NetConnectionProfile`) every few
-minutes. If the network is **Public**, it shows a clear warning in the wizard and on the Health
-page, with a one-click "This is my office network — mark it as Private" button. The service
-runs with enough rights to make that change.
+### 6.3 Client transport and offline use
 
-### 6.4 Client transport
-
-`apps/web/src/transport/` has two implementations with the same interface:
-
-* **BrowserTransport**: `fetch` against the same origin, using a cookie session.
-* **DesktopTransport**: `invoke('api_request', …)` into Rust, which uses reqwest with rustls
-  and a custom certificate verifier that checks the pinned CA. The UI files are bundled inside
-  the app, so the desktop app starts and works fully offline.
+`apps/web/src/lib/transport.ts` talks to the same origin with `fetch` and the cookie session. A
+service worker caches the app's files, so an installed (or bookmarked) Stint opens and works
+offline; IndexedDB holds the data and the outbox. Offline copies belong to one origin, so people
+should always use the same address.
 
 ## 7. Running the server on Windows
 
@@ -340,7 +319,7 @@ runs with enough rights to make that change.
 * The service starts automatically (delayed start) and WinSW restarts it when it exits with an
   error. That is also how a restore that brings in a different certificate restarts it: the
   server exits with code 75. Logs rotate in `C:\ProgramData\Stint\logs`.
-* Firewall: two inbound program rules (TCP for HTTPS, UDP for discovery), profile
+* Firewall: one inbound program rule (TCP), profile
   `private,domain`. They are deleted and re-added on upgrade, and removed on uninstall.
 * **Sleep guard.** While running, the server calls `SetThreadExecutionState(ES_CONTINUOUS |
   ES_SYSTEM_REQUIRED)` through `bun:ffi`, so the PC does not go to sleep. The display may
@@ -395,7 +374,7 @@ The app works fully without remote access. For staff who want to reach the serve
 | --- | --- | --- |
 | Cost | Free "Personal" plan: up to 6 users, unlimited devices | Tunnel is free, but it needs a domain on Cloudflare (a domain costs money every year) and a payment method on the Zero Trust account (free up to 50 users) |
 | Setup | Install Tailscale on the server PC and each remote laptop, and sign in | Create a Cloudflare account, add a domain, create a tunnel, install `cloudflared` as a service |
-| Works with Stint's pinned certificate | Yes. It is a private network, and the desktop app connects to the server's Tailscale address | Needs `noTLSVerify` to the origin. The public hostname is exposed to the internet (protect it with Cloudflare Access) |
+| Works with Stint's own certificate | Yes. It is a private network, and the certificate covers the server's Tailscale name | Needs `noTLSVerify` to the origin. The public hostname is exposed to the internet (protect it with Cloudflare Access) |
 | Inbound ports | None (outbound only) | None (outbound only) |
 
 **Recommendation: Tailscale** for firms with up to 6 people who need remote access. It needs
@@ -418,7 +397,7 @@ secrets are ever committed. Keys and certificates are generated at runtime.
 
 | Layer | Tool | What |
 | --- | --- | --- |
-| Domain unit | bun test | rate resolution, rollups, rounding, HLC, conflict merge, permissions, pairing code, report builders |
+| Domain unit | bun test | rate resolution, rollups, rounding, HLC, conflict merge, permissions, report builders |
 | Server integration | bun test + in-memory SQLite | every API route: auth, RBAC, validation, sync push and pull, locking, audit |
 | Components | Vitest + Testing Library | timer, grid, forms, sync status |
 | End to end | Playwright | login, start/stop timer, offline edit then sync, submit and approve, monthly PDF |

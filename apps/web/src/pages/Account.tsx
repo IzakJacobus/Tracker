@@ -7,7 +7,6 @@ import { Button } from "../ui/Button.tsx";
 import { Field, Input } from "../ui/Field.tsx";
 import { Alert } from "../ui/misc.tsx";
 import { useToast } from "../ui/Toast.tsx";
-import { DesktopSettings } from "./DesktopSettings.tsx";
 
 export function ChangePasswordForm({ forced }: { forced?: boolean }) {
   const { refresh } = useSession();
@@ -101,7 +100,6 @@ export function AccountPage() {
           <ChangePasswordForm />
         </div>
       </div>
-      <DesktopSettings />
     </div>
   );
 }
