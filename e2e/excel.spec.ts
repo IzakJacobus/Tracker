@@ -1,9 +1,22 @@
 import { readFileSync } from "node:fs";
-import { expect, test } from "@playwright/test";
+import { expect, type Page, test } from "@playwright/test";
 import { readXlsx, toXlsx } from "../packages/shared/src/export/index.ts";
 import { login, PEOPLE, waitSynced } from "./fixtures.ts";
 
+let workbook: Uint8Array = new Uint8Array();
 const XLSX = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet";
+
+/** Choose the workbook, and wait until Stint has read it (the Preview button is off until then). */
+async function chooseFile(page: Page) {
+  await expect(async () => {
+    await page.locator('input[type="file"]').setInputFiles({
+      name: "company.xlsx",
+      mimeType: XLSX,
+      buffer: Buffer.from(workbook),
+    });
+    await expect(page.getByRole("button", { name: "Preview" })).toBeEnabled({ timeout: 3000 });
+  }).toPass({ timeout: 20_000 });
+}
 
 test("export to Excel, and import a workbook that creates projects, items and hours", async ({ page }) => {
   await login(page, "admin");
@@ -46,7 +59,7 @@ test("export to Excel, and import a workbook that creates projects, items and ho
   const day = new Date();
   day.setDate(day.getDate() - 1);
   const date = day.toISOString().slice(0, 10);
-  const bytes = toXlsx([
+  workbook = toXlsx([
     {
       name: "Projects",
       table: {
@@ -96,11 +109,7 @@ test("export to Excel, and import a workbook that creates projects, items and ho
       },
     },
   ]);
-  await page.locator('input[type="file"]').setInputFiles({
-    name: "company.xlsx",
-    mimeType: XLSX,
-    buffer: Buffer.from(bytes),
-  });
+  await chooseFile(page);
   await page.getByRole("button", { name: "Preview" }).click();
   await expect(page.getByRole("heading", { name: "2. Check the preview" })).toBeVisible();
   await expect(page.getByText(/Excel Client › Culvert survey › Site visit/)).toBeVisible();
@@ -116,11 +125,7 @@ test("export to Excel, and import a workbook that creates projects, items and ho
   // Importing the same workbook again changes nothing.
   await page.getByRole("link", { name: "Settings" }).click();
   await page.getByRole("link", { name: "Import / Export" }).click();
-  await page.locator('input[type="file"]').setInputFiles({
-    name: "company.xlsx",
-    mimeType: XLSX,
-    buffer: Buffer.from(bytes),
-  });
+  await chooseFile(page);
   await page.getByRole("button", { name: "Preview" }).click();
   await expect(page.getByRole("heading", { name: "2. Check the preview" })).toBeVisible();
   await expect(page.getByRole("button", { name: /^Import/ })).toHaveCount(0);
