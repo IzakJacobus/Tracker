@@ -22,7 +22,7 @@ import { useData } from "../data/DataProvider.tsx";
 import { getThemePref, setThemePref, type ThemePref } from "../lib/theme.ts";
 import { Button } from "../ui/Button.tsx";
 import { ConfirmDialog } from "../ui/Dialog.tsx";
-import { Avatar, Logo } from "../ui/misc.tsx";
+import { Avatar, Logo, VersionLabel } from "../ui/misc.tsx";
 import { Menu, Popover } from "../ui/Popover.tsx";
 import { useMe, useSession } from "./session.tsx";
 import { UpdateNotice } from "./UpdateNotice.tsx";
@@ -135,6 +135,7 @@ export function Shell({ statusSlot }: { statusSlot?: ReactNode }) {
           <UpdateNotice />
           {statusSlot}
           <UserMenu />
+          <VersionLabel />
         </div>
       </nav>
       <main className="main" id="main" tabIndex={-1}>

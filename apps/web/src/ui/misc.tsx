@@ -1,5 +1,6 @@
 import { AlertCircle, AlertTriangle, CheckCircle2, Info } from "lucide-react";
 import type { CSSProperties, ReactNode } from "react";
+import { APP_VERSION } from "../version.ts";
 
 export function Badge({
   tone,
@@ -113,6 +114,15 @@ export function Dot({ color }: { color: string }) {
 }
 
 /** Stint logo: a clock ring with an ochre "stint" segment. */
+/** "Stint 0.3.0", so people can say which version they are on. */
+export function VersionLabel({ className }: { className?: string }) {
+  return (
+    <span className={`version-label${className ? ` ${className}` : ""}`} data-testid="app-version">
+      Stint {APP_VERSION}
+    </span>
+  );
+}
+
 export function Logo({ size = 28, withWordmark = true }: { size?: number; withWordmark?: boolean }) {
   return (
     <span className="logo" style={{ display: "inline-flex", alignItems: "center", gap: 8 }}>
