@@ -6,6 +6,8 @@ All notable changes to Stint are documented here. The format follows
 
 ## [Unreleased]
 
+## [0.2.0] - 2026-10-07
+
 ### Upgrading from 0.1
 - Upgrade while everyone's Stint shows **Synced**. The upgrade reshapes projects and tasks, so
   every browser downloads its data again; changes made offline and not yet sent could be lost.
