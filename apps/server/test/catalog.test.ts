@@ -57,7 +57,8 @@ describe("clients", () => {
   test("members see only clients of projects they can track on", async () => {
     const { s, admin, alice, client, root } = await world();
     let list = await s.json<Client[]>("GET", "/api/clients", { as: alice.agent });
-    expect(list.body.map((c) => c.name)).toEqual(["Internal"]);
+    // Nothing is set up under Internal by default, so there is nothing to show yet.
+    expect(list.body.map((c) => c.name)).toEqual([]);
     await s.json("PUT", `/api/projects/${root.id}/members/${alice.id}`, { as: admin, body: {} });
     list = await s.json<Client[]>("GET", "/api/clients", { as: alice.agent });
     expect(list.body.find((c) => c.id === client.id)).toBeDefined();
@@ -152,6 +153,13 @@ describe("projects", () => {
 
   test("members only see projects they're assigned to, plus 'everyone' projects", async () => {
     const { s, admin, alice, root, sub } = await world();
+    const internal = (await s.json<Client[]>("GET", "/api/clients", { as: admin })).body.find(
+      (c) => c.isInternal,
+    )!;
+    await s.json("POST", "/api/projects", {
+      as: admin,
+      body: { clientId: internal.id, name: "Leave", code: "INT-LV" },
+    });
     let list = await s.json<Project[]>("GET", "/api/projects", { as: alice.agent });
     expect(list.body.some((p) => p.id === root.id)).toBe(false);
     expect(list.body.some((p) => p.name === "Leave")).toBe(true);

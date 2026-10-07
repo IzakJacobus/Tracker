@@ -237,15 +237,30 @@ export function OrgSettingsPage() {
                   onChange={(e) => set("workdayStart", e.target.value)}
                 />
               </Field>
-              <Field label="Timesheets are approved per">
+              <Field label="Timesheets are handed in">
                 <Select
                   value={s.approvalPeriod}
-                  onChange={(e) => set("approvalPeriod", e.target.value as "week" | "month")}
+                  onChange={(e) => set("approvalPeriod", e.target.value as "week" | "biweek" | "month")}
                 >
-                  <option value="month">Month</option>
-                  <option value="week">Week</option>
+                  <option value="week">Every week</option>
+                  <option value="biweek">Every two weeks</option>
+                  <option value="month">Every month</option>
                 </Select>
               </Field>
+              {s.approvalPeriod !== "month" && (
+                <Field
+                  label="…on"
+                  hint="The last day of the week. Hours up to and including this day go into that timesheet."
+                >
+                  <Select value={s.approvalDay} onChange={(e) => set("approvalDay", Number(e.target.value))}>
+                    {WEEKDAYS.map((d, i) => (
+                      <option key={d} value={i}>
+                        {d}
+                      </option>
+                    ))}
+                  </Select>
+                </Field>
+              )}
             </div>
             <fieldset className="stack stack--sm" style={{ border: 0, padding: 0, margin: 0 }}>
               <legend className="field__label" style={{ marginBottom: 6 }}>

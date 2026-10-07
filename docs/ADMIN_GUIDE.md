@@ -39,16 +39,16 @@ server.
 1. **Company**: name, time zone, date format and the day weeks start on. South African
    defaults are filled in.
 2. **Your admin account**: your name, email and a password of at least 10 characters.
-3. **Clients and projects**: add a few to start with. The *Internal* client already has
-   Administration, Business development, Training, Research & development and Leave.
+3. **Clients and projects**: add a few to start with. The built-in *Internal* client starts
+   empty: add projects there for your own work (admin, training, leave…) if you want people to
+   log it.
 4. **Team**: add the people who'll track time (you can do this later too).
 5. **Open Stint on other computers**: shows Stint's address (and a QR code for phones) to share
    with your team, and a link to Stint's certificate.
 
 ## 3. People and roles
 
-**Team → Add person.** Enter their name, email, role, line manager and expected hours per
-week. Stint creates a temporary password for you to pass on, and asks them to change it the
+**Team → Add person.** Enter their name, email, role and line manager. Stint creates a temporary password for you to pass on, and asks them to change it the
 first time they sign in.
 
 | Role | Can |
@@ -68,15 +68,15 @@ Every rule is enforced by the server, not only hidden in the screens.
 
 ## 4. Clients, projects and items
 
-- **Clients** are the companies you do work for. The built-in *Internal* client (admin, training,
-  leave…) can't be archived.
+- **Clients** are the companies you do work for. The built-in *Internal* client, for your own
+  work, can't be archived. It starts empty.
 - **Projects** belong to a client and each has a **code**: your own reference, in any numbering
   you like (`2026-014`, `BRG/07`…), unique for that client. The New project form suggests the
   next code in the client's pattern. Items under a project may have a code too.
 - Under a project you add **items**, and items under items, as
-  deep as you need: *Paarl bridge upgrade › Detailed design › WP1 Structural › Pier design*. Give
-  each item a **type** your firm uses (Phase, Task, Work package, …). It's only a name, so every
-  firm can organise its work its own way; types you've used are suggested next time.
+  deep as you need: *Paarl bridge upgrade › Detailed design › WP1 Structural › Pier design*. An item
+  needs only a name, and a code if you want one. Call the levels whatever your firm calls them:
+  nothing forces phases, sub-projects or tasks.
 - **Hours go on the lowest level.** An item with items under it can't take hours itself, so
   people drill down to what they actually worked on. A project with no items takes hours
   directly. Totals and budgets roll up through the tree.
@@ -95,8 +95,12 @@ Every rule is enforced by the server, not only hidden in the screens.
 
 ## 5. Timesheets and approvals
 
-Settings → Organisation → *Approval period* sets **week** or **month** (month is the
-default).
+Settings → Organisation → *Timesheets are handed in* sets how often: **every week** (the
+default), **every two weeks** or **every month**. For weeks and fortnights, choose the day they
+end on (**Friday** by default): hours up to and including that day go into that timesheet, and
+people submit on that day. Fortnights keep a fixed rhythm. Changing the setting never changes
+timesheets that are already submitted or approved; a new period that would overlap one is
+refused until an admin unlocks it.
 
 - People submit from the card at the top of **Track**.
 - Managers and admins see what's waiting under **Approvals** (the number in the menu). Open a

@@ -92,7 +92,6 @@ function user(
     email,
     name,
     role,
-    weeklyCapacityMinutes: 2400,
     color,
     active: true,
     mustChangePassword: false,
@@ -242,6 +241,64 @@ member(lab, sipho);
 member(tailings, pieter, "manager");
 member(tailings, aisha);
 
+// New companies start with nothing under Internal; the demo adds the usual admin, training and leave.
+const demoInternal: { name: string; code: string; color: string; items: string[] }[] = [
+  {
+    name: "Administration",
+    code: "INT-ADM",
+    color: "#64748b",
+    items: ["Timesheets & admin", "Meetings", "IT & equipment"],
+  },
+  {
+    name: "Business development",
+    code: "INT-BD",
+    color: "#b7791f",
+    items: ["Proposals", "Client meetings", "Marketing"],
+  },
+  { name: "Training", code: "INT-TRN", color: "#6d5bd0", items: ["Courses", "Conferences", "CPD"] },
+  { name: "Research & development", code: "INT-RD", color: "#0f766e", items: [] },
+  {
+    name: "Leave",
+    code: "INT-LV",
+    color: "#9ca3af",
+    items: ["Annual leave", "Sick leave", "Family responsibility", "Public holiday"],
+  },
+];
+{
+  const internalClient = db
+    .query<{ id: string }, []>("SELECT id FROM clients WHERE is_internal = 1")
+    .get()!.id;
+  const row = (over: Record<string, unknown>) => ({
+    parentId: null,
+    code: null,
+    kind: null,
+    budgetMinutes: null,
+    visibility: "everyone",
+    notes: "",
+    archivedAt: null,
+    createdAt: now,
+    updatedAt: now,
+    deletedAt: null,
+    clientId: internalClient,
+    ...over,
+  });
+  demoInternal.forEach((p, n) => {
+    const id = uuidv7(now);
+    insertRow(
+      db,
+      TABLES.projects,
+      row({ id, name: p.name, code: p.code, color: p.color, sortOrder: n }) as never,
+    );
+    p.items.forEach((t, k) => {
+      insertRow(
+        db,
+        TABLES.projects,
+        row({ id: uuidv7(now), parentId: id, name: t, kind: "Task", color: p.color, sortOrder: k }) as never,
+      );
+    });
+  });
+}
+
 const internal = Object.fromEntries(
   db
     .query<{ id: string; name: string }, []>(
@@ -378,7 +435,7 @@ db.transaction(() => {
   const months: string[] = [];
   for (let m = start; m < startOfMonth(today); m = addDays(endOfMonth(m), 1)) months.push(m);
   for (const m of months) {
-    const p = periodFor(m, "month", settings.weekStart);
+    const p = periodFor(m, "month", settings.approvalDay);
     const isLast = m === months.at(-1);
     for (const uid of people) {
       const status = !isLast

@@ -107,11 +107,11 @@ trip, and they sort by creation time. Every table that syncs has these columns:
 organization (single row)
   name, logo, timezone (Africa/Johannesburg),
   week_start (1 = Monday), date_format (YYYY-MM-DD), workday_hours (8),
-  working_days (Mon–Fri), approval_period (week|month), reminder settings,
+  working_days (Mon–Fri), approval_period (week|biweek|month), approval_day (0–6), reminder settings,
   brand colours for PDFs, backup settings, remote access settings
 
 user            id, email, name, role (admin|manager|member), active,
-                password_hash, weekly_capacity_hours, color
+                password_hash, color
 client          id, name, code, archived, is_internal (one built-in "Internal" client)
 project         id, client_id, parent_id (nullable: nesting to any depth), name, code,
                 kind (the firm's own label for an item: "Phase", "Task", ...), color,

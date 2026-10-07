@@ -29,7 +29,6 @@ export const TABLES = {
     email: ["email", "text"],
     name: ["name", "text"],
     role: ["role", "text"],
-    weeklyCapacityMinutes: ["weekly_capacity_minutes", "int"],
     color: ["color", "text"],
     active: ["active", "bool"],
     mustChangePassword: ["must_change_password", "bool"],

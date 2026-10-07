@@ -45,7 +45,12 @@ hours, for example `2:30`. **Enter** moves down, and the arrow keys move around.
 items always have a row, and **Add row** adds another.
 
 In the list view, each entry has **+** (log more hours on the same item and day) and a **⋯** menu
-with *Edit*, *Duplicate* and *Delete*. Deleting can be undone from the message that appears.
+with *Edit*, *Duplicate*, *Mark done* and *Delete*. Deleting can be undone from the message that
+appears. In the week view each row has a ✓ button for *Mark done*.
+
+**Mark done** is for when the work on an item (or a whole project) is finished: it can't take new
+hours, and its hours stay in reports. Press **Undo** in the message that appears if you pressed it
+by mistake. You can only mark done what you can log hours on.
 
 ### Tags
 
@@ -73,8 +78,8 @@ genuinely short. Stint can also show it as a notification if you allow that.
 
 ## Submitting your timesheet
 
-At the end of each period (a week or a month, as your firm decides), a card at the top of
-**Track** asks you to submit.
+At the end of each period (by default every week, on Friday; your firm can change the day, or
+use two weeks or a month), a card at the top of **Track** asks you to submit.
 
 1. Check your time. The card warns you about short days.
 2. Click **Submit**. Stint uploads any pending changes first.
@@ -88,7 +93,8 @@ your manager to send it back. If it's already approved, ask an administrator to 
 
 **Reports** shows your own time. Managers see their team's time, and admins see everyone's.
 
-- **Overview**: hours logged, client work versus internal work, top projects and hours per client.
+- **Overview**: hours logged, client work versus internal work, hours per item, top projects
+  and hours per client.
 - **Monthly timesheet**: one person's month, by project and by day, ready to sign.
 - **Project timesheet**: everything on a project and the items under it.
 - **Client summary**: hours per client and item.

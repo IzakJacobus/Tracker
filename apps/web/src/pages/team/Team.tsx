@@ -91,7 +91,6 @@ export function TeamPage() {
                 <th>Name</th>
                 <th>Role</th>
                 <th>Manager</th>
-                <th className="num">Hours / week</th>
                 <th>Status</th>
                 {isAdmin && <th aria-label="Actions" />}
               </tr>
@@ -114,7 +113,6 @@ export function TeamPage() {
                   <td>
                     {u.managerId ? (byId.get(u.managerId)?.name ?? "—") : <span className="subtle">—</span>}
                   </td>
-                  <td className="num tnum">{(u.weeklyCapacityMinutes / 60).toFixed(1)}</td>
                   <td>
                     {u.active ? (
                       u.mustChangePassword ? (
@@ -185,7 +183,6 @@ function UserDialog({
     email: user?.email ?? "",
     role: user?.role ?? ("member" as User["role"]),
     managerId: user?.managerId ?? "",
-    hours: String((user?.weeklyCapacityMinutes ?? 2400) / 60),
     color: user?.color ?? COLORS[users.length % COLORS.length]!,
     active: user?.active ?? true,
   });
@@ -205,7 +202,6 @@ function UserDialog({
       email: f.email,
       role: f.role,
       managerId: f.managerId || null,
-      weeklyCapacityMinutes: Math.round(Number(f.hours) * 60),
       color: f.color,
     };
     try {
@@ -300,16 +296,6 @@ function UserDialog({
                 </option>
               ))}
             </Select>
-          </Field>
-          <Field label="Expected hours per week" error={fields.weeklyCapacityMinutes}>
-            <Input
-              type="number"
-              min={0}
-              max={80}
-              step={0.5}
-              value={f.hours}
-              onChange={(e) => setF({ ...f, hours: e.target.value })}
-            />
           </Field>
         </div>
         <fieldset className="stack stack--sm" style={{ border: 0, padding: 0, margin: 0 }}>

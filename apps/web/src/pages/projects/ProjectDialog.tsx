@@ -128,7 +128,7 @@ function DetailsForm({
     [clients],
   );
 
-  const isItem = Boolean(parent ?? project?.parentId);
+  const isItem = Boolean(parentId ?? project?.parentId);
   // The next code in the pattern the client already uses (2026-014 → 2026-015).
   const suggestFor = useCallback(
     (cid: string) =>
@@ -193,11 +193,16 @@ function DetailsForm({
     const common = {
       name: f.name,
       code: f.code.trim() || null,
-      kind: f.kind.trim() || null,
       color: f.color,
       visibility: f.visibility,
-      budgetMinutes: f.budgetHours.trim() ? Math.round(Number(f.budgetHours) * 60) : null,
       notes: f.notes,
+      // Items have no type or budget in the form; what an item already has stays as it is.
+      ...(isItem
+        ? {}
+        : {
+            kind: f.kind.trim() || null,
+            budgetMinutes: f.budgetHours.trim() ? Math.round(Number(f.budgetHours) * 60) : null,
+          }),
     };
     try {
       if (project) {
@@ -282,15 +287,17 @@ function DetailsForm({
         <Field label="Name" error={fields.name}>
           <Input value={f.name} onChange={(e) => setF({ ...f, name: e.target.value })} autoFocus />
         </Field>
-        <Field label="Type" hint={isItem ? "What your firm calls it, e.g. Phase or Task." : "Optional."}>
-          <Input
-            value={f.kind}
-            onChange={(e) => setF({ ...f, kind: e.target.value })}
-            placeholder={isItem ? "e.g. Phase, Task" : "e.g. Project, Tender"}
-            list="item-kinds"
-            maxLength={40}
-          />
-        </Field>
+        {!isItem && (
+          <Field label="Type" hint="Optional.">
+            <Input
+              value={f.kind}
+              onChange={(e) => setF({ ...f, kind: e.target.value })}
+              placeholder="e.g. Project, Tender"
+              list="item-kinds"
+              maxLength={40}
+            />
+          </Field>
+        )}
         <Field
           label={isItem ? "Code" : "Project code"}
           error={fields.code}
@@ -324,16 +331,18 @@ function DetailsForm({
             </Select>
           </Field>
         )}
-        <Field label="Budget (hours)" hint="Includes everything under it. Warns at 80 % and 100 %.">
-          <Input
-            type="number"
-            min={0}
-            step={1}
-            value={f.budgetHours}
-            onChange={(e) => setF({ ...f, budgetHours: e.target.value })}
-            placeholder="none"
-          />
-        </Field>
+        {!isItem && (
+          <Field label="Budget (hours)" hint="Includes everything under it. Warns at 80 % and 100 %.">
+            <Input
+              type="number"
+              min={0}
+              step={1}
+              value={f.budgetHours}
+              onChange={(e) => setF({ ...f, budgetHours: e.target.value })}
+              placeholder="none"
+            />
+          </Field>
+        )}
       </div>
       <fieldset className="stack stack--sm" style={{ border: 0, padding: 0, margin: 0 }}>
         <legend className="field__label" style={{ marginBottom: 6 }}>
@@ -376,7 +385,6 @@ function ItemsPanel({ project }: { project: Project }) {
     .sort((a, b) => a.sortOrder - b.sortOrder || a.name.localeCompare(b.name));
   const childCount = (id: string) => projects.filter((p) => p.parentId === id && !p.deletedAt).length;
   const [name, setName] = useState("");
-  const [kind, setKind] = useState("");
   const [busy, setBusy] = useState(false);
 
   async function add(e: FormEvent) {
@@ -384,9 +392,7 @@ function ItemsPanel({ project }: { project: Project }) {
     if (!name.trim()) return;
     setBusy(true);
     try {
-      await mutate(() =>
-        api.post("/projects", { parentId: project.id, name: name.trim(), kind: kind.trim() || null }),
-      );
+      await mutate(() => api.post("/projects", { parentId: project.id, name: name.trim() }));
       setName("");
     } catch (err) {
       toast.error(errorMessage(err));
@@ -406,7 +412,7 @@ function ItemsPanel({ project }: { project: Project }) {
   return (
     <div className="stack">
       <p className="muted">
-        Break the work down as far as you need: phases, tasks, work packages… Call them whatever your firm
+        Break the work down as far as you need: phases, tasks, work packages… Name them whatever your firm
         calls them. People log hours on the lowest level. Mark an item <strong>done</strong> when its work is
         finished; it then can't take new hours, but its hours stay in reports.
       </p>
@@ -418,16 +424,6 @@ function ItemsPanel({ project }: { project: Project }) {
           aria-label="New item name"
           style={{ flex: "2 1 200px" }}
         />
-        <Input
-          value={kind}
-          onChange={(e) => setKind(e.target.value)}
-          placeholder="Type (optional)"
-          aria-label="New item type"
-          list="new-item-kinds"
-          maxLength={40}
-          style={{ flex: "1 1 120px" }}
-        />
-        <KindList id="new-item-kinds" />
         <Button type="submit" icon={<Plus />} loading={busy}>
           Add item
         </Button>
@@ -437,7 +433,6 @@ function ItemsPanel({ project }: { project: Project }) {
           <thead>
             <tr>
               <th>Item</th>
-              <th>Type</th>
               <th aria-label="Status" />
             </tr>
           </thead>
@@ -465,20 +460,6 @@ function ItemsPanel({ project }: { project: Project }) {
                       )}
                     </div>
                   </td>
-                  <td>
-                    <Input
-                      className="input--bare"
-                      defaultValue={t.kind ?? ""}
-                      placeholder="—"
-                      aria-label="Item type"
-                      list="row-item-kinds"
-                      maxLength={40}
-                      onBlur={(e) => {
-                        const v = e.target.value.trim() || null;
-                        if (v !== (t.kind ?? null)) void patch(t, { kind: v });
-                      }}
-                    />
-                  </td>
                   <td style={{ textAlign: "right", whiteSpace: "nowrap" }}>
                     <Button
                       size="sm"
@@ -501,7 +482,6 @@ function ItemsPanel({ project }: { project: Project }) {
           </tbody>
         </table>
       )}
-      <KindList id="row-item-kinds" />
     </div>
   );
 }

@@ -25,20 +25,14 @@ describe("setup", () => {
     expect(me.body.organization.settings.dateFormat).toBe("YYYY-MM-DD");
   });
 
-  test("creates the built-in Internal client with internal projects", async () => {
+  test("creates the built-in Internal client, empty", async () => {
     const s = createTestServer();
     await s.setup();
     const clients = s.ctx.db
       .query<{ name: string; is_internal: number }, []>("SELECT name, is_internal FROM clients")
       .all();
     expect(clients).toEqual([{ name: "Internal", is_internal: 1 }]);
-    const projects = s.ctx.db
-      .query<{ name: string; visibility: string }, []>(
-        "SELECT name, visibility FROM projects ORDER BY sort_order",
-      )
-      .all();
-    expect(projects.map((p) => p.name)).toContain("Leave");
-    expect(projects.every((p) => p.visibility === "everyone")).toBe(true);
+    expect(s.ctx.db.query("SELECT id FROM projects").all()).toEqual([]);
   });
 
   test("is refused from another computer on the network", async () => {

@@ -140,15 +140,26 @@ export function dateRange(from: string, to: string): string[] {
   return Array.from({ length: Math.max(0, n + 1) }, (_, i) => addDays(from, i));
 }
 
-/** Approval period containing `date`. */
+/** How often timesheets are approved. */
+export type ApprovalPeriod = "week" | "biweek" | "month";
+
+/**
+ * The approval period containing `date`. A week (or two) ends on `approvalDay` (0 = Sunday …
+ * 5 = Friday, 6 = Saturday) and starts the day after the previous one. Fortnights are paired from
+ * a fixed starting week, so they never shift. A month is the calendar month.
+ */
 export function periodFor(
   date: string,
-  period: "week" | "month",
-  weekStart: number,
+  period: ApprovalPeriod,
+  approvalDay = 5,
 ): { start: string; end: string } {
   if (period === "month") return { start: startOfMonth(date), end: endOfMonth(date) };
-  const start = startOfWeek(date, weekStart);
-  return { start, end: addDays(start, 6) };
+  const end = addDays(date, (approvalDay - dayOfWeek(date) + 7) % 7);
+  if (period === "week") return { start: addDays(end, -6), end };
+  const weeks = Math.floor(daysBetween("2000-01-03", end) / 7);
+  return weeks % 2 === 0
+    ? { start: addDays(end, -13), end }
+    : { start: addDays(end, -6), end: addDays(end, 7) };
 }
 
 export function isWithin(date: string, start: string, end: string): boolean {

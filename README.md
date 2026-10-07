@@ -30,17 +30,16 @@ don't need the cloud, a subscription or an IT department.
 - Reminds you about days with missing time.
 
 **Organising work**
-- Clients, plus a built-in *Internal* client for admin, training, business development and
-  leave.
+- Clients, plus a built-in *Internal* client for your firm's own work (it starts empty).
 - Projects broken down into **items**, nested as deep as you like (*Bridge upgrade › Detailed
-  design › WP1*), each with a type your firm chooses (Phase, Task, Work package…). Totals roll up,
+  design › WP1*), with levels your firm names as it likes. Totals roll up,
   and a drag-and-drop tree editor keeps it tidy.
 - Mark items **done** when finished: they can't take new hours but stay in reports.
 - Tags. Budgets in hours, with warnings at 80 % and 100 %.
 
 **Timesheets and approvals**
 - Admin, Manager and Member roles, enforced on the server.
-- People submit their week or month. Managers approve or send it back with a comment.
+- People hand in their week (Friday by default), two weeks or month; you choose. Managers approve or send it back with a comment.
   Approved periods are locked. An admin can unlock one, with a reason that is kept in the
   audit log.
 - An audit log of every change to time data.

@@ -44,7 +44,6 @@ test("an item marked done can't be chosen any more", async ({ browser }) => {
   await admin.getByRole("menuitem", { name: "Items" }).click();
   const dialog = admin.getByRole("dialog");
   await dialog.getByLabel("New item name").fill("Concept sketches");
-  await dialog.getByLabel("New item type").fill("Work package");
   await dialog.getByRole("button", { name: "Add item" }).click();
   const itemRow = dialog.locator("tr", { has: admin.locator('input[value="Concept sketches"]') });
   await expect(itemRow).toBeVisible();

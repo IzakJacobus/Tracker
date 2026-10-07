@@ -189,7 +189,7 @@ describe("0.2 billing removal migration", () => {
         .query<{ s: number }, []>("SELECT SUM(duration_s) AS s FROM time_entries WHERE deleted_at IS NULL")
         .get()!.s;
     const before = hours();
-    expect(migrate(db, migrations).applied).toEqual([2, 3]);
+    expect(migrate(db, migrations).applied).toEqual([2, 3, 4]);
 
     const billing = /^(rate|billable|billable_default|budget_amount|rate_snapshot|currency)$/;
     for (const table of ["users", "clients", "projects", "project_members", "tasks", "time_entries"]) {
@@ -207,7 +207,7 @@ describe("0.2 billing removal migration", () => {
       pdf: { registration: "2011/004217/07" },
     });
     expect(hours()).toBe(before);
-    expect(db.query("SELECT value FROM app_meta WHERE key = 'sync_epoch'").get()).toEqual({ value: "2" });
+    expect(db.query("SELECT value FROM app_meta WHERE key = 'sync_epoch'").get()).toEqual({ value: "3" });
     expect(db.query("PRAGMA foreign_key_check").all()).toEqual([]);
   });
 });

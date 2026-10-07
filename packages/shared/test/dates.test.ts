@@ -2,6 +2,7 @@ import { describe, expect, test } from "bun:test";
 import {
   addDays,
   dayOfWeek,
+  daysBetween,
   endOfMonth,
   formatDate,
   formatDuration,
@@ -54,8 +55,23 @@ describe("calendar arithmetic", () => {
     expect(endOfMonth("2028-02-10")).toBe("2028-02-29");
   });
   test("approval periods", () => {
-    expect(periodFor("2026-09-30", "month", 1)).toEqual({ start: "2026-09-01", end: "2026-09-30" });
-    expect(periodFor("2026-09-30", "week", 1)).toEqual({ start: "2026-09-28", end: "2026-10-04" });
+    expect(periodFor("2026-09-30", "month")).toEqual({ start: "2026-09-01", end: "2026-09-30" });
+    // Weeks end on the approval day: Friday by default, so Wed 30 Sep belongs to the week ending Fri 2 Oct.
+    expect(periodFor("2026-09-30", "week")).toEqual({ start: "2026-09-26", end: "2026-10-02" });
+    expect(periodFor("2026-10-02", "week", 5)).toEqual({ start: "2026-09-26", end: "2026-10-02" });
+    expect(periodFor("2026-10-03", "week", 5)).toEqual({ start: "2026-10-03", end: "2026-10-09" });
+    // Monday–Sunday weeks (the old default) end on Sunday.
+    expect(periodFor("2026-09-30", "week", 0)).toEqual({ start: "2026-09-28", end: "2026-10-04" });
+    // Fortnights: every day belongs to exactly one, and neighbours join up.
+    const f = periodFor("2026-09-30", "biweek", 5);
+    expect(daysBetween(f.start, f.end)).toBe(13);
+    expect(dayOfWeek(f.end)).toBe(5);
+    expect(periodFor(f.start, "biweek", 5)).toEqual(f);
+    expect(periodFor(f.end, "biweek", 5)).toEqual(f);
+    expect(periodFor(addDays(f.end, 1), "biweek", 5)).toEqual({
+      start: addDays(f.end, 1),
+      end: addDays(f.end, 14),
+    });
   });
   test("only real calendar dates are valid", () => {
     for (const ok of ["2026-09-30", "2028-02-29", "2000-01-01", "2099-12-31"]) {

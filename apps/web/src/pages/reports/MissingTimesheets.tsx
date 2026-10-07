@@ -12,8 +12,8 @@ export function MissingTimesheets() {
   const settings = useSettings();
   const today = useToday();
   const users = useUsers().filter((u) => u.active);
-  const current = periodFor(today, settings.approvalPeriod, settings.weekStart);
-  const last = periodFor(addDays(current.start, -1), settings.approvalPeriod, settings.weekStart);
+  const current = periodFor(today, settings.approvalPeriod, settings.approvalDay);
+  const last = periodFor(addDays(current.start, -1), settings.approvalPeriod, settings.approvalDay);
   const sheets =
     useLiveQuery(() => db.timesheets.where("periodStart").equals(last.start).toArray(), [db, last.start]) ??
     [];

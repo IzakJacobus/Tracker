@@ -60,7 +60,7 @@ export function timesheetRoutes(ctx: AppContext) {
     if (!canSubmitTimesheet(actor, userId)) throw forbidden("You can only submit your own timesheet.");
     if (!getUser(ctx.db, userId)) throw notFound("User");
     const settings = getOrgSettings(ctx.db);
-    const period = periodFor(input.date, settings.approvalPeriod, settings.weekStart);
+    const period = periodFor(input.date, settings.approvalPeriod, settings.approvalDay);
     const now = ctx.now();
     if (period.start > localDate(now, settings.timezone))
       throw badRequest("You can't submit a period that hasn't started yet.");

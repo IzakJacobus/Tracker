@@ -291,7 +291,7 @@ function FirstWorkStep({ onNext }: { onNext: () => void }) {
       <p className="muted">
         Clients are the companies you do work for. Each project belongs to a client and has a code of your own
         choosing; under a project you add items, as many levels deep as you need. Your firm's own work (admin,
-        training, leave…) is already set up under the built-in <strong>Internal</strong> client.
+        training, leave…) can go under the built-in <strong>Internal</strong> client.
       </p>
       {error && <Alert tone="danger">{error}</Alert>}
       <div className="grid-3">
