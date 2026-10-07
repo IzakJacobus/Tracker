@@ -56,6 +56,7 @@ export class SyncEngine {
   private again = false;
   private stopped = false;
   private debounce: ReturnType<typeof setTimeout> | null = null;
+  private retry: ReturnType<typeof setTimeout> | null = null;
   private unlisten: (() => void) | null = null;
   onOrganization?: (org: Organization) => void;
   /** Called with a plain-language message when the server refuses a change. */
@@ -105,6 +106,7 @@ export class SyncEngine {
     this.stopped = true;
     if (this.timer) clearInterval(this.timer);
     if (this.debounce) clearTimeout(this.debounce);
+    if (this.retry) clearTimeout(this.retry);
     this.unlisten?.();
     this.unlisten = null;
   }
@@ -152,8 +154,12 @@ export class SyncEngine {
       this.set({ state: pending ? "pending" : "synced", pending, lastSyncedAt: Date.now(), error: null });
     } catch (e) {
       const pending = await this.db.outbox.count();
-      if (e instanceof NetworkError) this.set({ state: "offline", pending, error: null });
-      else if (e instanceof ApiError && e.status === 401)
+      if (e instanceof NetworkError) {
+        this.set({ state: "offline", pending, error: null });
+        // Look again soon: the server may only have been restarting.
+        if (this.retry) clearTimeout(this.retry);
+        this.retry = setTimeout(() => void this.syncNow(), 5_000);
+      } else if (e instanceof ApiError && e.status === 401)
         this.set({ state: "error", pending, error: "Your session has ended. Please sign in again." });
       else this.set({ state: "error", pending, error: e instanceof Error ? e.message : String(e) });
     }

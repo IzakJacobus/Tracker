@@ -54,3 +54,26 @@ test("an app update is offered, not forced", async ({ page }) => {
   const hasSw = await page.evaluate(async () => Boolean(await navigator.serviceWorker.getRegistration()));
   expect(hasSw).toBe(true);
 });
+
+test("opened while the server is down: Stint finds the server again by itself", async ({ page }) => {
+  // The server can't be reached when the page opens, and nobody has signed in on this computer.
+  await page.route("**/api/**", (route) => route.abort("connectionrefused"));
+  await page.goto("/");
+  await expect(page.getByText("Can't reach the Stint server")).toBeVisible();
+
+  // The server comes back: no reload, no click.
+  await page.unroute("**/api/**");
+  await expect(page.getByText("Can't reach the Stint server")).toHaveCount(0, { timeout: 15_000 });
+  await expect(page.getByLabel("Email")).toBeVisible();
+});
+
+test("signed in, then the server goes away and comes back: Synced again without a reload", async ({
+  page,
+}) => {
+  await login(page, "member");
+  await page.route("**/api/**", (route) => route.abort("connectionrefused"));
+  await page.getByRole("button", { name: "Week", exact: true }).click(); // some activity
+  await expect(page.locator(".sidebar .sync-pill")).toHaveText(/Offline/, { timeout: 30_000 });
+  await page.unroute("**/api/**");
+  await expect(page.locator(".sidebar .sync-pill")).toHaveText(/Synced/, { timeout: 30_000 });
+});

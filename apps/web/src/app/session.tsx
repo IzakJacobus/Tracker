@@ -70,6 +70,27 @@ export function SessionProvider({ children }: { children: ReactNode }) {
     });
   }, [refresh]);
 
+  // Opened while the server was down (and nobody was signed in before): keep looking for it,
+  // every few seconds and whenever the window comes back, instead of waiting for a reload.
+  const offline = state.status === "offline";
+  useEffect(() => {
+    if (!offline) return;
+    const retry = () => void refresh();
+    const timer = setInterval(retry, 5_000);
+    const onVisible = () => {
+      if (document.visibilityState === "visible") retry();
+    };
+    window.addEventListener("online", retry);
+    window.addEventListener("focus", retry);
+    document.addEventListener("visibilitychange", onVisible);
+    return () => {
+      clearInterval(timer);
+      window.removeEventListener("online", retry);
+      window.removeEventListener("focus", retry);
+      document.removeEventListener("visibilitychange", onVisible);
+    };
+  }, [offline, refresh]);
+
   const value = useMemo<SessionApi>(
     () => ({
       state,

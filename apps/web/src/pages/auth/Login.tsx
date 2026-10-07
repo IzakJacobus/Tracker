@@ -8,7 +8,7 @@ import { Alert, Logo } from "../../ui/misc.tsx";
 import { AuthLayout } from "./AuthLayout.tsx";
 
 export function Login({ offline }: { offline?: boolean }) {
-  const { login } = useSession();
+  const { login, refresh } = useSession();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
@@ -36,8 +36,14 @@ export function Login({ offline }: { offline?: boolean }) {
       </div>
       {offline && (
         <Alert tone="warning" title="Can't reach the Stint server">
-          Check that you're connected to the office network. You need to sign in once while connected; after
-          that Stint works offline too.
+          Check that you're connected to the office network and that the Stint server is switched on. Stint
+          keeps trying by itself and will show the sign-in form as soon as the server is back. You need to
+          sign in once while connected; after that Stint works offline too.
+          <div style={{ marginTop: 8 }}>
+            <Button size="sm" onClick={() => void refresh()}>
+              Try again
+            </Button>
+          </div>
         </Alert>
       )}
       {error && <Alert tone="danger">{error}</Alert>}
