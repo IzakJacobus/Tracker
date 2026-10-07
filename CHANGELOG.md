@@ -6,6 +6,30 @@ All notable changes to Stint are documented here. The format follows
 
 ## [Unreleased]
 
+## [0.3.0] - 2026-10-07
+
+### Upgrading from 0.2
+- Everyone's browser downloads its data again once. A backup is made automatically first.
+- Organisations that approved per week keep their Monday-to-Sunday weeks; new organisations
+  hand in on Fridays. Change it under Settings → Organisation.
+
+### Changed
+- **Timesheets are handed in every week, on Friday, by default.** Settings now has *Every
+  week*, *Every two weeks* or *Every month*, and the day the week ends on.
+- **New items need only a name.** The Type and Budget fields are gone from the item form and
+  the Code starts empty. (Top-level projects keep their Type and budget, and items that already
+  have them keep them.)
+- **Reports → Overview shows hours per item** instead of hours per day.
+- **Mark done on the Track page.** The ⋯ menu of an entry (and a ✓ button on each week row)
+  marks the item, or its whole project, done, with an Undo. Anyone who can log hours on an item
+  may mark it done or reopen it.
+- A new company starts with nothing under the *Internal* client (no Administration, Training,
+  Leave…). Add the projects you want. The demo data still includes them.
+
+### Removed
+- Expected hours per week for each person, and with it utilisation and capacity in reports.
+- The *Budget burn* section of the Overview report.
+
 ## [0.2.0] - 2026-10-07
 
 ### Upgrading from 0.1

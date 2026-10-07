@@ -66,7 +66,6 @@ export function userRoutes(ctx: AppContext) {
         email: input.email,
         name: input.name,
         role: input.role,
-        weeklyCapacityMinutes: input.weeklyCapacityMinutes,
         color: input.color,
         active: true,
         mustChangePassword: true,

@@ -20,8 +20,9 @@ describe("sync pull", () => {
     const full = await s.json<Pull>("GET", "/api/sync/pull?since=0", { as: admin });
     expect(full.status).toBe(200);
     expect(full.body.organization?.name).toBe("Karoo Consulting Engineers");
-    // 5 internal projects plus the 13 items under them (Annual leave, Meetings, ...).
-    expect(full.body.changes.projects?.length).toBe(18);
+    // A new company starts with the Internal client and nothing under it.
+    expect(full.body.changes.clients?.length).toBe(1);
+    expect(full.body.changes.projects).toBeUndefined();
     expect(full.body.changes.users?.length).toBe(1);
     expect(full.body.hasMore).toBe(false);
 
@@ -37,7 +38,7 @@ describe("sync pull", () => {
   test("paging never skips rows", async () => {
     const s = createTestServer();
     const admin = await s.setup();
-    for (let i = 0; i < 7; i++) await s.json("POST", "/api/tags", { as: admin, body: { name: `tag ${i}` } });
+    for (let i = 0; i < 12; i++) await s.json("POST", "/api/tags", { as: admin, body: { name: `tag ${i}` } });
     const seen = new Set<string>();
     let since = 0;
     let pages = 0;

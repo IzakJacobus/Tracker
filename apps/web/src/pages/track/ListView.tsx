@@ -1,11 +1,12 @@
 import { dayOfWeek, formatDuration, parseIsoDate, type TimeEntry } from "@stint/shared";
-import { Clock, Copy, Lock, MoreHorizontal, Pencil, Plus, Trash2 } from "lucide-react";
+import { CheckCircle2, Clock, Copy, Lock, MoreHorizontal, Pencil, Plus, Trash2 } from "lucide-react";
 import { useRef, useState } from "react";
 import { useData } from "../../data/DataProvider.tsx";
 import { useTags } from "../../data/hooks.ts";
 import { fmtDate } from "../../lib/format.ts";
 import { useLocks, useSettings } from "../../tracking/hooks.ts";
 import { ComboLabel, comboKey, usePickerItems } from "../../tracking/ProjectPicker.tsx";
+import { useMarkDone } from "../../tracking/useMarkDone.ts";
 import { Button } from "../../ui/Button.tsx";
 import { EmptyState } from "../../ui/misc.tsx";
 import { Menu, Popover } from "../../ui/Popover.tsx";
@@ -89,7 +90,8 @@ function EntryRow({
   onLogMore: (e: TimeEntry) => void;
 }) {
   const { entries } = useData();
-  const { byKey } = usePickerItems();
+  const { byKey, byId } = usePickerItems();
+  const markDone = useMarkDone();
   const tags = useTags();
   const toast = useToast();
   const lockFor = useLocks();
@@ -99,6 +101,15 @@ function EntryRow({
   const item = byKey.get(comboKey({ projectId: entry.projectId, taskId: null }));
   const secs = entry.durationS ?? 0;
   const entryTags = tags.filter((t) => entry.tagIds.includes(t.id));
+  // The item the hours are on, and the top-level project it belongs to: either can be marked done.
+  let root = item ? byId.get(item.projectId) : undefined;
+  while (root?.parentId && byId.get(root.parentId)) root = byId.get(root.parentId);
+  const doneTargets = [
+    ...(item?.loggable ? [{ id: item.projectId, name: item.name }] : []),
+    ...(item?.loggable && root && root.projectId !== item.projectId
+      ? [{ id: root.projectId, name: root.name, whole: true }]
+      : []),
+  ];
 
   const remove = async () => {
     const removed = await entries.remove(entry.id);
@@ -172,6 +183,16 @@ function EntryRow({
               { label: lock ? "View" : "Edit", icon: <Pencil />, onSelect: () => onEdit(entry) },
               { label: "Duplicate", icon: <Copy />, onSelect: () => void entries.duplicate(entry) },
               { label: "Log more hours on this", icon: <Plus />, onSelect: () => onLogMore(entry) },
+              ...(doneTargets.length
+                ? [
+                    "sep" as const,
+                    ...doneTargets.map((t) => ({
+                      label: "whole" in t ? `Mark whole project “${t.name}” done` : `Mark “${t.name}” done`,
+                      icon: <CheckCircle2 />,
+                      onSelect: () => void markDone(t.id, t.name),
+                    })),
+                  ]
+                : []),
               ...(lock
                 ? []
                 : ["sep" as const, { label: "Delete", icon: <Trash2 />, onSelect: remove, danger: true }]),

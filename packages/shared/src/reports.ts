@@ -302,42 +302,40 @@ export function clientSummary(d: ReportData, f: ReportFilter): ClientSummary {
 
 export interface Dashboard {
   period: Sum;
-  capacitySeconds: number;
-  /** hours logged ÷ capacity */
-  utilisation: number;
   /** hours on client work (not Internal) ÷ hours logged */
   clientShare: number;
-  byDay: { date: string; clientSeconds: number; internalSeconds: number }[];
+  /** Hours on each project or item they were logged on (full path), biggest first. */
+  byItem: {
+    projectId: string;
+    path: string;
+    client: Client | undefined;
+    color: string | undefined;
+    sum: Sum;
+  }[];
   topProjects: { projectId: string; path: string; client: Client | undefined; sum: Sum }[];
   byClient: { clientId: string; client: Client | undefined; sum: Sum }[];
-  byPerson: { user: User | undefined; userId: string; sum: Sum; capacitySeconds: number }[];
+  byPerson: { user: User | undefined; userId: string; sum: Sum }[];
 }
 
 export function dashboard(d: ReportData, f: ReportFilter, people: User[]): Dashboard {
   const ctx = makeContext(d);
   const lines = buildLines(d, f, ctx);
-  const workingDays = dateRange(f.from, f.to).filter((x) =>
-    d.settings.workingDays.includes(dayOfWeek(x)),
-  ).length;
-  const perDay = d.settings.workingDays.length || 5;
-  const capacityFor = (u: User) => Math.round((u.weeklyCapacityMinutes * 60 * workingDays) / perDay);
   const active = people.filter((u) => u.active);
-  const capacitySeconds = active.reduce((s, u) => s + capacityFor(u), 0);
   const t = total(lines);
   const clientSeconds = (ls: Line[]) =>
     ls.filter((l) => !l.client?.isInternal).reduce((s, l) => s + l.seconds, 0);
-  const byDate = groupBy(lines, (l) => l.date);
   return {
     period: t,
-    capacitySeconds,
-    utilisation: capacitySeconds ? t.seconds / capacitySeconds : 0,
     clientShare: t.seconds ? clientSeconds(lines) / t.seconds : 0,
-    byDay: dateRange(f.from, f.to).map((date) => {
-      const g = byDate.get(date);
-      const all = g?.sum.seconds ?? 0;
-      const client = g ? clientSeconds(g.lines) : 0;
-      return { date, clientSeconds: client, internalSeconds: all - client };
-    }),
+    byItem: [...groupBy(lines, (l) => l.entry.projectId)]
+      .map(([projectId, g]) => ({
+        projectId,
+        path: ctx.path(projectId),
+        client: g.lines[0]?.client,
+        color: g.lines[0]?.root?.color,
+        sum: g.sum,
+      }))
+      .sort((a, b) => b.sum.seconds - a.sum.seconds || a.path.localeCompare(b.path)),
     topProjects: [...groupBy(lines, (l) => l.root?.id ?? l.entry.projectId)]
       .map(([projectId, g]) => ({
         projectId,
@@ -355,7 +353,6 @@ export function dashboard(d: ReportData, f: ReportFilter, people: User[]): Dashb
         userId: u.id,
         user: u,
         sum: total(lines.filter((l) => l.entry.userId === u.id)),
-        capacitySeconds: capacityFor(u),
       }))
       .sort((a, b) => (a.user?.name ?? "").localeCompare(b.user?.name ?? "")),
   };

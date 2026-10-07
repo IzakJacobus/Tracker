@@ -8,7 +8,7 @@ describe("demo seed", () => {
   test("creates a consistent demo company", () => {
     const dir = mkdtempSync(join(tmpdir(), "stint-seed-"));
     try {
-      const r = Bun.spawnSync(["bun", join(import.meta.dir, "../scripts/seed.ts")], {
+      const r = Bun.spawnSync([process.execPath, join(import.meta.dir, "../scripts/seed.ts")], {
         env: { ...process.env, STINT_DATA_DIR: dir },
       });
       expect(r.exitCode).toBe(0);

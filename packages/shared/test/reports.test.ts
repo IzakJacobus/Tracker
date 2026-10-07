@@ -15,7 +15,6 @@ const user = (id: string, name: string): User => ({
   email: `${id}@x.co`,
   name,
   role: "member",
-  weeklyCapacityMinutes: 2400,
   color: "#000000",
   active: true,
   mustChangePassword: false,
@@ -175,14 +174,11 @@ describe("client summary", () => {
 });
 
 describe("dashboard", () => {
-  test("utilisation is hours logged over capacity; top projects and clients by hours", () => {
+  test("top projects, clients and items by hours; no capacity", () => {
     const d = data();
     const r = dashboard(d, { from: "2026-09-01", to: "2026-09-04" }, d.users);
-    // 4 working days × 8 h × 2 people = 64 h capacity
-    expect(r.capacitySeconds).toBe(64 * 3600);
     const logged = (60 + 50 + 90 + 30 + 120 + 480) * 60;
     expect(r.period.seconds).toBe(logged);
-    expect(r.utilisation).toBeCloseTo(logged / (64 * 3600));
     expect(r.clientShare).toBeCloseTo((logged - 480 * 60) / logged);
     // Items roll up into their top-level project.
     expect(r.topProjects.map((p) => [p.path, p.sum.seconds / 60])).toEqual([
@@ -192,7 +188,16 @@ describe("dashboard", () => {
       ["Roads", 30],
     ]);
     expect(r.byClient.map((c) => c.client?.name)).toEqual(["Internal", "Acme", "Beta"]);
-    expect(r.byDay).toHaveLength(4);
-    expect(r.byDay[3]).toEqual({ date: "2026-09-04", clientSeconds: 0, internalSeconds: 480 * 60 });
+    // Hours on each item (the project or item the hours were logged on), biggest first.
+    expect(r.byItem.map((i) => [i.path, i.sum.seconds / 60])).toEqual([
+      ["Leave", 480],
+      ["Dam", 120],
+      ["Bridge › Design › WP1", 90],
+      ["Bridge", 60],
+      ["Bridge › Design", 50],
+      ["Roads", 30],
+    ]);
+    expect(r).not.toHaveProperty("capacitySeconds");
+    expect(r).not.toHaveProperty("utilisation");
   });
 });

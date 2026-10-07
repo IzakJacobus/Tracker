@@ -12,6 +12,8 @@ async function world() {
   const mgr = await s.createUser(admin, { email: "mgr@example.com", name: "Pieter", role: "manager" });
   const alice = await s.createUser(admin, { email: "alice@example.com", name: "Alice", managerId: mgr.id });
   const bob = await s.createUser(admin, { email: "bob@example.com", name: "Bob" }); // no manager
+  // These tests are about months; the week and fortnight settings have their own tests below.
+  await s.json("PATCH", "/api/org", { as: admin, body: { settings: { approvalPeriod: "month" } } });
   const client = (await s.json<Client>("POST", "/api/clients", { as: admin, body: { name: "Acme" } })).body;
   const project = (
     await s.json<Project>("POST", "/api/projects", {
@@ -216,7 +218,7 @@ describe("timesheet workflow", () => {
     });
     expect(month.status).toBe(200);
     await w.s.json("PATCH", "/api/org", { as: w.admin, body: { settings: { approvalPeriod: "week" } } });
-    // Week of Mon 28 Sept – Sun 4 Oct overlaps the submitted September.
+    // The week ending Friday 2 Oct (from Sat 26 Sept) overlaps the submitted September.
     const week = await w.s.json<{ error: { message: string } }>("POST", "/api/timesheets/submit", {
       as: w.alice.agent,
       body: { date: "2026-09-30" },

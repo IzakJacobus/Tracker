@@ -42,7 +42,9 @@ export const OrgSettings = z.object({
     .default(480),
   workingDays: z.array(z.number().int().min(0).max(6)).max(7).default([1, 2, 3, 4, 5]),
   workdayStart: Clock.default("08:00"),
-  approvalPeriod: z.enum(["week", "month"]).default("month"),
+  approvalPeriod: z.enum(["week", "biweek", "month"]).default("week"),
+  /** The day a week (or fortnight) of hours ends and is handed in: 0 = Sunday … 5 = Friday. */
+  approvalDay: z.number().int().min(0).max(6).default(5),
   reminders: z
     .object({
       enabled: z.boolean().default(true),
@@ -118,11 +120,6 @@ export const User = z.object({
   email: Email,
   name: Name,
   role: Role,
-  weeklyCapacityMinutes: z
-    .number()
-    .int()
-    .min(0)
-    .max(7 * 24 * 60),
   color: Color,
   active: z.boolean(),
   mustChangePassword: z.boolean(),
@@ -248,12 +245,6 @@ export const CreateUserInput = z.object({
   name: Name,
   role: Role.default("member"),
   password: Password,
-  weeklyCapacityMinutes: z
-    .number()
-    .int()
-    .min(0)
-    .max(7 * 24 * 60)
-    .default(2400),
   color: Color.default("#2f7d63"),
   managerId: Id.nullable().default(null),
 });
@@ -263,11 +254,6 @@ export const UpdateUserInput = z
     email: Email,
     name: Name,
     role: Role,
-    weeklyCapacityMinutes: z
-      .number()
-      .int()
-      .min(0)
-      .max(7 * 24 * 60),
     color: Color,
     active: z.boolean(),
     managerId: Id.nullable(),

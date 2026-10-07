@@ -1,10 +1,11 @@
 import { dayOfWeek, formatDuration, parseDurationInput, parseIsoDate, type TimeEntry } from "@stint/shared";
-import { Plus, X } from "lucide-react";
+import { CheckCircle2, Plus, X } from "lucide-react";
 import { type KeyboardEvent, useMemo, useRef, useState } from "react";
 import { useData } from "../../data/DataProvider.tsx";
 import { nextFreeStart, planCellChange } from "../../data/entries.ts";
 import { type Combo, useFavorites, useLocks, useNow, useSettings } from "../../tracking/hooks.ts";
 import { ComboLabel, comboKey, PickerList, usePickerItems } from "../../tracking/ProjectPicker.tsx";
+import { useMarkDone } from "../../tracking/useMarkDone.ts";
 import { Button } from "../../ui/Button.tsx";
 import { Popover } from "../../ui/Popover.tsx";
 import { useToast } from "../../ui/Toast.tsx";
@@ -24,6 +25,7 @@ export function WeekGrid({ days, entries }: { days: string[]; entries: TimeEntry
   const favorites = useFavorites();
   const picker = usePickerItems();
   const { byKey } = picker;
+  const markDone = useMarkDone();
   const now = useNow(30_000);
   const [extra, setExtra] = useState<Combo[]>([]);
   const addAnchor = useRef<HTMLButtonElement>(null);
@@ -118,7 +120,7 @@ export function WeekGrid({ days, entries }: { days: string[]; entries: TimeEntry
               <th scope="col" className="num">
                 Total
               </th>
-              <th aria-label="Remove row" />
+              <th aria-label="Row actions" />
             </tr>
           </thead>
           <tbody>
@@ -167,7 +169,17 @@ export function WeekGrid({ days, entries }: { days: string[]; entries: TimeEntry
                     );
                   })}
                   <td className="num mono week-grid__total">{rowTotal ? formatDuration(rowTotal) : ""}</td>
-                  <td>
+                  <td style={{ whiteSpace: "nowrap" }}>
+                    {item?.loggable && (
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        iconOnly
+                        label={`Mark “${item.name}” done`}
+                        icon={<CheckCircle2 />}
+                        onClick={() => void markDone(item.projectId, item.name)}
+                      />
+                    )}
                     {rowTotal === 0 && extra.some((x) => comboKey(x) === comboKey(c)) && (
                       <Button
                         size="sm"

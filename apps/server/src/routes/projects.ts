@@ -2,6 +2,7 @@ import {
   CreateProjectInput,
   canCreateProject,
   canManageProject,
+  canTrackOnProject,
   MoveProjectInput,
   type Project,
   type ProjectMember,
@@ -153,7 +154,7 @@ export function projectRoutes(ctx: AppContext) {
     }
     // A top-level project needs a code, and codes stay unique within the client it lands in.
     if (!input.parentId && !before.code?.trim()) {
-      throw fieldError("code", "Give “" + before.name + "” a code first: every top-level project has one.");
+      throw fieldError("code", `Give “${before.name}” a code first: every top-level project has one.`);
     }
     if (clientId !== before.clientId) {
       const moving = subtreeIds(tree, id);
@@ -208,7 +209,10 @@ export function projectRoutes(ctx: AppContext) {
       const id = c.req.param("id");
       const before = getProject(ctx.db, id);
       if (!before || before.deletedAt) throw notFound("Project");
-      if (!canManageProject(actor, id, accessContext(ctx.db, actor))) throw forbidden();
+      // Finishing work is part of tracking it: whoever can log hours on a project or item can mark
+      // it done (or reopen it), as well as the people who manage it.
+      const access = accessContext(ctx.db, actor);
+      if (!canManageProject(actor, id, access) && !canTrackOnProject(actor, id, access)) throw forbidden();
       const now = ctx.now();
       const after = updateRow(ctx.db, TABLES.projects, id, { archivedAt: archive ? now : null }, now);
       audit(ctx.db, now, {

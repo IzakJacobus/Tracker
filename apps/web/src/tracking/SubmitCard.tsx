@@ -25,8 +25,8 @@ export function SubmitCard({ today }: { today: string }) {
   const toast = useToast();
   const [confirm, setConfirm] = useState(false);
   const [busy, setBusy] = useState(false);
-  const current = periodFor(today, settings.approvalPeriod, settings.weekStart);
-  const previous = periodFor(addDays(current.start, -1), settings.approvalPeriod, settings.weekStart);
+  const current = periodFor(today, settings.approvalPeriod, settings.approvalDay);
+  const previous = periodFor(addDays(current.start, -1), settings.approvalPeriod, settings.approvalDay);
   const sheets =
     useLiveQuery(() => db.timesheets.where("userId").equals(me.user.id).toArray(), [db, me.user.id]) ?? [];
   const byStart = new Map(sheets.map((s) => [s.periodStart, s]));

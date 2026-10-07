@@ -112,14 +112,4 @@ describe("project codes", () => {
     expect(ok.status).toBe(200);
     expect(item.code).toBe("X-1.1");
   });
-
-  test("the built-in internal projects have codes from the start", async () => {
-    const { s } = await world();
-    const rows = s.ctx.db
-      .query<{ name: string; code: string | null }, []>(
-        "SELECT p.name, p.code FROM projects p JOIN clients c ON c.id = p.client_id WHERE c.is_internal = 1 AND p.parent_id IS NULL ORDER BY p.sort_order",
-      )
-      .all();
-    expect(rows.map((r) => r.code)).toEqual(["INT-ADM", "INT-BD", "INT-TRN", "INT-RD", "INT-LV"]);
-  });
 });
