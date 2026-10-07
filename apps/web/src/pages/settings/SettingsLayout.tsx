@@ -5,7 +5,7 @@ const LINKS = [
   { to: "/settings/health", label: "Health" },
   { to: "/settings/backups", label: "Backups" },
   { to: "/settings/remote", label: "Remote access" },
-  { to: "/settings/import", label: "Import" },
+  { to: "/settings/import", label: "Import / Export" },
   { to: "/settings/audit", label: "Audit log" },
 ];
 

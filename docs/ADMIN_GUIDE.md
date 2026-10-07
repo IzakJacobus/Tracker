@@ -150,21 +150,45 @@ projects, time, settings and the server's certificate.
 **Test a restore** once in a while. It takes a minute, and you'll know it works when you need
 it.
 
-## 8. Importing from Toggl Track (or a spreadsheet)
+## 8. Excel and CSV: export and import
 
-1. In Toggl Track open **Reports → Detailed**, choose the date range and **Export → CSV**.
-2. In Stint open **Settings → Import** and choose the file.
-3. Click **Preview**. Nothing is saved yet. The preview shows how many entries will be
-   imported, what will be created (clients, projects, items, tags) and any problems, line by
-   line.
-4. If people in the file don't match anyone in Stint by email or name, choose who they are
+Open **Settings → Import / Export**.
+
+### Export to Excel
+**Download Excel workbook** saves one file with two sheets:
+
+- **Projects**: every project and item. Columns: Client, Project code, Path (the names from the
+  project down, separated by ›), Type, Item code, Done, Budget hours.
+- **Hours**: every entry. Columns: Date, Person, Email, Client, Project code, Project (the full
+  path), Hours, Note, Tags. Choose "Hours from / to" first to export only a period.
+
+### Import from Excel
+Fill in the **empty template** (**Download empty template**, which has an example and a "How to
+use" sheet), or edit an exported workbook, then:
+
+1. Choose the file and click **Preview**. Nothing is saved yet. The preview shows how many
+   entries will be imported, which projects and items will be created or changed, and any
+   problems, line by line.
+2. If people in the file don't match anyone in Stint by email or name, choose who they are
    from the list, or add them on the Team page first.
-5. Click **Import**.
+3. Click **Import**.
 
-Importing the same file again doesn't create duplicates. Entries in submitted or approved
-periods are skipped. Stint also reads its own CSV exports, and any CSV with **Date**,
-**Person** (or **Email**), **Project** and **Duration** (or **Hours**) columns. Dates may be
-`2026-09-30` or `30/09/2026` (day first).
+How rows are matched: a project is found by its **code** within the client, then by name; items
+by their names under it. Missing clients, projects and items are created (a new project without
+a code gets the next one in that client's numbering). The Type, Done and Budget hours columns
+update existing items: put **Yes** under Done to finish an item, **No** to reopen it, and leave
+it empty to keep it as it is. Hours can be `1.5`, `1:30` or an Excel time. Dates can be real Excel
+dates, `2026-09-30` or `30/09/2026` (day first).
+
+Importing the same workbook again doesn't create duplicates, and entries in submitted or
+approved periods are skipped.
+
+### Moving from Toggl Track (or another CSV)
+1. In Toggl Track open **Reports → Detailed**, choose the date range and **Export → CSV**.
+2. Choose that file on the same page and follow the same preview steps.
+
+Stint also reads any CSV with **Date**, **Person** (or **Email**), **Project** and **Duration**
+(or **Hours**) columns.
 
 ## 9. Upgrading
 

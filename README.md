@@ -54,7 +54,7 @@ don't need the cloud, a subscription or an IT department.
 - Nightly backups to a USB drive or OneDrive folder (the last 30 are kept), and one-click
   restore.
 - A **Health** page in plain language, with one-click fixes.
-- Update notices from GitHub Releases. CSV import, including **Toggl Track** exports.
+- Update notices from GitHub Releases. Excel export and import (projects, items and hours), plus CSV import, including **Toggl Track** exports.
 
 South African defaults: Africa/Johannesburg, YYYY-MM-DD dates and weeks that start on
 Monday. All of these can be changed in Settings.
