@@ -12,6 +12,10 @@ All notable changes to Stint are documented here. The format follows
 - A backup is made automatically before the database is upgraded.
 
 ### Changed
+- **The app updates itself in people's browsers.** A new version downloads in the background
+  (and is looked for each time Stint comes back to the front) and installs as soon as the app is
+  out of sight, so nobody loses a half-typed entry. Until then a notice offers *Update now*.
+
 - **Every project has a code.** A required reference of the firm's own choosing, up to 40
   characters (`2026-014`, `BRG/07`, `A12`…), unique for each client (ignoring case). The New
   project form suggests the next code in the client's own pattern (`2026-014` → `2026-015`).

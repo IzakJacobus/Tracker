@@ -44,12 +44,26 @@ function AppFrame() {
   const toast = useToast();
   useEffect(
     () =>
-      onAppUpdate((apply) =>
-        toast.show("A new version of Stint is ready.", {
-          action: { label: "Reload", onClick: apply },
+      onAppUpdate((apply) => {
+        // Updates install by themselves as soon as Stint is out of sight (another tab or app in
+        // front, or the screen off), so nobody loses a half-typed entry. Until then it is offered.
+        let done = false;
+        const install = () => {
+          if (done) return;
+          done = true;
+          document.removeEventListener("visibilitychange", onHidden);
+          apply();
+        };
+        const onHidden = () => {
+          if (document.visibilityState === "hidden") install();
+        };
+        if (document.visibilityState === "hidden") return install();
+        document.addEventListener("visibilitychange", onHidden);
+        toast.show("A new version of Stint is ready. It installs by itself when you leave the app.", {
+          action: { label: "Update now", onClick: install },
           durationMs: 120_000,
-        }),
-      ),
+        });
+      }),
     [toast],
   );
   return (
