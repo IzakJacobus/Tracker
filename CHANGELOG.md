@@ -14,6 +14,7 @@ All notable changes to Stint are documented here. The format follows
   hand in on Fridays. Change it under Settings → Organisation.
 
 ### Changed
+- **The version number is shown in the app**: under the menu once you are signed in, and on the sign-in screen, so people can say which version they have.
 - **Timesheets are handed in every week, on Friday, by default.** Settings now has *Every
   week*, *Every two weeks* or *Every month*, and the day the week ends on.
 - **New items need only a name.** The Type and Budget fields are gone from the item form and

@@ -1,3 +1,4 @@
+import { readFileSync } from "node:fs";
 import { expect, test } from "@playwright/test";
 import { login, PEOPLE } from "./fixtures.ts";
 
@@ -21,4 +22,14 @@ test("signing out returns to the sign-in screen", async ({ page }) => {
   await page.getByRole("button", { name: /Thandi Mokoena/ }).click();
   await page.getByRole("menuitem", { name: "Sign out" }).click();
   await expect(page.getByRole("heading", { name: "Sign in" })).toBeVisible();
+});
+
+test("the version number is shown on the sign-in screen and in the menu", async ({ page }) => {
+  const { version } = JSON.parse(readFileSync(new URL("../package.json", import.meta.url), "utf8")) as {
+    version: string;
+  };
+  await page.goto("/");
+  await expect(page.getByTestId("app-version").first()).toHaveText(`Stint ${version}`);
+  await login(page, "member");
+  await expect(page.locator(".sidebar__footer").getByTestId("app-version")).toHaveText(`Stint ${version}`);
 });

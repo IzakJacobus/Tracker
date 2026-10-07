@@ -218,6 +218,16 @@
 .sidebar__spacer {
   flex: 1;
 }
+.version-label {
+  font-size: var(--text-xs, 0.75rem);
+  color: var(--text-subtle, var(--text-muted, inherit));
+  opacity: 0.8;
+  font-variant-numeric: tabular-nums;
+  text-align: center;
+}
+.sidebar__footer .version-label {
+  padding-bottom: var(--space-1);
+}
 .sidebar__footer {
   display: flex;
   flex-direction: column;
@@ -254,6 +264,7 @@
 .shell[data-collapsed="true"] .sidebar__org,
 .shell[data-collapsed="true"] .user-chip > div,
 .shell[data-collapsed="true"] .sync-pill__label,
+.shell[data-collapsed="true"] .sidebar__footer .version-label,
 .shell[data-collapsed="true"] .logo > span {
   display: none;
 }
