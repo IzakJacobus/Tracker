@@ -9,6 +9,8 @@ export interface Transport {
   request(method: string, path: string, body?: unknown, signal?: AbortSignal): Promise<TransportResponse>;
 }
 
+const REQUEST_TIMEOUT_MS = 30_000;
+
 export class NetworkError extends Error {
   constructor(message = "Cannot reach the Stint server.") {
     super(message);
@@ -27,6 +29,12 @@ export class BrowserTransport implements Transport {
     signal?: AbortSignal,
   ): Promise<TransportResponse> {
     let res: Response;
+    // A request that gets no answer (a connection that died while the computer slept) must end, or
+    // syncing would wait for it forever.
+    const timeout = new AbortController();
+    const timer = setTimeout(() => timeout.abort(), REQUEST_TIMEOUT_MS);
+    const abort = () => timeout.abort();
+    signal?.addEventListener("abort", abort);
     try {
       res = await fetch(`${this.base}${path}`, {
         method,
@@ -36,11 +44,15 @@ export class BrowserTransport implements Transport {
           ...(body !== undefined ? { "content-type": "application/json" } : {}),
         },
         body: body === undefined ? undefined : JSON.stringify(body),
-        signal,
+        signal: timeout.signal,
       });
     } catch (e) {
-      if ((e as Error).name === "AbortError") throw e;
+      // Cancelled by the caller: pass that on. Timed out or unreachable: the server can't be reached.
+      if (signal?.aborted) throw e;
       throw new NetworkError();
+    } finally {
+      clearTimeout(timer);
+      signal?.removeEventListener("abort", abort);
     }
     const text = await res.text();
     let parsed: unknown = null;

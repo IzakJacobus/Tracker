@@ -6,6 +6,17 @@ All notable changes to Stint are documented here. The format follows
 
 ## [Unreleased]
 
+## [0.3.1] - 2026-10-07
+
+### Fixed
+- **Stint stayed on "Can't reach the Stint server" after the server came back.** If Stint was
+  opened while the server was off (or restarting), the screen never looked again until the page
+  was reloaded. It now checks every few seconds, whenever the window comes back to the front, and
+  has a *Try again* button, and shows the sign-in form as soon as the server answers.
+- After being offline, the sync status now checks again after 5 seconds instead of up to 20, and a
+  request that never gets an answer (for example after the computer slept) ends after 30 seconds
+  instead of holding up syncing indefinitely.
+
 ## [0.3.0] - 2026-10-07
 
 ### Upgrading from 0.2
