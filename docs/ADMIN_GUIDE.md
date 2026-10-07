@@ -196,7 +196,9 @@ Stint also reads any CSV with **Date**, **Person** (or **Email**), **Project** a
 2. Download the new `StintServer-Setup` from the release page and run it on the server PC.
 3. The installer stops the service, replaces the program and starts it again. The database is
    backed up automatically before it is upgraded.
-4. People's browsers pick up the new version by themselves (they see an *Update* prompt).
+4. People's browsers update by themselves: the new version downloads in the background and installs
+   as soon as they leave the app (or tap *Update now* in the notice). Their unsent hours are kept.
+   The server itself is updated by running the installer (step 2); Stint does not replace its own program.
 
 To go back to an older version, install it and restore the backup made before the upgrade
 (Settings → Backups → *Safety copies*).

@@ -31,6 +31,10 @@ export function registerServiceWorker(): void {
       });
       // Check for a new version every hour while open.
       setInterval(() => void reg.update(), 3600_000);
+      // ...and whenever the app is brought back to the front, so the first look of the day is current.
+      document.addEventListener("visibilitychange", () => {
+        if (document.visibilityState === "visible") void reg.update();
+      });
     } catch {
       // Not fatal: Stint still works online without the service worker.
     }
