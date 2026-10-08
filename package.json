@@ -1,7 +1,7 @@
 {
   "name": "stint",
   "private": true,
-  "version": "0.3.2",
+  "version": "0.3.3",
   "description": "Stint \u2014 self-hosted, local-first time tracking for consulting firms",
   "license": "MIT",
   "type": "module",

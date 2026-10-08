@@ -8,10 +8,13 @@ import { Field, Input } from "../ui/Field.tsx";
 import { Alert } from "../ui/misc.tsx";
 import { useToast } from "../ui/Toast.tsx";
 
-export function ChangePasswordForm({ forced }: { forced?: boolean }) {
+/**
+ * Used on the Account page and, for people signing in with a temporary password, before the app
+ * (and its router) exists, so it must not use the router itself: `onDone` says where to go next.
+ */
+export function ChangePasswordForm({ forced, onDone }: { forced?: boolean; onDone?: () => void }) {
   const { refresh } = useSession();
   const toast = useToast();
-  const navigate = useNavigate();
   const [f, setF] = useState({ current: "", next: "", confirm: "" });
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [error, setError] = useState<string | null>(null);
@@ -30,7 +33,7 @@ export function ChangePasswordForm({ forced }: { forced?: boolean }) {
       await api.post("/auth/password", { currentPassword: f.current, newPassword: f.next });
       toast.success("Password changed.");
       await refresh();
-      if (!forced) navigate("/");
+      onDone?.();
     } catch (err) {
       if (err instanceof ApiError && err.fields.newPassword) setErrors({ next: err.fields.newPassword });
       else setError(errorMessage(err));
@@ -82,6 +85,7 @@ export function ChangePasswordForm({ forced }: { forced?: boolean }) {
 
 export function AccountPage() {
   const me = useMe();
+  const navigate = useNavigate();
   return (
     <div className="page page--narrow">
       <div className="page-header">
@@ -97,7 +101,7 @@ export function AccountPage() {
           <h2>Change password</h2>
         </div>
         <div className="card__body">
-          <ChangePasswordForm />
+          <ChangePasswordForm onDone={() => navigate("/")} />
         </div>
       </div>
     </div>
