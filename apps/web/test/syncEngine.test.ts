@@ -115,3 +115,49 @@ describe("SyncEngine pull", () => {
     expect(engine.get().state).toBe("offline");
   });
 });
+
+describe("SyncEngine activity", () => {
+  test("a click or key press looks at the server; a burst of them is answered once, after a short pause", async () => {
+    const db = freshDb();
+    let pulls = 0;
+    setTransport(
+      fakeTransport(() => {
+        pulls++;
+        return {
+          status: 200,
+          body: { changes: {}, organization: null, cursor: 1, hasMore: false, epoch: "0.0", serverTime: 0 },
+        };
+      }),
+    );
+    const wait = (ms: number) => new Promise((r) => setTimeout(r, ms));
+    const engine = new SyncEngine(db, undefined, 3_600_000, 80);
+    engine.start();
+    await wait(40);
+    await engine.syncNow();
+    const calm = pulls;
+
+    // The first click asks straight away.
+    await wait(100);
+    window.dispatchEvent(new Event("pointerdown"));
+    await wait(30);
+    expect(pulls).toBeGreaterThan(calm);
+    const afterFirst = pulls;
+
+    // A burst right after is not answered at once, but once, when the pause ends.
+    window.dispatchEvent(new Event("keydown"));
+    window.dispatchEvent(new Event("pointerdown"));
+    window.dispatchEvent(new Event("keydown"));
+    await wait(10);
+    expect(pulls).toBe(afterFirst);
+    await wait(150);
+    expect(pulls).toBeGreaterThan(afterFirst);
+    const afterBurst = pulls;
+    await wait(200);
+    expect(pulls).toBe(afterBurst);
+
+    engine.stop();
+    window.dispatchEvent(new Event("pointerdown"));
+    await wait(30);
+    expect(pulls).toBe(afterBurst);
+  });
+});

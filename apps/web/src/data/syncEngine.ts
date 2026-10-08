@@ -42,6 +42,9 @@ type Listener = (s: SyncStatus) => void;
  * Keeps the local IndexedDB copy in step with the server.
  * Pull: incremental by change sequence; a changed epoch triggers a full re-sync.
  */
+/** Clicks and key presses ask the server for news at most this often. */
+const ACTIVITY_GAP_MS = 3_000;
+
 export class SyncEngine {
   private status: SyncStatus = {
     state: "syncing",
@@ -57,6 +60,8 @@ export class SyncEngine {
   private stopped = false;
   private debounce: ReturnType<typeof setTimeout> | null = null;
   private retry: ReturnType<typeof setTimeout> | null = null;
+  private lastActivity = 0;
+  private activityTimer: ReturnType<typeof setTimeout> | null = null;
   private unlisten: (() => void) | null = null;
   onOrganization?: (org: Organization) => void;
   /** Called with a plain-language message when the server refuses a change. */
@@ -66,6 +71,7 @@ export class SyncEngine {
     readonly db: StintDB,
     readonly clock?: HlcClock,
     private readonly intervalMs = 20_000,
+    private readonly activityGapMs = ACTIVITY_GAP_MS,
   ) {}
 
   get(): SyncStatus {
@@ -90,11 +96,31 @@ export class SyncEngine {
     const onVisible = () => {
       if (document.visibilityState === "visible") kick();
     };
+    // Whenever the person does something (a click, a key), look at the server too, so changes made by
+    // others (a new project, being added to one) show up right away instead of at the next tick.
+    // At most once every few seconds: activity inside that pause is answered once it ends.
+    const onActivity = () => {
+      const wait = this.lastActivity + this.activityGapMs - Date.now();
+      if (wait <= 0) {
+        this.lastActivity = Date.now();
+        kick();
+      } else if (!this.activityTimer) {
+        this.activityTimer = setTimeout(() => {
+          this.activityTimer = null;
+          this.lastActivity = Date.now();
+          if (!this.stopped) kick();
+        }, wait);
+      }
+    };
     this.timer = setInterval(kick, this.intervalMs);
+    window.addEventListener("pointerdown", onActivity, true);
+    window.addEventListener("keydown", onActivity, true);
     window.addEventListener("online", kick);
     window.addEventListener("focus", kick);
     document.addEventListener("visibilitychange", onVisible);
     this.unlisten = () => {
+      window.removeEventListener("pointerdown", onActivity, true);
+      window.removeEventListener("keydown", onActivity, true);
       window.removeEventListener("online", kick);
       window.removeEventListener("focus", kick);
       document.removeEventListener("visibilitychange", onVisible);
@@ -107,6 +133,8 @@ export class SyncEngine {
     if (this.timer) clearInterval(this.timer);
     if (this.debounce) clearTimeout(this.debounce);
     if (this.retry) clearTimeout(this.retry);
+    if (this.activityTimer) clearTimeout(this.activityTimer);
+    this.activityTimer = null;
     this.unlisten?.();
     this.unlisten = null;
   }
