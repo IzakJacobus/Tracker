@@ -164,3 +164,35 @@ describe("timesheet approval", () => {
     expect(canUnlockTimesheet(mgr)).toBe(false);
   });
 });
+
+describe("added to an item only", () => {
+  test("sees the project and levels above it, but can only log on the item", () => {
+    const ctx: AccessContext = {
+      projectParent: new Map([
+        ["root", null],
+        ["mid", "root"],
+        ["leaf", "mid"],
+        ["sibling", "mid"],
+        ["other", null],
+      ]),
+      projectVisibility: new Map([
+        ["root", "members"],
+        ["mid", "members"],
+        ["leaf", "members"],
+        ["sibling", "members"],
+        ["other", "members"],
+      ]),
+      memberships: new Map([["leaf", "member"]]),
+      userManager: new Map(),
+    };
+    const worker = { id: "w", role: "member" as const };
+    expect(canTrackOnProject(worker, "leaf", ctx)).toBe(true);
+    expect(canTrackOnProject(worker, "mid", ctx)).toBe(false);
+    expect(canViewProject(worker, "root", ctx)).toBe(true);
+    expect(canViewProject(worker, "mid", ctx)).toBe(true);
+    expect(canViewProject(worker, "leaf", ctx)).toBe(true);
+    // Not the item's neighbours, and not unrelated projects.
+    expect(canViewProject(worker, "sibling", ctx)).toBe(false);
+    expect(canViewProject(worker, "other", ctx)).toBe(false);
+  });
+});

@@ -72,14 +72,19 @@ test("adding hours in the weekly grid", async ({ page }) => {
   await login(page, "member");
   await page.getByRole("button", { name: "Week", exact: true }).click();
   await page.getByRole("button", { name: "Add row" }).click();
-  await page.getByPlaceholder("Search projects, items and codes").fill("site visit");
+  await page.getByPlaceholder("Search projects, items and codes").fill("paarl site visit");
   await page.keyboard.press("Enter");
-  const row = page.locator("tr", { hasText: "Site visit" });
+  const row = page.locator("tr", { hasText: /Paarl bridge upgrade.*Site visit/ });
   const sunday = row.locator("input").nth(6);
   await sunday.fill("2:15");
   await sunday.press("Enter");
   await expect(sunday).toHaveValue("2:15");
   await waitSynced(page);
   await page.reload();
-  await expect(page.locator("tr", { hasText: "Site visit" }).locator("input").nth(6)).toHaveValue("2:15");
+  await expect(
+    page
+      .locator("tr", { hasText: /Paarl bridge upgrade.*Site visit/ })
+      .locator("input")
+      .nth(6),
+  ).toHaveValue("2:15");
 });

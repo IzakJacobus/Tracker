@@ -196,3 +196,27 @@ describe("sync pull", () => {
     expect((await s.json("GET", "/api/sync/pull")).status).toBe(401);
   });
 });
+
+describe("someone added to an item only", () => {
+  test("receives the project and levels above it, and can log hours on the item", async () => {
+    const s = createTestServer();
+    const admin = await s.setup();
+    const worker = await s.createUser(admin, { email: "w@example.com", name: "Worker" });
+    const client = (await s.json<Client>("POST", "/api/clients", { as: admin, body: { name: "Acme" } })).body;
+    const mk = async (body: Record<string, unknown>) =>
+      (await s.json<Project>("POST", "/api/projects", { as: admin, body })).body;
+    const root = await mk({ clientId: client.id, name: "Reactor", code: "R-1" });
+    const mid = await mk({ parentId: root.id, name: "Research" });
+    const leaf = await mk({ parentId: mid.id, name: "Bla" });
+    const sibling = await mk({ parentId: mid.id, name: "Secret sibling" });
+    await s.json("PUT", `/api/projects/${leaf.id}/members/${worker.id}`, { as: admin, body: {} });
+
+    const full = await s.json<Pull>("GET", "/api/sync/pull?since=0", { as: worker.agent });
+    const names = (full.body.changes.projects ?? []).map((p) => p.name).sort();
+    expect(names).toEqual(["Bla", "Reactor", "Research"]);
+    expect(names).not.toContain(sibling.name);
+    expect((full.body.changes.clients ?? []).map((c) => c.name)).toContain("Acme");
+    const list = await s.json<Project[]>("GET", "/api/projects", { as: worker.agent });
+    expect(list.body.map((p) => p.name).sort()).toEqual(["Bla", "Reactor", "Research"]);
+  });
+});

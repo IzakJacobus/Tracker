@@ -69,8 +69,33 @@ export function canTrackOnProject(actor: Actor, projectId: string, ctx: AccessCo
   return isProjectOpenToEveryone(projectId, ctx) || projectRoleFor(actor, projectId, ctx) !== null;
 }
 
+/** Per access context and person: every project that is on the way down to something they can log hours on. */
+const wayDown = new WeakMap<AccessContext, Map<string, Set<string>>>();
+
+function projectsOnTheWayDown(actor: Actor, ctx: AccessContext): ReadonlySet<string> {
+  let byActor = wayDown.get(ctx);
+  if (!byActor) {
+    byActor = new Map();
+    wayDown.set(ctx, byActor);
+  }
+  let set = byActor.get(actor.id);
+  if (!set) {
+    set = new Set();
+    for (const id of ctx.projectParent.keys())
+      if (canTrackOnProject(actor, id, ctx)) for (const above of projectLineage(id, ctx)) set.add(above);
+    byActor.set(actor.id, set);
+  }
+  return set;
+}
+
+/**
+ * What a person may see. Everything they can log hours on, and also the projects and items above
+ * it (names only, nothing to log on), so someone added to just one item still sees where it sits
+ * and can pick it by drilling down.
+ */
 export function canViewProject(actor: Actor, projectId: string, ctx: AccessContext): boolean {
   if (canTrackOnProject(actor, projectId, ctx)) return true;
+  if (projectsOnTheWayDown(actor, ctx).has(projectId)) return true;
   if (actor.role !== "manager" || !ctx.teamProjects?.size || !ctx.projectParent.has(projectId)) return false;
   return projectLineage(projectId, ctx).some((id) => ctx.teamProjects!.has(id));
 }

@@ -76,3 +76,56 @@ test("a project that everyone can use shows up for a signed-in worker", async ({
   await page.getByPlaceholder("Search projects, items and codes").fill("everyone project y");
   await expect(page.getByRole("option", { name: /Everyone project Y/ })).toBeVisible({ timeout: 10_000 });
 });
+
+test("a brand-new client and project: the worker can log hours on it after being added", async ({ page }) => {
+  await login(page, "member");
+  const call = await adminApi();
+  const users = await call<{ id: string; email: string }[]>("GET", "/users");
+  const worker = users.find((u) => u.email === PEOPLE.member.email)!;
+  const client = await call<{ id: string }>("POST", "/clients", { name: "Brand New Client Qx" });
+  const project = await call<{ id: string }>("POST", "/projects", {
+    clientId: client.id,
+    name: "Bridge Qx",
+    code: "QX-1",
+  });
+  await call("PUT", `/projects/${project.id}/members/${worker.id}`, {});
+
+  // Her Projects page shows it...
+  await page.getByRole("link", { name: "Projects" }).click();
+  await expect(page.getByText("Bridge Qx").first()).toBeVisible({ timeout: 15_000 });
+  // ...and so does the Log hours list, where she can pick it and log hours.
+  await page.getByRole("link", { name: "Track" }).click();
+  await page.keyboard.press("n");
+  await page.getByPlaceholder("Search projects, items and codes").fill("bridge qx");
+  await expect(page.getByRole("option", { name: /Bridge Qx/ })).toBeVisible({ timeout: 15_000 });
+  await page.getByRole("option", { name: /Bridge Qx/ }).click();
+  await page.getByRole("dialog").getByLabel("Hours", { exact: true }).fill("1");
+  await page.getByRole("button", { name: "Log hours" }).last().click();
+  await waitSynced(page);
+  await expect(page.getByText("Bridge Qx").first()).toBeVisible();
+});
+
+test("added to an item only (not to the project above it): she can still log hours on that item", async ({
+  page,
+}) => {
+  await login(page, "member");
+  const call = await adminApi();
+  const users = await call<{ id: string; email: string }[]>("GET", "/users");
+  const worker = users.find((u) => u.email === PEOPLE.member.email)!;
+  const client = await call<{ id: string }>("POST", "/clients", { name: "Item Only Client Wv" });
+  const root = await call<{ id: string }>("POST", "/projects", {
+    clientId: client.id,
+    name: "Reactor Wv",
+    code: "WV-1",
+  });
+  const mid = await call<{ id: string }>("POST", "/projects", { parentId: root.id, name: "Research Wv" });
+  const leaf = await call<{ id: string }>("POST", "/projects", { parentId: mid.id, name: "Bla Wv" });
+  await call("PUT", `/projects/${leaf.id}/members/${worker.id}`, {});
+
+  await page.getByRole("link", { name: "Projects" }).click();
+  await expect(page.getByText("Bla Wv").first()).toBeVisible({ timeout: 15_000 });
+  await page.getByRole("link", { name: "Track" }).click();
+  await page.keyboard.press("n");
+  await page.getByPlaceholder("Search projects, items and codes").fill("bla wv");
+  await expect(page.getByRole("option", { name: /Bla Wv/ })).toBeVisible({ timeout: 15_000 });
+});
