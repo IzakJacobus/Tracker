@@ -6,6 +6,13 @@ All notable changes to Stint are documented here. The format follows
 
 ## [Unreleased]
 
+## [0.3.3] - 2026-10-08
+
+### Fixed
+- **A new person signing in with their temporary password got a blank screen** instead of the
+  "choose your own password" page. They can now choose their own password and carry on. (Anyone
+  added in 0.2 or 0.3 who could not get in is fixed by updating the server.)
+
 ## [0.3.2] - 2026-10-08
 
 ### Fixed
