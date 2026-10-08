@@ -6,6 +6,14 @@ All notable changes to Stint are documented here. The format follows
 
 ## [Unreleased]
 
+## [0.3.4] - 2026-10-08
+
+### Changed
+- **Stint asks the server for news whenever you do something.** Any click or key press checks the
+  server (at most once every few seconds, and once more when a burst of clicks ends), as well as
+  the automatic check every 20 seconds. A new project, or being added to one, shows up for a
+  worker as soon as they click or type, instead of up to 20 seconds later.
+
 ## [0.3.3] - 2026-10-08
 
 ### Fixed
