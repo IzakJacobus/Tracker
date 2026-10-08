@@ -15,7 +15,7 @@ Pick a computer that stays on during working hours and is connected to the offic
 
 ### On Windows
 
-1. Download **`StintServer-Setup-0.3.4.exe`** and run it.
+1. Download **`StintServer-Setup-0.3.5.exe`** and run it.
    - If Windows says *"Windows protected your PC"*, click **More info → Run anyway**.
 2. Click **Next** until it finishes.
 3. A browser window opens. Carry on with step 2 below.

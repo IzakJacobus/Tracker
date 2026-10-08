@@ -6,6 +6,15 @@ All notable changes to Stint are documented here. The format follows
 
 ## [Unreleased]
 
+## [0.3.5] - 2026-10-08
+
+### Fixed
+- **Someone added to just an item couldn't pick it in Log hours.** If a person is added to an item
+  (not to the project above it), the Projects page showed the item but Log hours did not, because
+  the project and levels above it were never sent to their browser. They are now (names only,
+  nothing to log hours on), so the item is found by drilling down, or by searching.
+- Everyone's browser downloads its data again once after this update, to get the missing levels.
+
 ## [0.3.4] - 2026-10-08
 
 ### Changed

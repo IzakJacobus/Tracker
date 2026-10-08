@@ -12,7 +12,7 @@ describe("0.3 migration", () => {
     db.query(
       "INSERT INTO organization (id, name, settings, created_at, updated_at) VALUES ('org', 'Acme', ?, 0, 0)",
     ).run(JSON.stringify({ approvalPeriod: "week", weekStart: 1 }));
-    expect(migrate(db, migrations).applied).toEqual([4]);
+    expect(migrate(db, migrations).applied).toEqual([4, 5]);
     const cols = db
       .query<{ name: string }, []>("PRAGMA table_info(users)")
       .all()
@@ -23,7 +23,7 @@ describe("0.3 migration", () => {
       db.query<{ settings: string }, []>("SELECT settings FROM organization").get()!.settings,
     );
     expect(settings).toEqual({ approvalPeriod: "week", weekStart: 1, approvalDay: 0 });
-    expect(db.query("SELECT value FROM app_meta WHERE key = 'sync_epoch'").get()).toEqual({ value: "3" });
+    expect(db.query("SELECT value FROM app_meta WHERE key = 'sync_epoch'").get()).toEqual({ value: "4" });
   });
 
   test("monthly organisations are left alone", () => {
