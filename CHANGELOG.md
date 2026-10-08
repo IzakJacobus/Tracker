@@ -6,6 +6,13 @@ All notable changes to Stint are documented here. The format follows
 
 ## [Unreleased]
 
+## [0.3.2] - 2026-10-08
+
+### Fixed
+- If something breaks while Stint is drawing a screen, it now shows an error page that says what
+  happened (with text to send to your administrator), a *Reload* button, and *Start fresh on this
+  computer*. Before, the screen simply went blank.
+
 ## [0.3.1] - 2026-10-07
 
 ### Fixed
